@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --background: #e8efea;
+  --foreground: #052e1c;
+  --field: #14532d;
+  --accent: #ea580c;
+  --surface: #f4f7f5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Subtle turf grain */
+.field-atmosphere {
+  background-color: #e8efea;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(20, 83, 45, 0.18), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(234, 88, 12, 0.08), transparent),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 48px,
+      rgba(20, 83, 45, 0.03) 48px,
+      rgba(20, 83, 45, 0.03) 49px
+    );
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s ease-out both;
+}
+
+.animate-fade-up-delay {
+  animation: fade-up 0.55s ease-out 0.12s both;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.55s ease-out 0.24s both;
+}
