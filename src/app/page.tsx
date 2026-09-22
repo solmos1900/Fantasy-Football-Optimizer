@@ -34,10 +34,16 @@ export default async function HomePage() {
         <InstallHeroCta />
 
         <div className="animate-fade-up-delay-2 mt-6 flex flex-wrap items-center gap-3">
-          <Link href="/login" className={buttonVariants({ variant: "primary", size: "lg" })}>
+          <Link
+            href="/login?mode=account"
+            className={buttonVariants({ variant: "primary", size: "lg" })}
+          >
             Get started
           </Link>
-          <Link href="/login" className={buttonVariants({ variant: "ghost", size: "lg" })}>
+          <Link
+            href="/login?mode=guest"
+            className={buttonVariants({ variant: "ghost", size: "lg" })}
+          >
             Continue as Guest
           </Link>
           <InstallHowToLink className="px-2 text-sm font-semibold text-emerald-950/70 underline-offset-2 hover:text-orange-700 hover:underline" />

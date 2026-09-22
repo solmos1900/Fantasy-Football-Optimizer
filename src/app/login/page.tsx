@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, githubOAuthConfigured, googleOAuthConfigured } from "@/lib/auth";
-import { LoginActions } from "@/components/login-actions";
+import { LoginActions, type LoginFlow } from "@/components/login-actions";
 import { InstallHowToLink } from "@/components/install-app";
+
+function resolveFlow(mode: string | undefined): LoginFlow {
+  return mode === "guest" ? "guest" : "account";
+}
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; mode?: string }>;
 }) {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
   const params = await searchParams;
   const authError = params.error;
+  const flow = resolveFlow(params.mode);
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16 pt-[max(4rem,env(safe-area-inset-top,0px))]">
@@ -22,8 +27,9 @@ export default async function LoginPage({
           Gridiron IQ
         </Link>
         <p className="type-body mt-2 text-emerald-950/60">
-          Sign in with Google, GitHub, email, or continue as a guest to try the
-          product.
+          {flow === "guest"
+            ? "Continue as a guest to try the product — no account required."
+            : "Sign in with Google, GitHub, or email to sync your ESPN league."}
         </p>
 
         {authError && (
@@ -37,6 +43,7 @@ export default async function LoginPage({
           <LoginActions
             googleEnabled={googleOAuthConfigured}
             githubEnabled={githubOAuthConfigured}
+            flow={flow}
           />
         </div>
 

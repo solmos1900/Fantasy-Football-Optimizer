@@ -1,24 +1,29 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Mode = "signin" | "register";
+type FormMode = "signin" | "register";
+export type LoginFlow = "account" | "guest";
 
 export function LoginActions({
   googleEnabled,
   githubEnabled,
+  flow = "account",
 }: {
   googleEnabled: boolean;
   githubEnabled: boolean;
+  flow?: LoginFlow;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [formMode, setFormMode] = useState<FormMode>("signin");
   const [name, setName] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +40,7 @@ export function LoginActions({
     setInfo(null);
     startTransition(async () => {
       const result = await signIn("guest", {
-        name: name.trim() || "Guest",
+        name: guestName.trim() || "Guest",
         redirect: false,
       });
       if (result?.error) {
@@ -52,7 +57,7 @@ export function LoginActions({
     setInfo(null);
 
     startTransition(async () => {
-      if (mode === "register") {
+      if (formMode === "register") {
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -77,11 +82,11 @@ export function LoginActions({
 
       if (result?.error) {
         setError(
-          mode === "register"
+          formMode === "register"
             ? "Account created but sign-in failed. Try signing in."
             : "Invalid email or password.",
         );
-        if (mode === "register") setMode("signin");
+        if (formMode === "register") setFormMode("signin");
         return;
       }
 
@@ -94,6 +99,56 @@ export function LoginActions({
     startTransition(() => {
       void signIn(provider, { callbackUrl: "/dashboard" });
     });
+  }
+
+  if (flow === "guest") {
+    return (
+      <div className="space-y-5">
+        <div className="space-y-2">
+          <label className="block text-sm">
+            <span className="mb-1.5 block text-emerald-950/60">Display name</span>
+            <input
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              placeholder="Guest"
+              autoComplete="nickname"
+              className="field-input"
+            />
+          </label>
+          <Button
+            type="button"
+            variant="primary"
+            size="lg"
+            className="w-full"
+            disabled={pending}
+            loading={pending}
+            onClick={handleGuest}
+          >
+            {pending ? "Working…" : "Continue as Guest"}
+          </Button>
+          <p className="type-caption leading-relaxed text-emerald-950/50">
+            Guest mode creates a temporary session so you can connect ESPN or
+            load the demo league without an account. UI labels you as Guest.
+          </p>
+        </div>
+
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            {error}
+          </p>
+        )}
+
+        <p className="type-caption text-center text-emerald-950/50">
+          Already have an account?{" "}
+          <Link
+            href="/login?mode=account"
+            className="font-semibold text-emerald-900 underline-offset-2 hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -137,7 +192,7 @@ export function LoginActions({
           <code className="text-emerald-900">GOOGLE_CLIENT_*</code> /{" "}
           <code className="text-emerald-900">GITHUB_ID</code> +{" "}
           <code className="text-emerald-900">GITHUB_SECRET</code>) on Vercel to
-          enable them. Email/password and Guest work without those keys.
+          enable them. Email/password works without those keys.
         </p>
       )}
 
@@ -150,13 +205,13 @@ export function LoginActions({
         <button
           type="button"
           onClick={() => {
-            setMode("signin");
+            setFormMode("signin");
             setError(null);
             setInfo(null);
           }}
           className={cn(
             "rounded-lg px-2 py-1 transition-colors",
-            mode === "signin"
+            formMode === "signin"
               ? "bg-orange-50 text-orange-700"
               : "text-emerald-950/40 hover:text-emerald-950/70",
           )}
@@ -167,13 +222,13 @@ export function LoginActions({
         <button
           type="button"
           onClick={() => {
-            setMode("register");
+            setFormMode("register");
             setError(null);
             setInfo(null);
           }}
           className={cn(
             "rounded-lg px-2 py-1 transition-colors",
-            mode === "register"
+            formMode === "register"
               ? "bg-orange-50 text-orange-700"
               : "text-emerald-950/40 hover:text-emerald-950/70",
           )}
@@ -183,7 +238,7 @@ export function LoginActions({
       </div>
 
       <form onSubmit={handleCredentials} className="space-y-3">
-        {mode === "register" && (
+        {formMode === "register" && (
           <label className="block text-sm">
             <span className="mb-1.5 block text-emerald-950/60">Name</span>
             <input
@@ -213,10 +268,10 @@ export function LoginActions({
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === "register" ? "new-password" : "current-password"}
+            autoComplete={formMode === "register" ? "new-password" : "current-password"}
             className="field-input"
           />
-          {mode === "register" && (
+          {formMode === "register" && (
             <span className="type-caption mt-1.5 block text-emerald-950/45">
               At least 8 characters. Stored as a bcrypt hash.
             </span>
@@ -232,43 +287,11 @@ export function LoginActions({
         >
           {pending
             ? "Working…"
-            : mode === "register"
+            : formMode === "register"
               ? "Create account & sign in"
               : "Sign in with email"}
         </Button>
       </form>
-
-      <div className="relative py-1 text-center type-caption text-emerald-950/40">
-        <span className="relative z-10 bg-[var(--surface)] px-2">Or try first</span>
-        <span className="absolute inset-x-0 top-1/2 h-px bg-emerald-950/10" />
-      </div>
-
-      <div className="space-y-2">
-        <label className="block text-sm">
-          <span className="mb-1.5 block text-emerald-950/60">Guest display name</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Guest"
-            className="field-input"
-          />
-        </label>
-        <Button
-          type="button"
-          variant="primary"
-          size="lg"
-          className="w-full"
-          disabled={pending}
-          loading={pending}
-          onClick={handleGuest}
-        >
-          Continue as Guest
-        </Button>
-        <p className="type-caption leading-relaxed text-emerald-950/50">
-          Guest mode creates a temporary session so you can connect ESPN or load
-          the demo league without OAuth.
-        </p>
-      </div>
 
       {error && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -280,6 +303,16 @@ export function LoginActions({
           {info}
         </p>
       )}
+
+      <p className="type-caption text-center text-emerald-950/50">
+        Just browsing?{" "}
+        <Link
+          href="/login?mode=guest"
+          className="font-semibold text-emerald-900 underline-offset-2 hover:underline"
+        >
+          Try as Guest
+        </Link>
+      </p>
     </div>
   );
 }
