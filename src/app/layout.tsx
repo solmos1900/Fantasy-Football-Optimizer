@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     "SSO login, ESPN league sync, live stats, and explainable start/sit insights.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${display.variable} ${body.variable} h-full antialiased`}
+      className={`${display.variable} ${body.variable} antialiased`}
     >
-      <body className="field-atmosphere min-h-full flex flex-col text-emerald-950">
+      <body className="flex min-h-screen flex-col text-emerald-950">
         <Providers>{children}</Providers>
       </body>
     </html>

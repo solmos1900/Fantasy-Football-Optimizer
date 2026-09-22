@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn, statusColor } from "@/lib/utils";
 import type { FantasyPlayer } from "@/lib/types";
 
@@ -9,13 +10,18 @@ export function PlayerRow({
   showOwnership?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-emerald-950/5 py-2.5 last:border-0 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto]">
+    <Link
+      href={`/players/${encodeURIComponent(player.id)}`}
+      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-emerald-950/5 py-2.5 last:border-0 transition hover:bg-orange-50/50 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto]"
+    >
       <div className="hidden text-xs font-semibold uppercase tracking-wider text-emerald-950/45 sm:block">
         {player.slot ?? player.position}
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium text-emerald-950">{player.name}</span>
+          <span className="truncate font-medium text-emerald-950">
+            {player.name}
+          </span>
           <span className="text-xs text-emerald-950/50">
             {player.position} · {player.nflTeam}
           </span>
@@ -34,7 +40,8 @@ export function PlayerRow({
           {player.opponent ?? "—"}
           {showOwnership && (
             <span className="ml-2">
-              {player.percentOwned.toFixed(0)}% owned · {player.percentStarted.toFixed(0)}% started
+              {player.percentOwned.toFixed(0)}% owned ·{" "}
+              {player.percentStarted.toFixed(0)}% started
             </span>
           )}
         </div>
@@ -47,6 +54,6 @@ export function PlayerRow({
           proj {player.projectedPoints.toFixed(1)}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

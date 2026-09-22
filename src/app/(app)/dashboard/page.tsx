@@ -38,7 +38,9 @@ export default async function DashboardPage() {
     league.teams.find((t) => t.id === league.userTeamId) ??
     league.teams[0];
   const live = await getLiveStats(league);
-  const insights = generateInsights(league).slice(0, 3);
+  const allInsights = generateInsights(league);
+  const waiverCount = allInsights.filter((i) => i.type === "waiver").length;
+  const insights = allInsights.slice(0, 3);
   const matchup = league.matchups.find(
     (m) => m.homeTeamId === team?.id || m.awayTeamId === team?.id,
   );
@@ -105,6 +107,11 @@ export default async function DashboardPage() {
           <div className="mt-8">
             <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
               Top insights
+              {waiverCount > 0 && (
+                <span className="ml-2 align-middle rounded bg-orange-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                  {waiverCount} waiver{waiverCount === 1 ? "" : "s"}
+                </span>
+              )}
             </h2>
             <ul className="mt-3 space-y-3">
               {insights.map((insight) => (

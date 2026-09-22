@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth, githubOAuthConfigured, googleOAuthConfigured } from "@/lib/auth";
 import { LoginActions } from "@/components/login-actions";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
-  const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
-  const githubEnabled = Boolean(process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET);
+  const params = await searchParams;
+  const authError = params.error;
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16">
@@ -20,11 +24,22 @@ export default async function LoginPage() {
           Gridiron IQ
         </Link>
         <p className="mt-2 text-sm text-emerald-950/60">
-          Sign in to sync your ESPN league and unlock insights.
+          Sign in with Google, GitHub, email, or continue as a guest to try the
+          product.
         </p>
 
+        {authError && (
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            Sign-in error: {authError}. Try again, or use email/password or Guest
+            if OAuth is not configured.
+          </p>
+        )}
+
         <div className="mt-8 rounded-lg border border-emerald-950/10 bg-[#F4F7F5]/90 p-6 shadow-sm backdrop-blur">
-          <LoginActions googleEnabled={googleEnabled} githubEnabled={githubEnabled} />
+          <LoginActions
+            googleEnabled={googleOAuthConfigured}
+            githubEnabled={githubOAuthConfigured}
+          />
         </div>
       </div>
     </main>

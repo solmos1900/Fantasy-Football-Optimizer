@@ -148,6 +148,22 @@ function mapPlayer(
   const ownership = (player.ownership as Record<string, number> | undefined) ?? {};
   const proTeamId = Number(player.proTeamId ?? 0);
 
+  const recentWeeks = stats
+    .filter(
+      (s) =>
+        Number(s.statSourceId) === 0 &&
+        Number(s.statSplitTypeId) === 1 &&
+        Number(s.scoringPeriodId) > 0 &&
+        Number(s.scoringPeriodId) < scoringPeriodId &&
+        typeof s.appliedTotal === "number",
+    )
+    .map((s) => ({
+      week: Number(s.scoringPeriodId),
+      points: Number(s.appliedTotal),
+    }))
+    .sort((a, b) => b.week - a.week)
+    .slice(0, 4);
+
   return {
     id: `espn-${player.id ?? playerPoolEntry.id}`,
     espnId: Number(player.id ?? 0),
@@ -161,6 +177,7 @@ function mapPlayer(
     percentStarted: Number(ownership.percentStarted ?? 0),
     slot,
     isStarter: slot !== "BN" && slot !== "IR",
+    recentWeeks: recentWeeks.length ? recentWeeks : undefined,
   };
 }
 
