@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { InstallHowToLink } from "@/components/install-app";
 
 export default async function HomePage() {
   const session = await auth();
@@ -27,7 +28,7 @@ export default async function HomePage() {
           Connect your fantasy league, see projected vs actual points, and get
           explainable recommendations — not black-box magic.
         </p>
-        <div className="animate-fade-up-delay-2 mt-8 flex flex-wrap gap-3">
+        <div className="animate-fade-up-delay-2 mt-8 flex flex-wrap items-center gap-3">
           <Link
             href="/login"
             className="rounded-md bg-orange-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-500"
@@ -40,7 +41,12 @@ export default async function HomePage() {
           >
             Continue as Guest
           </Link>
+          <InstallHowToLink className="px-2 text-sm font-semibold text-emerald-950/70 underline-offset-2 hover:text-orange-700 hover:underline" />
         </div>
+        <p className="animate-fade-up-delay-2 mt-6 max-w-md text-xs leading-relaxed text-emerald-950/50">
+          Prefer an app icon? Install Gridiron IQ to your Home Screen — free,
+          three taps in Safari.
+        </p>
       </div>
     </main>
   );

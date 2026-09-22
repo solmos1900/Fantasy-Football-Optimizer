@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { InstallHowToLink } from "@/components/install-app";
 
 const LINKS = [
   { href: "/dashboard", label: "Home" },
@@ -28,7 +29,8 @@ export function AppNav() {
 
         <nav className="hidden items-center gap-1 md:flex">
           {LINKS.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const active =
+              pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link
                 key={link.href}
@@ -47,6 +49,7 @@ export function AppNav() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <InstallHowToLink className="hidden text-sm font-medium text-emerald-950/55 hover:text-orange-700 sm:inline" />
           <Link
             href="/connect"
             className="hidden text-sm font-medium text-orange-700 hover:text-orange-800 sm:inline"
@@ -87,6 +90,7 @@ export function AppNav() {
             </Link>
           );
         })}
+        <InstallHowToLink className="shrink-0 rounded-md px-3 py-1 text-xs font-medium text-orange-700" />
       </nav>
     </header>
   );

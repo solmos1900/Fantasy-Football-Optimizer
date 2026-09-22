@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, githubOAuthConfigured, googleOAuthConfigured } from "@/lib/auth";
 import { LoginActions } from "@/components/login-actions";
+import { InstallHowToLink } from "@/components/install-app";
 
 export default async function LoginPage({
   searchParams,
@@ -41,6 +42,10 @@ export default async function LoginPage({
             githubEnabled={githubOAuthConfigured}
           />
         </div>
+
+        <p className="mt-6 text-center text-xs text-emerald-950/50">
+          Want a Home Screen icon? <InstallHowToLink />
+        </p>
       </div>
     </main>
   );
