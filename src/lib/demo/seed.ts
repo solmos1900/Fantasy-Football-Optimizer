@@ -4,6 +4,7 @@ import type {
   LeagueData,
   Matchup,
   LiveStatSnapshot,
+  PlayerRole,
 } from "@/lib/types";
 
 function p(
@@ -29,6 +30,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ MIA",
     slot: "QB",
     isStarter: true,
+    role: "qb",
+    recentWeeks: [
+      { week: 4, points: 28.4, opponent: "@ BAL" },
+      { week: 5, points: 19.2, opponent: "vs HOU" },
+      { week: 6, points: 24.1, opponent: "@ NYJ" },
+    ],
   }),
   p({
     espnId: 4429795,
@@ -43,6 +50,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs NE",
     slot: "RB",
     isStarter: true,
+    role: "rb1",
+    recentWeeks: [
+      { week: 4, points: 11.2, opponent: "vs DEN" },
+      { week: 5, points: 16.8, opponent: "@ MIN" },
+      { week: 6, points: 8.4, opponent: "vs BUF" },
+    ],
   }),
   p({
     espnId: 4430807,
@@ -57,6 +70,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ GB",
     slot: "RB",
     isStarter: true,
+    role: "rb1",
+    recentWeeks: [
+      { week: 4, points: 22.6, opponent: "vs SEA" },
+      { week: 5, points: 14.1, opponent: "@ DAL" },
+      { week: 6, points: 18.9, opponent: "vs CIN" },
+    ],
   }),
   p({
     espnId: 4362626,
@@ -71,6 +90,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs NYG",
     slot: "WR",
     isStarter: true,
+    role: "wr_outside",
+    recentWeeks: [
+      { week: 4, points: 9.8, opponent: "@ NYG" },
+      { week: 5, points: 17.4, opponent: "vs PIT" },
+      { week: 6, points: 11.2, opponent: "vs DET" },
+    ],
   }),
   p({
     espnId: 4426385,
@@ -85,6 +110,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ GB",
     slot: "WR",
     isStarter: true,
+    role: "wr_slot",
+    recentWeeks: [
+      { week: 4, points: 15.2, opponent: "vs SEA" },
+      { week: 5, points: 8.1, opponent: "@ DAL" },
+      { week: 6, points: 19.6, opponent: "vs CIN" },
+    ],
   }),
   p({
     espnId: 3117251,
@@ -99,6 +130,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs LV",
     slot: "TE",
     isStarter: true,
+    role: "te",
+    recentWeeks: [
+      { week: 4, points: 7.2, opponent: "@ LAC" },
+      { week: 5, points: 12.8, opponent: "vs NO" },
+      { week: 6, points: 6.4, opponent: "@ SF" },
+    ],
   }),
   p({
     espnId: 4430878,
@@ -113,6 +150,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ SEA",
     slot: "FLEX",
     isStarter: true,
+    role: "wr_outside",
+    recentWeeks: [
+      { week: 4, points: 14.6, opponent: "vs CHI" },
+      { week: 5, points: 10.2, opponent: "@ SF" },
+      { week: 6, points: 18.1, opponent: "vs ARI" },
+    ],
   }),
   p({
     espnId: 3051890,
@@ -127,6 +170,7 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs LV",
     slot: "K",
     isStarter: true,
+    role: "k",
   }),
   p({
     espnId: -16002,
@@ -141,6 +185,7 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ MIA",
     slot: "D/ST",
     isStarter: true,
+    role: "dst",
   }),
   p({
     espnId: 4427366,
@@ -155,6 +200,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs DET",
     slot: "BN",
     isStarter: false,
+    role: "wr_slot",
+    recentWeeks: [
+      { week: 4, points: 12.4, opponent: "vs MIN" },
+      { week: 5, points: 4.1, opponent: "@ CLE" },
+      { week: 6, opponent: "vs ARI", points: 11.8 },
+    ],
   }),
   p({
     espnId: 4241389,
@@ -169,6 +220,7 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ BAL",
     slot: "BN",
     isStarter: false,
+    role: "rb2",
   }),
   p({
     espnId: 4569618,
@@ -183,6 +235,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs IND",
     slot: "BN",
     isStarter: false,
+    role: "wr_outside",
+    recentWeeks: [
+      { week: 4, points: 8.6, opponent: "@ LAR" },
+      { week: 5, points: 13.2, opponent: "vs CAR" },
+      { week: 6, points: 3.4, opponent: "@ CLE" },
+    ],
   }),
   p({
     espnId: 3916387,
@@ -197,6 +255,12 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "@ ATL",
     slot: "BN",
     isStarter: false,
+    role: "qb",
+    recentWeeks: [
+      { week: 4, points: 21.2, opponent: "vs PHI" },
+      { week: 5, points: 16.8, opponent: "@ SEA" },
+      { week: 6, points: 19.4, opponent: "vs NO" },
+    ],
   }),
   p({
     espnId: 4432708,
@@ -211,6 +275,11 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     opponent: "vs SF",
     slot: "BN",
     isStarter: false,
+    role: "rb2",
+    recentWeeks: [
+      { week: 5, points: 4.2, opponent: "@ SF" },
+      { week: 6, points: 7.8, opponent: "vs GB" },
+    ],
   }),
 ];
 

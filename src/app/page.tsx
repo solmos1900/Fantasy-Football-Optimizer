@@ -38,7 +38,7 @@ export default async function HomePage() {
             href="/login"
             className="rounded-md border border-emerald-950/20 bg-white/60 px-6 py-3 text-sm font-semibold text-emerald-950 backdrop-blur transition hover:bg-white"
           >
-            Demo login
+            Continue as Guest
           </Link>
         </div>
       </div>
