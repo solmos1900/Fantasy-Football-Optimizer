@@ -9,7 +9,7 @@ Built with **Next.js App Router**, **TypeScript**, **Tailwind CSS**, **Auth.js (
 ## Features
 
 1. **Authentication** — Google and GitHub OAuth when configured; email/password (bcrypt) registration + sign-in; **Guest** mode for try-without-account. Demo-only login is removed.
-2. **ESPN Fantasy integration** — Connect by league ID + season. Private leagues accept `SWID` + `espn_s2` cookies. Connection is persisted per user.
+2. **ESPN Fantasy integration** — Connect by league ID + season once; the connection is saved on that user (guest or signed-in). Later visits use **Sync** to refresh — you do not re-enter the League ID every session. Private leagues accept `SWID` + `espn_s2` cookies (also stored). Guest and signed-in accounts do **not** share leagues.
 3. **My Team** — Starters/bench with projected vs actual points and injury flags.
 4. **Live stats** — NFL scoreboard from ESPN’s public site API (no key). Refresh button + 60s auto-poll.
 5. **League overview** — Standings, matchups, and every team’s roster (full league visibility for trades).
@@ -121,9 +121,23 @@ Copy `.env.example` → `.env`. **Never commit secrets.**
 | Prior-week form | ESPN player weekly `stats` when present; demo seed includes `recentWeeks` |
 | Defense vs similar players | League-wide `recentWeeks` vs opponent + seeded defense history table |
 | Injury / news | ESPN public site news + injuries APIs; roster injury flags as fallback — **never invented** |
-| Trades | Rule engine over all league rosters (positional surplus/need, projection parity) |
+| Trades | `src/lib/insights/trades.ts` — 1QB PPR norms (hard rejects + scoring) |
 
-Engine: `src/lib/insights/engine.ts` + `src/lib/insights/defense-matchups.ts`. No paid LLM dependency.
+Engine: `src/lib/insights/engine.ts` + `trades.ts` + `defense-matchups.ts`. No paid LLM dependency.
+
+### Trade recommendation rules (1QB PPR)
+
+Encoded from common r/fantasyfootball / Trade Analyzer norms — not raw projection swaps:
+
+**Hard rejects**
+- No 1-for-1 QB ↔ WR/RB/TE (streaming QBs are deep; elite skill is scarce).
+- No tier gaps of 2+ on 1:1s; no chip-value ratio above ~1.55 (QBs heavily discounted).
+
+**Preferred**
+- Same-position or skill↔skill surplus→need fills.
+- 2-for-1 / 1-for-2 when values are uneven.
+- QB only as a package sweetener (QB + skill ↔ elite skill) when the partner needs QB.
+- Each card includes a short “why this gets accepted” for both managers.
 
 ---
 
@@ -168,7 +182,8 @@ src/app/api/auth/register/route.ts Email registration
 src/lib/espn/client.ts             ESPN Fantasy + scoreboard + recent weekly stats
 src/lib/espn/news.ts               ESPN public news / injuries
 src/lib/stats/provider.ts          Live stats (ESPN public or demo fallback)
-src/lib/insights/engine.ts         Start/sit, trades, other heuristics
+src/lib/insights/engine.ts         Start/sit, news, matchup notes, other
+src/lib/insights/trades.ts         Realistic 1QB PPR trade filter/scoring
 src/lib/insights/defense-matchups.ts Similar-player vs defense history
 src/lib/league/service.ts          Persist/connect/sync per user
 src/lib/demo/seed.ts               Mock league for guest / demo connect
@@ -181,13 +196,13 @@ Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/connect`, `/
 ## Feature walkthrough
 
 1. **Login** with Google, GitHub, email/password, or **Guest**.
-2. **Connect** → Load demo league *or* enter ESPN League ID (+ cookies if private).
-3. **Home** — team snapshot, top insights, live scoreboard with Refresh.
+2. **Connect** → Load demo *or* enter ESPN League ID once (+ cookies if private). Saved on your account.
+3. **Home** — team snapshot, top insights, live scoreboard with Refresh + **Sync**.
 4. **My Team** — starters vs bench, proj/actual, injury badges.
-5. **League** — standings, matchups, every roster.
+5. **League** — standings, matchups, every roster + **Sync** (no re-entry of League ID).
 6. **Players** — search/filter owned + free agents.
-7. **Insights** — Start/Sit, Trades, News, Matchup notes, and supporting signals.
-8. **Sync now** — re-fetch ESPN (or re-seed demo).
+7. **Insights** — Start/Sit, Trades (PPR norms), News, Matchup notes, and supporting signals.
+8. **Sync** (Home / League / Connect) — re-fetch ESPN or re-seed demo from the saved connection.
 
 ---
 

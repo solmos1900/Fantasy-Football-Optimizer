@@ -13,6 +13,7 @@ import {
   inferPlayerRole,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
+import { buildRealisticTrades } from "@/lib/insights/trades";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -240,195 +241,6 @@ function buildMatchupNotes(
   return out;
 }
 
-function buildTrades(
-  league: LeagueData,
-  team: FantasyTeam,
-): InsightRecommendation[] {
-  const out: InsightRecommendation[] = [];
-  const others = league.teams.filter((t) => t.id !== team.id);
-
-  const surplus = (t: FantasyTeam, pos: PlayerPosition) =>
-    t.roster
-      .filter(
-        (p) =>
-          p.position === pos && !["OUT", "IR"].includes(p.injuryStatus),
-      )
-      .sort((a, b) => b.projectedPoints - a.projectedPoints);
-
-  const bestStarter = (t: FantasyTeam, pos: PlayerPosition) =>
-    startersOf(t)
-      .filter((p) => p.position === pos)
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)[0];
-
-  const myWeak = SKILL_POSITIONS.filter((pos) => {
-    const mine = avgProjected([team], pos);
-    const leagueAvg = avgProjected(league.teams, pos);
-    return leagueAvg > 0 && mine < leagueAvg - 1.5;
-  });
-
-  const myStrong = SKILL_POSITIONS.filter((pos) => {
-    const d = depthAt(team, pos);
-    const mine = avgProjected([team], pos);
-    const leagueAvg = avgProjected(league.teams, pos);
-    return d >= 3 || (leagueAvg > 0 && mine > leagueAvg + 1.5);
-  });
-
-  for (const other of others) {
-    for (const givePos of myStrong) {
-      for (const getPos of myWeak) {
-        if (givePos === getPos) continue;
-
-        const theirDepthGive = depthAt(other, givePos);
-        const theirStarterGive = bestStarter(other, givePos);
-        if (
-          theirDepthGive >= 3 &&
-          (theirStarterGive?.projectedPoints ?? 0) >= 12
-        ) {
-          continue;
-        }
-        if (depthAt(other, getPos) < 2) continue;
-
-        const give = surplus(team, givePos).slice(1)[0];
-        const receive = surplus(other, getPos).find((p) => p.projectedPoints >= 6);
-        if (!give || !receive) continue;
-
-        const delta = Math.abs(give.projectedPoints - receive.projectedPoints);
-        if (delta > 5) continue;
-
-        const whyYou = [
-          `You are thin at ${getPos} (starter avg ${avgProjected([team], getPos).toFixed(1)} vs league ${avgProjected(league.teams, getPos).toFixed(1)}).`,
-          `Adding ${receive.name} (${receive.projectedPoints.toFixed(1)} proj) upgrades your ${getPos} group.`,
-          `You can spare ${give.name} — ${depthAt(team, givePos) - 1} other healthy ${givePos}s remain.`,
-        ];
-        const formR = recentFormSummary(receive);
-        if (formR) whyYou.push(formR);
-        const defR = analyzeDefenseMatchup(receive, rosterPool(league));
-        if (defR) whyYou.push(`This week for ${receive.name}: ${defR.summary}`);
-
-        const whyThem = [
-          `${other.name} is lighter at ${givePos} (depth ${theirDepthGive}; best starter ${theirStarterGive?.name ?? "n/a"} at ${theirStarterGive?.projectedPoints.toFixed(1) ?? "—"}).`,
-          `Receiving ${give.name} (${give.projectedPoints.toFixed(1)} proj) fills that need.`,
-          `They keep surplus at ${getPos} after sending ${receive.name} (remaining depth ${depthAt(other, getPos) - 1}).`,
-        ];
-        const formG = recentFormSummary(give);
-        if (formG) whyThem.push(`${give.name} — ${formG}`);
-
-        out.push({
-          id: `trade-${other.id}-${give.id}-${receive.id}`,
-          type: "trade",
-          priority: delta <= 2 ? "high" : "medium",
-          title: `Trade ${give.name} ↔ ${receive.name} with ${other.name}`,
-          summary: `Even ${givePos}-for-${getPos} swap: you get help at ${getPos}, they get help at ${givePos}.`,
-          reasoning: [
-            ...whyYou.map((r) => `For you: ${r}`),
-            ...whyThem.map((r) => `For them: ${r}`),
-            `Projection gap ${delta.toFixed(1)} pts — framed as mutually beneficial, not a smash-and-grab.`,
-          ],
-          relatedPlayerIds: [give.id, receive.id],
-          relatedPositions: [givePos, getPos],
-          trade: {
-            partnerTeamId: other.id,
-            partnerTeamName: other.name,
-            give: [{ id: give.id, name: give.name, position: give.position }],
-            receive: [
-              { id: receive.id, name: receive.name, position: receive.position },
-            ],
-            whyYou,
-            whyThem,
-          },
-        });
-      }
-    }
-  }
-
-  for (const other of others.slice(0, 4)) {
-    const theirStar = startersOf(other)
-      .filter(
-        (p) => SKILL_POSITIONS.includes(p.position) && p.projectedPoints >= 14,
-      )
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)[0];
-    if (!theirStar) continue;
-    if (
-      !myWeak.includes(theirStar.position) &&
-      depthAt(team, theirStar.position) >= 2
-    ) {
-      continue;
-    }
-
-    const packagePlayers = benchOf(team)
-      .filter(
-        (p) =>
-          p.position !== theirStar.position &&
-          p.projectedPoints >= 7 &&
-          !["OUT", "IR"].includes(p.injuryStatus),
-      )
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)
-      .slice(0, 2);
-    if (packagePlayers.length < 2) continue;
-
-    const packageProj = packagePlayers.reduce((a, p) => a + p.projectedPoints, 0);
-    if (packageProj < theirStar.projectedPoints - 1) continue;
-    if (packageProj > theirStar.projectedPoints + 6) continue;
-
-    const helpsThem = packagePlayers.every((p) => {
-      const d = depthAt(other, p.position);
-      const best = bestStarter(other, p.position);
-      return d <= 2 || (best?.projectedPoints ?? 99) < p.projectedPoints;
-    });
-    if (!helpsThem) continue;
-
-    const whyYou = [
-      `${theirStar.name} immediately upgrades your ${theirStar.position} (proj ${theirStar.projectedPoints.toFixed(1)}).`,
-      `You send depth pieces ${packagePlayers.map((p) => p.name).join(" + ")} that you can afford to move.`,
-    ];
-    const whyThem = [
-      `${other.name} receives two usable pieces (${packagePlayers.map((p) => `${p.name} ${p.projectedPoints.toFixed(1)}`).join(", ")}) totaling ${packageProj.toFixed(1)} proj.`,
-      `Those fills address thinner spots while ${theirStar.name} was a luxury starter.`,
-    ];
-
-    out.push({
-      id: `trade-2for1-${other.id}-${theirStar.id}`,
-      type: "trade",
-      priority: "medium",
-      title: `Package ${packagePlayers.map((p) => p.name).join(" + ")} for ${theirStar.name}`,
-      summary: `2-for-1 with ${other.name}: you buy a stud ${theirStar.position}, they gain depth.`,
-      reasoning: [
-        ...whyYou.map((r) => `For you: ${r}`),
-        ...whyThem.map((r) => `For them: ${r}`),
-      ],
-      relatedPlayerIds: [theirStar.id, ...packagePlayers.map((p) => p.id)],
-      trade: {
-        partnerTeamId: other.id,
-        partnerTeamName: other.name,
-        give: packagePlayers.map((p) => ({
-          id: p.id,
-          name: p.name,
-          position: p.position,
-        })),
-        receive: [
-          {
-            id: theirStar.id,
-            name: theirStar.name,
-            position: theirStar.position,
-          },
-        ],
-        whyYou,
-        whyThem,
-      },
-    });
-  }
-
-  const seen = new Set<string>();
-  const unique: InsightRecommendation[] = [];
-  for (const insight of out.sort(byPriority)) {
-    if (seen.has(insight.id)) continue;
-    seen.add(insight.id);
-    unique.push(insight);
-    if (unique.length >= 6) break;
-  }
-  return unique;
-}
-
 function buildOther(
   league: LeagueData,
   team: FantasyTeam,
@@ -597,7 +409,7 @@ export function buildInsightsBundle(
 
   return {
     startSit: buildStartSit(league, team),
-    trades: buildTrades(league, team),
+    trades: buildRealisticTrades(league, team),
     news: newsToInsights(newsItems),
     matchupNotes: buildMatchupNotes(league, team),
     other: buildOther(league, team),

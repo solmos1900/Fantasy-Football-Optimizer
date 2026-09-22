@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { formatRecord } from "@/lib/utils";
 import { PlayerRow } from "@/components/player-row";
+import { SyncButton } from "@/components/sync-button";
 
 export default async function LeaguePage() {
   const session = await auth();
@@ -32,13 +33,24 @@ export default async function LeaguePage() {
 
   return (
     <div className="space-y-10">
-      <div className="animate-fade-up">
-        <p className="text-xs font-semibold uppercase tracking-wider text-orange-700">
-          Season {league.season}
-        </p>
-        <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-wide text-emerald-950">
-          {league.name}
-        </h1>
+      <div className="animate-fade-up flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-orange-700">
+            Season {league.season}
+            {league.isDemo ? " · Demo" : " · ESPN"}
+          </p>
+          <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-wide text-emerald-950">
+            {league.name}
+          </h1>
+          <p className="mt-1 text-sm text-emerald-950/55">
+            Saved on your account · Last sync{" "}
+            {new Date(league.lastSyncedAt).toLocaleString()} ·{" "}
+            <Link href="/connect" className="font-semibold text-orange-700 hover:text-orange-600">
+              Manage connection
+            </Link>
+          </p>
+        </div>
+        <SyncButton />
       </div>
 
       <section className="animate-fade-up-delay">

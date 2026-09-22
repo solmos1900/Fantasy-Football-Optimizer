@@ -11,9 +11,11 @@ export default async function AppLayout({
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-transparent">
       <AppNav />
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</div>
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-16">
+        {children}
+      </div>
     </div>
   );
 }
