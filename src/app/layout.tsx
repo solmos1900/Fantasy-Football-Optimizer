@@ -31,6 +31,11 @@ export const metadata: Metadata = {
     title: "Gridiron IQ",
     statusBarStyle: "default",
   },
+  // Next.js emits mobile-web-app-capable; keep the Apple-prefixed tag too
+  // for older iOS Safari Add to Home Screen behavior.
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
   formatDetection: {
     telephone: false,
   },
