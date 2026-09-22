@@ -15,7 +15,19 @@ export interface PlayerDetailInsight {
   dataThin: boolean;
   matchupSummary: string | null;
   formSummary: string | null;
-  comps: { week: number; playerName: string; points: number; role: string }[];
+  comps: {
+    week: number;
+    playerName: string;
+    points: number;
+    role: string;
+    /** Concrete sentence: who scored what vs that defense in which week */
+    blurb: string;
+  }[];
+  venue: {
+    abbrev: string | null;
+    venue: "home" | "away" | "unknown";
+    label: string;
+  };
 }
 
 function pool(league: LeagueData): FantasyPlayer[] {
@@ -41,6 +53,72 @@ function roleLabel(role: string): string {
   }
 }
 
+function positionPhrase(position: PlayerPosition, role: string): string {
+  if (position === "WR") {
+    if (role === "wr_slot") return "slot wide receiver";
+    if (role === "wr_outside") return "outside wide receiver";
+    return "wide receiver";
+  }
+  if (position === "RB") return role === "rb2" ? "RB2 / committee back" : "running back";
+  if (position === "QB") return "quarterback";
+  if (position === "TE") return "tight end";
+  return position;
+}
+
+export function parseVenue(opponent?: string): {
+  abbrev: string | null;
+  venue: "home" | "away" | "unknown";
+  label: string;
+} {
+  if (!opponent?.trim()) {
+    return { abbrev: null, venue: "unknown", label: "Opponent TBD" };
+  }
+  const raw = opponent.trim();
+  const venue = raw.startsWith("@")
+    ? "away"
+    : /^vs\.?\s+/i.test(raw)
+      ? "home"
+      : "unknown";
+  const abbrev = raw
+    .replace(/^vs\.?\s*/i, "")
+    .replace(/^@\s*/i, "")
+    .trim()
+    .toUpperCase();
+  const label =
+    venue === "away"
+      ? `@ ${abbrev}`
+      : venue === "home"
+        ? `vs ${abbrev}`
+        : abbrev;
+  return { abbrev: abbrev || null, venue, label };
+}
+
+function toComps(
+  player: FantasyPlayer,
+  defenseAbbrev: string | null,
+  samples: {
+    week: number;
+    playerName: string;
+    points: number;
+    role: string;
+    position?: PlayerPosition;
+  }[],
+) {
+  return samples.slice(0, 4).map((s) => {
+    const role = roleLabel(s.role);
+    const phrase = positionPhrase(s.position ?? player.position, s.role);
+    const def = defenseAbbrev ?? "that";
+    const blurb = `${s.playerName} (${phrase}) only got ${s.points.toFixed(1)} PPR against the ${def} defense in week ${s.week}.`;
+    return {
+      week: s.week,
+      playerName: s.playerName,
+      points: s.points,
+      role,
+      blurb,
+    };
+  });
+}
+
 /**
  * Start/Sit lean for a single player using projection, recent form, injury,
  * and similar-player vs defense comps. Never invents points — only stored
@@ -53,6 +131,8 @@ export function buildPlayerDetailInsight(
   const matchup = analyzeDefenseMatchup(player, pool(league));
   const form = recentFormSummary(player);
   const recentAvg = averageRecentPoints(player.recentWeeks);
+  const venue = parseVenue(player.opponent);
+  const defenseAbbrev = venue.abbrev ?? matchup?.opponent ?? null;
   const reasons: string[] = [];
   let dataThin = false;
 
@@ -67,12 +147,8 @@ export function buildPlayerDetailInsight(
       dataThin: false,
       matchupSummary: matchup?.summary ?? null,
       formSummary: form,
-      comps: (matchup?.samples ?? []).slice(0, 4).map((s) => ({
-        week: s.week,
-        playerName: s.playerName,
-        points: s.points,
-        role: roleLabel(s.role),
-      })),
+      comps: toComps(player, defenseAbbrev, matchup?.samples ?? []),
+      venue,
     };
   }
 
@@ -87,7 +163,7 @@ export function buildPlayerDetailInsight(
   }
 
   reasons.push(
-    `This week projection: ${player.projectedPoints.toFixed(1)} PPR${player.opponent ? ` (${player.opponent})` : ""}.`,
+    `This week projection: ${player.projectedPoints.toFixed(1)} PPR (${venue.label}).`,
   );
 
   if (recentAvg != null) {
@@ -103,13 +179,7 @@ export function buildPlayerDetailInsight(
 
   if (form) reasons.push(form);
 
-  const comps =
-    matchup?.samples.slice(0, 4).map((s) => ({
-      week: s.week,
-      playerName: s.playerName,
-      points: s.points,
-      role: roleLabel(s.role),
-    })) ?? [];
+  const comps = toComps(player, defenseAbbrev, matchup?.samples ?? []);
 
   if (matchup) {
     reasons.push(matchup.summary);
@@ -154,6 +224,7 @@ export function buildPlayerDetailInsight(
     matchupSummary: matchup?.summary ?? null,
     formSummary: form,
     comps,
+    venue,
   };
 }
 

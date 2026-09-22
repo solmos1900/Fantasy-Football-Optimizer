@@ -87,7 +87,7 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     actualPoints: 12.3,
     percentOwned: 99.5,
     percentStarted: 96.0,
-    opponent: "vs NYG",
+    opponent: "@ CLE",
     slot: "WR",
     isStarter: true,
     role: "wr_outside",

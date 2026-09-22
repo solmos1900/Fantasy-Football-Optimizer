@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
+import { getLiveStats } from "@/lib/stats/provider";
 import {
   buildPlayerDetailInsight,
   findPlayerInLeague,
@@ -46,12 +47,23 @@ export default async function PlayerDetailPage({
 
   const { player, teamName } = found;
   const insight = buildPlayerDetailInsight(league, player);
+  const live = await getLiveStats(league);
   const recent = [...(player.recentWeeks ?? [])]
     .sort((a, b) => b.week - a.week)
     .slice(0, 6);
 
+  const liveGame = live.games.find(
+    (g) => g.home === player.nflTeam || g.away === player.nflTeam,
+  );
+  const livePoints =
+    player.actualPoints > 0
+      ? player.actualPoints
+      : live.topPerformers.find(
+          (p) => p.playerName.toLowerCase() === player.name.toLowerCase(),
+        )?.points;
+
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-8 pb-8">
       <div className="animate-fade-up">
         <Link
           href="/team"
@@ -60,7 +72,7 @@ export default async function PlayerDetailPage({
           ← My Team
         </Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
               {player.position} · {player.nflTeam}
               {teamName ? ` · ${teamName}` : " · Free agent"}
@@ -70,7 +82,7 @@ export default async function PlayerDetailPage({
               {player.name}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-950/60">
-              <span>{player.opponent ?? "Opponent TBD"}</span>
+              <span>{insight.venue.label}</span>
               {player.injuryStatus !== "ACTIVE" && (
                 <span
                   className={cn(
@@ -92,7 +104,9 @@ export default async function PlayerDetailPage({
               This week
             </p>
             <p className="font-[family-name:var(--font-display)] text-3xl text-orange-600">
-              {player.actualPoints > 0 ? player.actualPoints.toFixed(1) : "—"}
+              {livePoints != null && livePoints > 0
+                ? livePoints.toFixed(1)
+                : "—"}
             </p>
             <p className="text-xs text-emerald-950/50">
               proj {player.projectedPoints.toFixed(1)}
@@ -140,6 +154,57 @@ export default async function PlayerDetailPage({
 
       <section className="animate-fade-up-delay-2">
         <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
+          This week&apos;s matchup
+        </h2>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs uppercase tracking-wider text-emerald-950/45">
+              Opponent / venue
+            </dt>
+            <dd className="mt-0.5 font-medium text-emerald-950">
+              {insight.venue.label}
+              {insight.venue.venue === "away"
+                ? " (road)"
+                : insight.venue.venue === "home"
+                  ? " (home)"
+                  : ""}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wider text-emerald-950/45">
+              Injury
+            </dt>
+            <dd className="mt-0.5 font-medium text-emerald-950">
+              {player.injuryStatus}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wider text-emerald-950/45">
+              Scoreboard
+            </dt>
+            <dd className="mt-0.5 font-medium text-emerald-950">
+              {liveGame
+                ? `${liveGame.away} ${liveGame.awayScore} @ ${liveGame.home} ${liveGame.homeScore} · ${liveGame.status === "in_progress" ? `${liveGame.quarter ?? "LIVE"} ${liveGame.clock ?? ""}` : liveGame.status}`
+                : "No live game found for this NFL team right now"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wider text-emerald-950/45">
+              Snapshot
+            </dt>
+            <dd className="mt-0.5 text-emerald-950/70">
+              Live board refreshed {new Date(live.updatedAt).toLocaleTimeString()}{" "}
+              · week {live.week}
+            </dd>
+          </div>
+        </dl>
+        {insight.matchupSummary && (
+          <p className="mt-3 text-sm text-emerald-950/70">{insight.matchupSummary}</p>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
           Recent weeks
         </h2>
         {recent.length === 0 ? (
@@ -181,8 +246,8 @@ export default async function PlayerDetailPage({
           Similar players vs this defense
         </h2>
         <p className="mt-1 text-sm text-emerald-950/55">
-          Same position / role vs {player.opponent ?? "this week’s opponent"} in
-          prior weeks (league history + seeded comps). Concrete point totals —
+          Same position / role vs {insight.venue.abbrev ?? "this opponent"} in
+          prior weeks. Concrete point totals from league history + seeded comps —
           not guesses.
         </p>
         {insight.comps.length === 0 ? (
@@ -190,32 +255,23 @@ export default async function PlayerDetailPage({
             No comparable samples yet for this matchup.
           </p>
         ) : (
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 space-y-3">
             {insight.comps.map((c) => (
               <li
                 key={`${c.week}-${c.playerName}`}
-                className="border-b border-emerald-950/5 py-2 text-sm text-emerald-950/80"
+                className="border-b border-emerald-950/5 py-2 text-sm leading-relaxed text-emerald-950/80"
               >
-                <span className="font-semibold text-emerald-950">
-                  {c.playerName}
-                </span>{" "}
-                ({c.role}) scored{" "}
-                <span className="font-[family-name:var(--font-display)] text-lg text-orange-600">
-                  {c.points.toFixed(1)}
-                </span>{" "}
-                in week {c.week}.
+                {c.blurb}
               </li>
             ))}
           </ul>
         )}
-        {insight.matchupSummary && (
-          <p className="mt-3 text-sm text-emerald-950/65">{insight.matchupSummary}</p>
-        )}
       </section>
 
       <p className="text-xs text-emerald-950/45">
-        Numbers refresh when you Sync the league. Live actuals update with the
-        scoreboard poll on Home.
+        Open this page anytime for a fresh pull. Sync the league to refresh
+        roster/injury projections; the scoreboard poll on Home keeps live games
+        current.
       </p>
     </div>
   );
