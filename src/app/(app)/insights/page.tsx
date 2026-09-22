@@ -15,7 +15,10 @@ import type { InsightRecommendation } from "@/lib/types";
 function InsightCard({ insight }: { insight: InsightRecommendation }) {
   return (
     <article
-      className={cn("border-l-4 py-3 pl-4 pr-2", priorityColor(insight.priority))}
+      className={cn(
+        "rounded-xl border border-emerald-950/8 border-l-4 py-3.5 pl-4 pr-3 shadow-sm",
+        priorityColor(insight.priority),
+      )}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded bg-emerald-950/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/70">
@@ -133,13 +136,13 @@ function Section({
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-emerald-950/55">{description}</p>
+        <h2 className="type-section text-emerald-950">{title}</h2>
+        <p className="type-caption mt-1 text-emerald-950/55">{description}</p>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-emerald-950/50">{empty}</p>
+        <p className="rounded-xl border border-dashed border-emerald-950/10 bg-white/40 px-4 py-3 text-sm text-emerald-950/50">
+          {empty}
+        </p>
       ) : (
         items.map((insight) => <InsightCard key={insight.id} insight={insight} />)
       )}
@@ -156,12 +159,10 @@ export default async function InsightsPage() {
   if (!league) {
     return (
       <div className="max-w-lg">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase tracking-wide">
-          Insights
-        </h1>
-        <p className="mt-2 text-sm text-emerald-950/65">
-          Connect a league (or load the demo league as a guest) to unlock
-          start/sit, mutual trades, waiver-wire shark, injury/news, and defense matchup history.
+        <h1 className="type-page text-emerald-950">Insights</h1>
+        <p className="type-body mt-2 text-emerald-950/65">
+          Connect a league (or load the demo as a guest) to unlock start/sit,
+          trades, waivers, news, and defense matchup history.
         </p>
         <Link
           href="/connect"
@@ -183,33 +184,30 @@ export default async function InsightsPage() {
   const averages = leaguePositionalAverages(league);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 sm:space-y-10">
       <div className="animate-fade-up">
-        <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-wide text-emerald-950">
-          Insights
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-950/65">
-          Rule-based start/sit, waiver-wire shark, and league-aware trades with transparent reasons —
-          projections, recent form, injury status, and how similar players fared
-          against this week&apos;s defense. News comes from ESPN public feeds
-          (never invented).
+        <h1 className="type-page text-emerald-950">Insights</h1>
+        <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
+          Rule-based start/sit, waivers, and trades with transparent reasons —
+          projections, recent form, injury, and defense history. News comes from
+          ESPN public feeds (never invented).
         </p>
         {league.isDemo && (
-          <p className="mt-2 text-xs font-medium uppercase tracking-wider text-orange-700">
+          <p className="type-eyebrow mt-3 text-orange-700">
             Demo league data — guest-friendly
           </p>
         )}
       </div>
 
-      <section className="animate-fade-up-delay">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
+      <section className="animate-fade-up-delay surface-card p-5">
+        <h2 className="type-eyebrow mb-3 text-emerald-950/45">
           League avg starter projection
         </h2>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-5">
           {Object.entries(averages).map(([pos, avg]) => (
             <div key={pos}>
-              <span className="text-xs text-emerald-950/50">{pos}</span>
-              <p className="font-[family-name:var(--font-display)] text-2xl text-emerald-950">
+              <span className="type-caption text-emerald-950/50">{pos}</span>
+              <p className="type-stat text-2xl text-emerald-950">
                 {avg.toFixed(1)}
               </p>
             </div>
@@ -260,7 +258,7 @@ export default async function InsightsPage() {
       />
 
       <section>
-        <h2 className="mb-3 font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide">
+        <h2 className="type-section mb-3 text-emerald-950">
           Full league snapshot
         </h2>
         <p className="mb-4 text-sm text-emerald-950/55">
@@ -293,7 +291,7 @@ export default async function InsightsPage() {
                       t.isCurrentUser && "bg-orange-50/60",
                     )}
                   >
-                    <td className="py-2.5 pr-2 font-[family-name:var(--font-display)] text-lg">
+                    <td className="py-2.5 pr-2 type-stat text-lg">
                       {t.standing}
                     </td>
                     <td className="py-2.5 pr-2 font-medium">

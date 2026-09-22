@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import type { LiveStatSnapshot } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
   const [live, setLive] = useState(initial);
@@ -28,35 +29,37 @@ export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
   }, [refresh]);
 
   return (
-    <section className="animate-fade-up">
-      <div className="mb-3 flex items-end justify-between gap-3">
+    <section className="surface-card animate-fade-up p-5">
+      <div className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
+          <h2 className="type-section text-emerald-950">
             Live week {live.week}
           </h2>
-          <p className="text-sm text-emerald-950/55">
+          <p className="type-caption mt-0.5 text-emerald-950/55">
             Updated {new Date(live.updatedAt).toLocaleTimeString()}
           </p>
         </div>
-        <button
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           onClick={refresh}
           disabled={pending}
-          className="rounded-md bg-emerald-950 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-50 transition hover:bg-emerald-900 disabled:opacity-60"
+          loading={pending}
         >
           {pending ? "Refreshing…" : "Refresh"}
-        </button>
+        </Button>
       </div>
 
       {error && <p className="mb-2 text-sm text-red-700">{error}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         {live.games.map((g) => (
           <div
             key={g.id}
-            className="border-b border-emerald-950/10 pb-3 pt-1"
+            className="rounded-xl border border-emerald-950/8 bg-white/50 px-3 py-2.5"
           >
-            <div className="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-emerald-950/45">
+            <div className="mb-1.5 flex items-center justify-between type-caption font-semibold text-emerald-950/45">
               <span>
                 {g.status === "in_progress"
                   ? `${g.quarter ?? ""} ${g.clock ?? ""}`.trim() || "LIVE"
@@ -73,15 +76,11 @@ export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
             </div>
             <div className="flex items-center justify-between font-medium text-emerald-950">
               <span>{g.away}</span>
-              <span className="font-[family-name:var(--font-display)] text-xl">
-                {g.awayScore}
-              </span>
+              <span className="type-stat text-xl">{g.awayScore}</span>
             </div>
             <div className="flex items-center justify-between font-medium text-emerald-950">
               <span>{g.home}</span>
-              <span className="font-[family-name:var(--font-display)] text-xl">
-                {g.homeScore}
-              </span>
+              <span className="type-stat text-xl">{g.homeScore}</span>
             </div>
           </div>
         ))}
@@ -89,9 +88,7 @@ export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
 
       {live.topPerformers.length > 0 && (
         <div className="mt-6">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
-            Top scorers
-          </h3>
+          <h3 className="type-eyebrow mb-2 text-emerald-950/45">Top scorers</h3>
           <ul className="space-y-1.5">
             {live.topPerformers.map((p) => (
               <li
@@ -104,7 +101,7 @@ export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
                     {p.position} · {p.team}
                   </span>
                 </span>
-                <span className="font-[family-name:var(--font-display)] text-lg text-orange-600">
+                <span className="type-stat text-lg text-orange-600">
                   {p.points.toFixed(1)}
                 </span>
               </li>

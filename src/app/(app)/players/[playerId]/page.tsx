@@ -25,7 +25,7 @@ export default async function PlayerDetailPage({
   if (!league) {
     return (
       <div className="max-w-lg">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl uppercase tracking-wide">
+        <h1 className="type-page text-emerald-950">
           Player
         </h1>
         <p className="mt-2 text-sm text-emerald-950/65">
@@ -78,7 +78,7 @@ export default async function PlayerDetailPage({
               {teamName ? ` · ${teamName}` : " · Free agent"}
               {league.isDemo ? " · Demo data" : " · ESPN sync"}
             </p>
-            <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-wide text-emerald-950">
+            <h1 className="type-page text-emerald-950">
               {player.name}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-950/60">
@@ -103,7 +103,7 @@ export default async function PlayerDetailPage({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-950/45">
               This week
             </p>
-            <p className="font-[family-name:var(--font-display)] text-3xl text-orange-600">
+            <p className="type-stat text-3xl text-orange-600">
               {livePoints != null && livePoints > 0
                 ? livePoints.toFixed(1)
                 : "—"}
@@ -115,11 +115,11 @@ export default async function PlayerDetailPage({
         </div>
       </div>
 
-      <section className="animate-fade-up-delay rounded-lg border border-emerald-950/10 bg-white/70 p-4">
+      <section className="animate-fade-up-delay surface-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white",
+              "rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white",
               insight.lean === "START"
                 ? "bg-emerald-700"
                 : insight.lean === "FLEX"
@@ -129,7 +129,7 @@ export default async function PlayerDetailPage({
           >
             {insight.lean}
           </span>
-          <h2 className="font-[family-name:var(--font-display)] text-xl uppercase tracking-wide text-emerald-950">
+          <h2 className="type-section text-emerald-950">
             {insight.headline}
           </h2>
         </div>
@@ -153,7 +153,7 @@ export default async function PlayerDetailPage({
       </section>
 
       <section className="animate-fade-up-delay-2">
-        <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
+        <h2 className="type-section text-emerald-950">
           This week&apos;s matchup
         </h2>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
@@ -204,7 +204,7 @@ export default async function PlayerDetailPage({
       </section>
 
       <section>
-        <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
+        <h2 className="type-section text-emerald-950">
           Recent weeks
         </h2>
         {recent.length === 0 ? (
@@ -224,7 +224,7 @@ export default async function PlayerDetailPage({
               <tbody>
                 {recent.map((w) => (
                   <tr key={w.week} className="border-b border-emerald-950/5">
-                    <td className="py-2 pr-2 font-[family-name:var(--font-display)] text-lg">
+                    <td className="py-2 pr-2 type-stat text-lg">
                       {w.week}
                     </td>
                     <td className="py-2 pr-2 text-emerald-950/70">
@@ -242,7 +242,7 @@ export default async function PlayerDetailPage({
       </section>
 
       <section>
-        <h2 className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950">
+        <h2 className="type-section text-emerald-950">
           Similar players vs this defense
         </h2>
         <p className="mt-1 text-sm text-emerald-950/55">

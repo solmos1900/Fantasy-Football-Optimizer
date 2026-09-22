@@ -3,6 +3,8 @@
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type Mode = "signin" | "register";
 
@@ -99,30 +101,36 @@ export function LoginActions({
       {(googleEnabled || githubEnabled) && (
         <div className="space-y-2">
           {googleEnabled && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full"
               disabled={pending}
+              loading={pending}
               onClick={() => handleOAuth("google")}
-              className="flex w-full items-center justify-center rounded-md border border-emerald-950/15 bg-white px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-50 disabled:opacity-60"
             >
               Continue with Google
-            </button>
+            </Button>
           )}
           {githubEnabled && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="lg"
+              className="w-full"
               disabled={pending}
+              loading={pending}
               onClick={() => handleOAuth("github")}
-              className="flex w-full items-center justify-center rounded-md border border-emerald-950/15 bg-white px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-50 disabled:opacity-60"
             >
               Continue with GitHub
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       {!googleEnabled && !githubEnabled && (
-        <p className="rounded-md border border-dashed border-emerald-950/15 bg-white/50 px-3 py-2 text-xs leading-relaxed text-emerald-950/55">
+        <p className="rounded-xl border border-dashed border-emerald-950/15 bg-white/50 px-3 py-2 text-xs leading-relaxed text-emerald-950/55">
           Google and GitHub OAuth are optional. Set{" "}
           <code className="text-emerald-900">AUTH_GOOGLE_*</code> /{" "}
           <code className="text-emerald-900">AUTH_GITHUB_*</code> (or{" "}
@@ -133,12 +141,12 @@ export function LoginActions({
         </p>
       )}
 
-      <div className="relative py-1 text-center text-xs uppercase tracking-wider text-emerald-950/40">
-        <span className="relative z-10 bg-[#F4F7F5] px-2">Email</span>
+      <div className="relative py-1 text-center type-caption text-emerald-950/40">
+        <span className="relative z-10 bg-[var(--surface)] px-2">Email</span>
         <span className="absolute inset-x-0 top-1/2 h-px bg-emerald-950/10" />
       </div>
 
-      <div className="flex gap-2 text-xs font-semibold uppercase tracking-wider">
+      <div className="flex gap-2 text-sm font-semibold">
         <button
           type="button"
           onClick={() => {
@@ -146,15 +154,16 @@ export function LoginActions({
             setError(null);
             setInfo(null);
           }}
-          className={
+          className={cn(
+            "rounded-lg px-2 py-1 transition-colors",
             mode === "signin"
-              ? "text-orange-700"
-              : "text-emerald-950/40 hover:text-emerald-950/70"
-          }
+              ? "bg-orange-50 text-orange-700"
+              : "text-emerald-950/40 hover:text-emerald-950/70",
+          )}
         >
           Sign in
         </button>
-        <span className="text-emerald-950/20">·</span>
+        <span className="self-center text-emerald-950/20">·</span>
         <button
           type="button"
           onClick={() => {
@@ -162,11 +171,12 @@ export function LoginActions({
             setError(null);
             setInfo(null);
           }}
-          className={
+          className={cn(
+            "rounded-lg px-2 py-1 transition-colors",
             mode === "register"
-              ? "text-orange-700"
-              : "text-emerald-950/40 hover:text-emerald-950/70"
-          }
+              ? "bg-orange-50 text-orange-700"
+              : "text-emerald-950/40 hover:text-emerald-950/70",
+          )}
         >
           Create account
         </button>
@@ -175,28 +185,28 @@ export function LoginActions({
       <form onSubmit={handleCredentials} className="space-y-3">
         {mode === "register" && (
           <label className="block text-sm">
-            <span className="mb-1 block text-emerald-950/60">Name</span>
+            <span className="mb-1.5 block text-emerald-950/60">Name</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
-              className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
+              className="field-input"
             />
           </label>
         )}
         <label className="block text-sm">
-          <span className="mb-1 block text-emerald-950/60">Email</span>
+          <span className="mb-1.5 block text-emerald-950/60">Email</span>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
+            className="field-input"
           />
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block text-emerald-950/60">Password</span>
+          <span className="mb-1.5 block text-emerald-950/60">Password</span>
           <input
             type="password"
             required
@@ -204,63 +214,69 @@ export function LoginActions({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete={mode === "register" ? "new-password" : "current-password"}
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
+            className="field-input"
           />
           {mode === "register" && (
-            <span className="mt-1 block text-xs text-emerald-950/45">
+            <span className="type-caption mt-1.5 block text-emerald-950/45">
               At least 8 characters. Stored as a bcrypt hash.
             </span>
           )}
         </label>
-        <button
+        <Button
           type="submit"
+          variant="secondary"
+          size="lg"
+          className="w-full"
           disabled={pending}
-          className="flex w-full items-center justify-center rounded-md bg-emerald-950 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-900 disabled:opacity-60"
+          loading={pending}
         >
           {pending
             ? "Working…"
             : mode === "register"
               ? "Create account & sign in"
               : "Sign in with email"}
-        </button>
+        </Button>
       </form>
 
-      <div className="relative py-1 text-center text-xs uppercase tracking-wider text-emerald-950/40">
-        <span className="relative z-10 bg-[#F4F7F5] px-2">Or try first</span>
+      <div className="relative py-1 text-center type-caption text-emerald-950/40">
+        <span className="relative z-10 bg-[var(--surface)] px-2">Or try first</span>
         <span className="absolute inset-x-0 top-1/2 h-px bg-emerald-950/10" />
       </div>
 
       <div className="space-y-2">
         <label className="block text-sm">
-          <span className="mb-1 block text-emerald-950/60">Guest display name</span>
+          <span className="mb-1.5 block text-emerald-950/60">Guest display name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Guest"
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
+            className="field-input"
           />
         </label>
-        <button
+        <Button
           type="button"
+          variant="primary"
+          size="lg"
+          className="w-full"
           disabled={pending}
+          loading={pending}
           onClick={handleGuest}
-          className="flex w-full items-center justify-center rounded-md bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-500 disabled:opacity-60"
         >
           Continue as Guest
-        </button>
-        <p className="text-xs leading-relaxed text-emerald-950/50">
+        </Button>
+        <p className="type-caption leading-relaxed text-emerald-950/50">
           Guest mode creates a temporary session so you can connect ESPN or load
-          the demo-seeded league without OAuth. UI labels you as Guest.
+          the demo league without OAuth.
         </p>
       </div>
 
       {error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           {error}
         </p>
       )}
       {info && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
           {info}
         </p>
       )}
