@@ -39,18 +39,58 @@ function ShareIcon({ className }: { className?: string }) {
   );
 }
 
+function HomePlusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 9.5V20h14V9.5" />
+      <path d="M12 14v4" />
+      <path d="M10 16h4" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
 const SAFARI_STEPS = [
   {
     title: "Tap Share",
     body: "In Safari, tap the Share button (square with an upward arrow) in the toolbar.",
+    Icon: ShareIcon,
   },
   {
     title: "Add to Home Screen",
-    body: "Scroll the sheet and choose Add to Home Screen.",
+    body: "Scroll the share sheet and choose Add to Home Screen.",
+    Icon: HomePlusIcon,
   },
   {
-    title: "Confirm Add",
-    body: "Keep the name Gridiron IQ, then tap Add. Open it from your Home Screen anytime.",
+    title: "Tap Add",
+    body: "Keep the name Gridiron IQ, then tap Add. Launch it from your Home Screen anytime.",
+    Icon: CheckIcon,
   },
 ] as const;
 
@@ -75,6 +115,35 @@ export function InstallHowToLink({
   );
 }
 
+/**
+ * BVN-style primary install CTA for marketing surfaces.
+ * Hidden when already running as a Home Screen / standalone app.
+ */
+export function InstallHeroCta() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    setShow(!isStandaloneDisplay());
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div className="animate-fade-up-delay-2 mt-4 w-full max-w-md">
+      <button
+        type="button"
+        onClick={() => openInstallGuide()}
+        className="w-full bg-emerald-950 px-6 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-orange-400 transition hover:bg-emerald-900 hover:text-orange-300"
+      >
+        Install the app
+      </button>
+      <p className="mt-2 text-center text-xs text-emerald-950/55">
+        Free. 3 taps in Safari. Full-screen Home Screen shortcut.
+      </p>
+    </div>
+  );
+}
+
 export function InstallAppExperience() {
   const titleId = useId();
   const [ready, setReady] = useState(false);
@@ -89,7 +158,7 @@ export function InstallAppExperience() {
     const standaloneNow = isStandaloneDisplay();
     setStandalone(standaloneNow);
     setMode(detectGuideMode());
-    // Soft banner for iPhone/iPad browser sessions only; desktop uses How to install.
+    // Soft banner for iPhone/iPad browser sessions only; desktop uses hero / How to install.
     setBannerVisible(
       !standaloneNow && isIosDevice() && !wasInstallDismissed(),
     );
@@ -121,7 +190,6 @@ export function InstallAppExperience() {
         await navigator.clipboard.writeText(url);
         setCopied(true);
       } catch {
-        // Fallback for older Safari
         const input = document.createElement("input");
         input.value = url;
         document.body.appendChild(input);
@@ -186,8 +254,9 @@ export function InstallAppExperience() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="relative z-[61] w-full max-w-md border border-emerald-950/10 bg-[#F4F7F5] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 shadow-xl sm:rounded-lg"
+            className="relative z-[61] w-full max-w-md border border-emerald-950/10 bg-[#F4F7F5] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 shadow-xl sm:mb-0 sm:rounded-lg"
           >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-emerald-950/15 sm:hidden" />
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">
@@ -216,41 +285,49 @@ export function InstallAppExperience() {
               </button>
             </div>
 
-            {mode === "safari-steps" && (
-              <ol className="space-y-4">
-                {SAFARI_STEPS.map((step, index) => (
-                  <li key={step.title} className="flex gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-emerald-950 text-sm font-semibold text-emerald-50">
-                      {index === 0 ? (
-                        <ShareIcon className="h-4 w-4" />
-                      ) : (
-                        index + 1
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-emerald-950">
-                        {step.title}
-                      </p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-emerald-950/65">
-                        {step.body}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
+            {(mode === "safari-steps" || mode === "generic") && (
+              <div className="space-y-4">
+                {mode === "generic" && (
+                  <p className="text-sm leading-relaxed text-emerald-950/70">
+                    On iPhone or iPad, open this site in Safari. On Android
+                    Chrome, use the browser menu → Install app / Add to Home
+                    screen.
+                  </p>
+                )}
+                <ol className="space-y-4">
+                  {SAFARI_STEPS.map((step) => (
+                    <li key={step.title} className="flex gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-emerald-950 text-emerald-50">
+                        <step.Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-emerald-950">
+                          {step.title}
+                        </p>
+                        <p className="mt-0.5 text-sm leading-relaxed text-emerald-950/65">
+                          {step.body}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
 
             {mode === "open-safari" && (
               <div className="space-y-4">
                 <p className="text-sm leading-relaxed text-emerald-950/70">
-                  Apple requires Safari for Home Screen installs. Copy this link,
-                  open Safari, paste it, then use Share → Add to Home Screen.
+                  Apple requires Safari for Home Screen installs. Copy this
+                  link, open Safari, paste it, then use Share → Add to Home
+                  Screen.
                 </p>
                 <div className="flex gap-2">
                   <input
                     readOnly
                     value={
-                      typeof window !== "undefined" ? window.location.origin : ""
+                      typeof window !== "undefined"
+                        ? window.location.origin
+                        : ""
                     }
                     className="min-w-0 flex-1 border border-emerald-950/15 bg-white px-3 py-2 text-base text-emerald-950 outline-none"
                     aria-label="App URL"
@@ -258,39 +335,11 @@ export function InstallAppExperience() {
                   <button
                     type="button"
                     onClick={copyLink}
-                    className="shrink-0 bg-emerald-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-50 hover:bg-emerald-900"
+                    className="shrink-0 bg-emerald-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-orange-400 hover:bg-emerald-900"
                   >
                     {copied ? "Copied" : "Copy link"}
                   </button>
                 </div>
-              </div>
-            )}
-
-            {mode === "generic" && (
-              <div className="space-y-4">
-                <p className="text-sm leading-relaxed text-emerald-950/70">
-                  On iPhone or iPad, open this site in Safari, tap Share, then{" "}
-                  <strong className="font-semibold text-emerald-950">
-                    Add to Home Screen
-                  </strong>
-                  . On Android Chrome, use the browser menu → Install app / Add
-                  to Home screen.
-                </p>
-                <ol className="space-y-3">
-                  {SAFARI_STEPS.map((step, index) => (
-                    <li key={step.title} className="flex gap-3 text-sm">
-                      <span className="font-semibold text-orange-700">
-                        {index + 1}.
-                      </span>
-                      <span className="text-emerald-950/75">
-                        <span className="font-semibold text-emerald-950">
-                          {step.title}.
-                        </span>{" "}
-                        {step.body}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
               </div>
             )}
 
