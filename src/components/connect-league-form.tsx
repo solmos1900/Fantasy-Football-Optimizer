@@ -213,7 +213,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
               <input
                 value={form.swid}
                 onChange={(e) => setForm({ ...form, swid: e.target.value })}
-                className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 font-mono text-xs outline-none ring-orange-500/40 focus:ring-2"
+                className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 font-mono text-base outline-none ring-orange-500/40 focus:ring-2"
                 placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
               />
             </label>
@@ -226,7 +226,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
                 value={form.espnS2}
                 onChange={(e) => setForm({ ...form, espnS2: e.target.value })}
                 rows={3}
-                className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 font-mono text-xs outline-none ring-orange-500/40 focus:ring-2"
+                className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 font-mono text-base outline-none ring-orange-500/40 focus:ring-2"
                 placeholder="Long cookie value — keep URL encoding"
               />
             </label>

@@ -15,7 +15,7 @@ export default async function LoginPage({
   const authError = params.error;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-16">
+    <main className="flex min-h-screen items-center justify-center px-4 py-16 pt-[max(4rem,env(safe-area-inset-top,0px))]">
       <div className="w-full max-w-md">
         <Link
           href="/"

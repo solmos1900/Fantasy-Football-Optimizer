@@ -7,7 +7,7 @@ export default async function HomePage() {
   if (session?.user) redirect("/dashboard");
 
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden">
+    <main className="relative flex min-h-screen flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.35]"
         style={{

@@ -20,19 +20,42 @@
   Mobile Safari often paints overflow/rubber-band from html; if html is
   viewport-tall only (h-full) while body grows, a darker layer can flash
   behind content. Solid color on both + fixed decorative layer fixes it.
+
+  text-size-adjust: prevent iOS from inflating text (looks “zoomed”).
+  overflow-x: clip: wide tables scroll inside their wrappers, not the page.
 */
 html {
   background-color: var(--background);
   min-height: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   position: relative;
   min-height: 100%;
+  min-height: 100dvh;
   margin: 0;
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), system-ui, sans-serif;
+  overflow-x: clip;
+  /* Standalone / notch: horizontal + home indicator. Top inset is on sticky
+     header / marketing mains so chrome can sit under the status bar cleanly. */
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+/*
+  iOS Safari auto-zooms focused form controls when computed font-size < 16px
+  and often leaves the page stuck zoomed. Keep interactive fields at ≥16px.
+*/
+input,
+select,
+textarea {
+  font-size: 1rem;
 }
 
 /* Decorative atmosphere: fixed to the viewport so scroll never reveals a

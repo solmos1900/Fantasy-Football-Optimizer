@@ -18,7 +18,7 @@ export function AppNav() {
   const { data } = useSession();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#F4F7F5]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#F4F7F5]/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/dashboard" className="group flex items-baseline gap-2">
           <span className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950 transition-colors group-hover:text-orange-600">
