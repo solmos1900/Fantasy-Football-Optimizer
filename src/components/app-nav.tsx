@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { InstallHowToLink } from "@/components/install-app";
 
 const LINKS = [
   { href: "/dashboard", label: "Home" },
@@ -18,7 +19,7 @@ export function AppNav() {
   const { data } = useSession();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#F4F7F5]/90 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#F4F7F5]/90 backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/dashboard" className="group flex items-baseline gap-2">
           <span className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950 transition-colors group-hover:text-orange-600">
@@ -28,7 +29,8 @@ export function AppNav() {
 
         <nav className="hidden items-center gap-1 md:flex">
           {LINKS.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const active =
+              pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link
                 key={link.href}
@@ -47,6 +49,7 @@ export function AppNav() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <InstallHowToLink className="hidden text-sm font-medium text-emerald-950/55 hover:text-orange-700 sm:inline" />
           <Link
             href="/connect"
             className="hidden text-sm font-medium text-orange-700 hover:text-orange-800 sm:inline"
@@ -87,6 +90,7 @@ export function AppNav() {
             </Link>
           );
         })}
+        <InstallHowToLink className="shrink-0 rounded-md px-3 py-1 text-xs font-medium text-orange-700" />
       </nav>
     </header>
   );

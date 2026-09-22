@@ -180,7 +180,7 @@ export function LoginActions({
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
-              className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
+              className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
             />
           </label>
         )}
@@ -192,7 +192,7 @@ export function LoginActions({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
+            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
           />
         </label>
         <label className="block text-sm">
@@ -204,7 +204,7 @@ export function LoginActions({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete={mode === "register" ? "new-password" : "current-password"}
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
+            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
           />
           {mode === "register" && (
             <span className="mt-1 block text-xs text-emerald-950/45">
@@ -237,7 +237,7 @@ export function LoginActions({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Guest"
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-sm outline-none ring-orange-500/30 focus:ring-2"
+            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 text-base outline-none ring-orange-500/30 focus:ring-2"
           />
         </label>
         <button

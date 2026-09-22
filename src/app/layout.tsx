@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Oswald, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -15,10 +15,56 @@ const body = Source_Sans_3({
   weight: ["400", "500", "600", "700"],
 });
 
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.AUTH_URL ??
+  "https://fantasyfootballoptimizer-kappa.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: "Gridiron IQ — Fantasy Football Optimizer",
   description:
     "SSO login, ESPN league sync, live stats, and explainable start/sit insights.",
+  applicationName: "Gridiron IQ",
+  appleWebApp: {
+    capable: true,
+    title: "Gridiron IQ",
+    statusBarStyle: "default",
+  },
+  // Next.js emits mobile-web-app-capable; keep the Apple-prefixed tag too
+  // for older iOS Safari Add to Home Screen behavior.
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+};
+
+/**
+ * Explicit viewport keeps first paint at scale 1 on iPhone Safari and when
+ * launched from the Home Screen. viewport-fit=cover enables safe-area insets
+ * for notch / home indicator in standalone mode.
+ * Do not set maximumScale / userScalable=false — keep pinch-zoom accessible.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#14532d",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

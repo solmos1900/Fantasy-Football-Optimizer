@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, githubOAuthConfigured, googleOAuthConfigured } from "@/lib/auth";
 import { LoginActions } from "@/components/login-actions";
+import { InstallHowToLink } from "@/components/install-app";
 
 export default async function LoginPage({
   searchParams,
@@ -15,7 +16,7 @@ export default async function LoginPage({
   const authError = params.error;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-16">
+    <main className="flex min-h-screen items-center justify-center px-4 py-16 pt-[max(4rem,env(safe-area-inset-top,0px))]">
       <div className="w-full max-w-md">
         <Link
           href="/"
@@ -41,6 +42,10 @@ export default async function LoginPage({
             githubEnabled={githubOAuthConfigured}
           />
         </div>
+
+        <p className="mt-6 text-center text-xs text-emerald-950/50">
+          Want a Home Screen icon? <InstallHowToLink />
+        </p>
       </div>
     </main>
   );

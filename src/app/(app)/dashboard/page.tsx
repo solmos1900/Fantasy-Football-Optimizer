@@ -5,6 +5,7 @@ import { getLiveStats } from "@/lib/stats/provider";
 import { generateInsights } from "@/lib/insights/engine";
 import { LiveStatsPanel } from "@/components/live-stats-panel";
 import { SyncButton } from "@/components/sync-button";
+import { InstallHowToLink } from "@/components/install-app";
 import { formatRecord } from "@/lib/utils";
 
 export default async function DashboardPage() {
@@ -29,6 +30,10 @@ export default async function DashboardPage() {
         >
           Connect league
         </Link>
+        <p className="mt-4 text-xs text-emerald-950/50">
+          On iPhone?{" "}
+          <InstallHowToLink /> for a Home Screen shortcut.
+        </p>
       </div>
     );
   }
