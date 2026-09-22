@@ -142,7 +142,7 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     name: "Puka Nacua",
     position: "WR",
     nflTeam: "LAR",
-    injuryStatus: "ACTIVE",
+    injuryStatus: "OUT",
     projectedPoints: 13.6,
     actualPoints: 9.1,
     percentOwned: 98.6,
@@ -333,7 +333,14 @@ function stubRoster(seed: number): FantasyPlayer[] {
       name: n[0],
       position: n[1] as FantasyPlayer["position"],
       nflTeam: n[2],
-      injuryStatus: i === 10 ? "QUESTIONABLE" : "ACTIVE",
+      injuryStatus:
+        seed === 2 && n[0] === "Saquon Barkley"
+          ? "OUT"
+          : seed === 3 && n[0] === "Tua Tagovailoa"
+            ? "OUT"
+            : i === 10
+              ? "QUESTIONABLE"
+              : "ACTIVE",
       projectedPoints: 8 + ((seed + i) % 12) + i * 0.3,
       actualPoints: i < 9 ? 6 + ((seed * 3 + i * 2) % 18) : 0,
       percentOwned: 40 + ((seed + i * 7) % 55),
@@ -369,6 +376,45 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
     buildTeam(7, "Hail Mary FC", "HMF", "Morgan", 7, [2, 4, 0], 612.9, 745.1, stubRoster(7)),
     buildTeam(8, "Sack Exchange", "SACK", "Taylor", 8, [1, 5, 0], 580.4, 772.3, stubRoster(8)),
   ].map((t) => ({ ...t, isCurrentUser: t.id === userTeamId }));
+
+  // Situational injury demos for Waiver Wire Shark (documented statuses only).
+  const team2 = teams.find((t) => t.id === 2);
+  if (team2) {
+    const kyrenIdx = team2.roster.findIndex((p) => p.position === "RB" && p.isStarter);
+    if (kyrenIdx >= 0) {
+      team2.roster[kyrenIdx] = p({
+        espnId: 4430802,
+        name: "Kyren Williams",
+        position: "RB",
+        nflTeam: "LAR",
+        injuryStatus: "OUT",
+        projectedPoints: 0,
+        actualPoints: 0,
+        percentOwned: 97.0,
+        percentStarted: 90.0,
+        opponent: "@ SEA",
+        slot: team2.roster[kyrenIdx].slot,
+        isStarter: true,
+        role: "rb1",
+      });
+    }
+  }
+  const team3 = teams.find((t) => t.id === 3);
+  if (team3) {
+    const qbIdx = team3.roster.findIndex((p) => p.position === "QB" && p.isStarter);
+    if (qbIdx >= 0) {
+      team3.roster[qbIdx] = {
+        ...team3.roster[qbIdx],
+        name: "Tua Tagovailoa",
+        espnId: 4241479,
+        nflTeam: "MIA",
+        injuryStatus: "OUT",
+        projectedPoints: 0,
+        role: "qb",
+      };
+    }
+  }
+
 
   const matchups: Matchup[] = [
     {
@@ -418,6 +464,46 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
   ];
 
   const freeAgents: FantasyPlayer[] = [
+    p({
+      espnId: 3915416,
+      name: "Tutu Atwell",
+      position: "WR",
+      nflTeam: "LAR",
+      injuryStatus: "ACTIVE",
+      projectedPoints: 10.4,
+      actualPoints: 0,
+      percentOwned: 14.0,
+      percentStarted: 3.0,
+      opponent: "@ SEA",
+      role: "wr_outside",
+    }),
+    p({
+      espnId: 4429020,
+      name: "Blake Corum",
+      position: "RB",
+      nflTeam: "LAR",
+      injuryStatus: "ACTIVE",
+      projectedPoints: 9.2,
+      actualPoints: 0,
+      percentOwned: 22.0,
+      percentStarted: 5.0,
+      opponent: "@ SEA",
+      role: "rb2",
+    }),
+    p({
+      espnId: 2969939,
+      name: "Jameis Winston",
+      position: "QB",
+      nflTeam: "MIA",
+      injuryStatus: "ACTIVE",
+      projectedPoints: 14.8,
+      actualPoints: 0,
+      percentOwned: 6.0,
+      percentStarted: 1.0,
+      opponent: "vs BUF",
+      role: "qb",
+    }),
+
     p({
       espnId: 4241479,
       name: "Tank Dell",

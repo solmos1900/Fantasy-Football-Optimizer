@@ -10,13 +10,14 @@ Built with **Next.js App Router**, **TypeScript**, **Tailwind CSS**, **Auth.js (
 
 1. **Authentication** — Google and GitHub OAuth when configured; email/password (bcrypt) registration + sign-in; **Guest** mode for try-without-account. Demo-only login is removed.
 2. **ESPN Fantasy integration** — Connect by league ID + season once; the connection is saved on that user (guest or signed-in). Later visits use **Sync** to refresh — you do not re-enter the League ID every session. Private leagues accept `SWID` + `espn_s2` cookies (also stored). Guest and signed-in accounts do **not** share leagues.
-3. **My Team** — Starters/bench with projected vs actual points and injury flags.
+3. **My Team** — Starters/bench with projected vs actual points and injury flags. Player rows open a drill-down (recent PPR, defense comps, start/sit lean).
 4. **Live stats** — NFL scoreboard from ESPN’s public site API (no key). Refresh button + 60s auto-poll.
 5. **League overview** — Standings, matchups, and every team’s roster (full league visibility for trades).
 6. **Player directory** — Searchable pool with ownership and stats.
 7. **Insights (product core)** — Rule-based, explainable recommendations:
    - **Start / Sit** with START vs SIT verdicts (projection, recent form, injury, defense history)
    - **Mutual trades** with other teams (why it helps both sides)
+   - **Waiver Wire Shark** — injury → opportunity claims (handcuffs / next-man-up) filtered to your league’s free agents
    - **Injury / news** cards from ESPN public feeds (never invented)
    - **Matchup notes** — how similar-role players fared vs that defense recently
    - Drop/add, weak positions, streaming as supporting signals
@@ -122,8 +123,19 @@ Copy `.env.example` → `.env`. **Never commit secrets.**
 | Defense vs similar players | League-wide `recentWeeks` vs opponent + seeded defense history table |
 | Injury / news | ESPN public site news + injuries APIs; roster injury flags as fallback — **never invented** |
 | Trades | `src/lib/insights/trades.ts` — 1QB PPR norms (hard rejects + scoring) |
+| Waiver Wire Shark | `src/lib/insights/waivers.ts` — injury → FA opportunity mapping |
 
-Engine: `src/lib/insights/engine.ts` + `trades.ts` + `defense-matchups.ts`. No paid LLM dependency.
+Engine: `src/lib/insights/engine.ts` + `trades.ts` + `waivers.ts` + `defense-matchups.ts`. No paid LLM dependency.
+
+### Waiver Wire Shark (injury → opportunity)
+
+Situational claims, not generic “highest projected FA” lists:
+
+1. **Injury signal only** — roster `OUT` / `DOUBTFUL` / `IR`, plus ESPN news that clearly marks a player out. Never invent injuries.
+2. **Beneficiary mapping** — prefer curated same-team handcuffs/backups (e.g. Puka → Tutu Atwell; Kyren → Blake Corum; Tua → Jameis Winston); else same-NFL-team FAs at the same position (depth next-up), labeled as uncertain when inferred.
+3. **League FA cross-check** — only recommend players actually on your waiver wire (not rostered).
+4. **Drop hint** — if the roster looks full, suggest a weak/injured bench drop candidate.
+5. Works for guest/demo leagues and connected ESPN leagues.
 
 ### Trade recommendation rules (1QB PPR)
 
@@ -184,6 +196,8 @@ src/lib/espn/news.ts               ESPN public news / injuries
 src/lib/stats/provider.ts          Live stats (ESPN public or demo fallback)
 src/lib/insights/engine.ts         Start/sit, news, matchup notes, other
 src/lib/insights/trades.ts         Realistic 1QB PPR trade filter/scoring
+src/lib/insights/waivers.ts        Injury → waiver opportunity (Shark)
+src/lib/insights/player-detail.ts  Per-player start/sit + defense comps
 src/lib/insights/defense-matchups.ts Similar-player vs defense history
 src/lib/league/service.ts          Persist/connect/sync per user
 src/lib/demo/seed.ts               Mock league for guest / demo connect
@@ -201,7 +215,7 @@ Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/connect`, `/
 4. **My Team** — starters vs bench, proj/actual, injury badges.
 5. **League** — standings, matchups, every roster + **Sync** (no re-entry of League ID).
 6. **Players** — search/filter owned + free agents.
-7. **Insights** — Start/Sit, Trades (PPR norms), News, Matchup notes, and supporting signals.
+7. **Insights** — Start/Sit, Trades (PPR norms), Waiver Wire Shark, News, Matchup notes, and supporting signals.
 8. **Sync** (Home / League / Connect) — re-fetch ESPN or re-seed demo from the saved connection.
 
 ---

@@ -161,7 +161,7 @@ export default async function InsightsPage() {
         </h1>
         <p className="mt-2 text-sm text-emerald-950/65">
           Connect a league (or load the demo league as a guest) to unlock
-          start/sit, mutual trades, injury/news, and defense matchup history.
+          start/sit, mutual trades, waiver-wire shark, injury/news, and defense matchup history.
         </p>
         <Link
           href="/connect"
@@ -189,7 +189,7 @@ export default async function InsightsPage() {
           Insights
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-emerald-950/65">
-          Rule-based start/sit and league-aware trades with transparent reasons —
+          Rule-based start/sit, waiver-wire shark, and league-aware trades with transparent reasons —
           projections, recent form, injury status, and how similar players fared
           against this week&apos;s defense. News comes from ESPN public feeds
           (never invented).
@@ -229,6 +229,13 @@ export default async function InsightsPage() {
         description="Mutually beneficial 1-for-1 or small packages — why it helps both sides."
         items={bundle.trades}
         empty="No balanced trade ideas found against current positional gaps."
+      />
+
+      <Section
+        title="Waiver wire"
+        description="Injury → opportunity claims: only pickups available on your league waivers, with handcuff/next-man-up reasons (never invented injuries)."
+        items={bundle.waivers}
+        empty="No injury-driven waiver opportunities among current free agents."
       />
 
       <Section

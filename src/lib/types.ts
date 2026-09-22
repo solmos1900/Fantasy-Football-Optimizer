@@ -97,7 +97,8 @@ export type InsightType =
   | "drop_add"
   | "weak_position"
   | "mismatch"
-  | "streaming";
+  | "streaming"
+  | "waiver";
 
 // Keep alias used by some call sites
 export type InsightKind = InsightType;
@@ -131,6 +132,7 @@ export interface InsightRecommendation {
 export interface InsightsBundle {
   startSit: InsightRecommendation[];
   trades: InsightRecommendation[];
+  waivers: InsightRecommendation[];
   news: InsightRecommendation[];
   matchupNotes: InsightRecommendation[];
   other: InsightRecommendation[];

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { FantasyPlayer, LeagueData } from "@/lib/types";
 import { cn, statusColor } from "@/lib/utils";
@@ -106,7 +107,12 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
             {filtered.slice(0, 80).map((p) => (
               <tr key={p.id} className="border-b border-emerald-950/5">
                 <td className="py-2.5 pr-2">
-                  <span className="font-medium">{p.name}</span>
+                  <Link
+                    href={`/players/${encodeURIComponent(p.id)}`}
+                    className="font-medium text-emerald-950 hover:text-orange-700 hover:underline"
+                  >
+                    {p.name}
+                  </Link>
                   <span className="ml-2 text-xs text-emerald-950/45">{p.nflTeam}</span>
                   {p.injuryStatus !== "ACTIVE" && (
                     <span

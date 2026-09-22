@@ -14,6 +14,7 @@ import {
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { buildRealisticTrades } from "@/lib/insights/trades";
+import { buildWaiverShark } from "@/lib/insights/waivers";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -397,19 +398,27 @@ function newsToInsights(items: PlayerNewsItem[]): InsightRecommendation[] {
   }));
 }
 
-/** Full insights bundle — start/sit, mutual trades, news, matchup notes, other. */
+/** Full insights bundle — start/sit, waivers, mutual trades, news, matchup notes, other. */
 export function buildInsightsBundle(
   league: LeagueData,
   newsItems: PlayerNewsItem[] = [],
 ): InsightsBundle {
   const team = currentTeam(league);
   if (!team) {
-    return { startSit: [], trades: [], news: [], matchupNotes: [], other: [] };
+    return {
+      startSit: [],
+      trades: [],
+      waivers: [],
+      news: [],
+      matchupNotes: [],
+      other: [],
+    };
   }
 
   return {
     startSit: buildStartSit(league, team),
     trades: buildRealisticTrades(league, team),
+    waivers: buildWaiverShark(league, team, newsItems),
     news: newsToInsights(newsItems),
     matchupNotes: buildMatchupNotes(league, team),
     other: buildOther(league, team),
@@ -420,6 +429,7 @@ export function buildInsightsBundle(
 export function generateInsights(league: LeagueData): InsightRecommendation[] {
   const bundle = buildInsightsBundle(league, []);
   return [
+    ...bundle.waivers,
     ...bundle.startSit,
     ...bundle.trades,
     ...bundle.matchupNotes,
