@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import {
   INSTALL_OPEN_EVENT,
   dismissInstallPrompt,
@@ -11,6 +12,24 @@ import {
   wasInstallDismissed,
 } from "@/lib/pwa";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const APP_TAB_BAR_ROUTES = [
+  "/dashboard",
+  "/team",
+  "/league",
+  "/players",
+  "/insights",
+  "/trades",
+  "/connect",
+];
+
+function hasAppTabBar(pathname: string | null) {
+  if (!pathname) return false;
+  return APP_TAB_BAR_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
 
 type GuideMode = "safari-steps" | "open-safari" | "generic";
 
@@ -149,6 +168,8 @@ export function InstallHeroCta() {
 
 export function InstallAppExperience() {
   const titleId = useId();
+  const pathname = usePathname();
+  const aboveTabBar = hasAppTabBar(pathname);
   const [ready, setReady] = useState(false);
   const [standalone, setStandalone] = useState(true);
   const [bannerVisible, setBannerVisible] = useState(false);
@@ -210,7 +231,12 @@ export function InstallAppExperience() {
     <>
       {bannerVisible && (
         <div
-          className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-2"
+          className={cn(
+            "fixed inset-x-0 z-50 px-3 pt-2",
+            aboveTabBar
+              ? "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] pb-2"
+              : "bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
+          )}
           role="region"
           aria-label="Install Gridiron IQ"
         >
