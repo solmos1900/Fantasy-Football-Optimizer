@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { SyncButton } from "@/components/sync-button";
 import { Button } from "@/components/ui/button";
 import { scrollToTopNow } from "@/components/scroll-to-top";
@@ -26,6 +26,7 @@ type ConnectAction = "demo" | "espn" | null;
 export function ConnectLeagueForm({ connection, isGuest }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const espnCardRef = useRef<HTMLFormElement>(null);
   const [action, setAction] = useState<ConnectAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -39,6 +40,16 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
   const demoLoading = action === "demo";
   const espnLoading = action === "espn";
   const busy = action != null;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#espn") return;
+    espnCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const leagueInput = espnCardRef.current?.querySelector<HTMLInputElement>(
+      'input[name="leagueId"], input[placeholder*="123456789"]',
+    );
+    leagueInput?.focus({ preventScroll: true });
+  }, []);
 
   function connectDemo() {
     setError(null);
@@ -175,8 +186,10 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
         </section>
 
         <form
+          id="espn"
+          ref={espnCardRef}
           onSubmit={connectEspn}
-          className="animate-fade-up-delay surface-card space-y-4 p-5 sm:p-6"
+          className="animate-fade-up-delay surface-card scroll-mt-24 space-y-4 p-5 sm:p-6"
         >
           <div>
             <p className="type-eyebrow text-orange-700">Option B</p>
@@ -194,6 +207,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
               League ID
             </span>
             <input
+              name="leagueId"
               required
               value={form.leagueId}
               onChange={(e) => setForm({ ...form, leagueId: e.target.value })}

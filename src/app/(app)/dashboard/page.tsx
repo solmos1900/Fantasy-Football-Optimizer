@@ -5,8 +5,8 @@ import { generateInsights } from "@/lib/insights/engine";
 import { LiveStatsPanel } from "@/components/live-stats-panel";
 import { SyncButton } from "@/components/sync-button";
 import { InstallHowToLink } from "@/components/install-app";
+import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { PendingLink } from "@/components/pending-link";
-import { buttonVariants } from "@/components/ui/button";
 import { formatRecord } from "@/lib/utils";
 
 export default async function DashboardPage() {
@@ -17,28 +17,15 @@ export default async function DashboardPage() {
 
   if (!league) {
     return (
-      <div className="animate-fade-up max-w-xl">
-        <h1 className="type-page text-emerald-950">
-          Welcome
-          {session?.user?.name ? `, ${session.user.name.split(" ")[0]}` : ""}
-        </h1>
-        <p className="type-body mt-3 text-emerald-950/65">
-          Connect a demo league or your ESPN fantasy football league to unlock
-          your dashboard, roster, and insights.
-        </p>
-        <PendingLink
-          href="/connect"
-          className={buttonVariants({
-            variant: "primary",
-            className: "mt-6",
-          })}
-        >
-          Connect league
-        </PendingLink>
+      <EmptyLeagueConnect
+        className="animate-fade-up"
+        title={`Welcome${session?.user?.name ? `, ${session.user.name.split(" ")[0]}` : ""}`}
+        message="Choose how to get your league — load the seeded demo or connect ESPN to unlock your dashboard, roster, and insights."
+      >
         <p className="type-caption mt-4 text-emerald-950/50">
           On iPhone? <InstallHowToLink /> for a Home Screen shortcut.
         </p>
-      </div>
+      </EmptyLeagueConnect>
     );
   }
 

@@ -14,6 +14,7 @@ import {
   refreshProjectionTrends,
 } from "@/lib/insights/trends";
 import { TrendPanel } from "@/components/trend-panel";
+import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -31,21 +32,10 @@ export default async function PlayerDetailPage({
 
   if (!rawLeague) {
     return (
-      <div className="max-w-lg">
-        <h1 className="type-page text-emerald-950">
-          Player
-        </h1>
-        <p className="mt-2 text-sm text-emerald-950/65">
-          Connect a league to open player drill-downs with projections and
-          defense comps.
-        </p>
-        <Link
-          href="/connect"
-          className="mt-4 inline-flex text-sm font-semibold text-orange-700"
-        >
-          Connect league →
-        </Link>
-      </div>
+      <EmptyLeagueConnect
+        title="Player"
+        message="Load a demo league or connect ESPN to open player drill-downs with projections and defense comps."
+      />
     );
   }
 
