@@ -377,6 +377,57 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
     buildTeam(8, "Sack Exchange", "SACK", "Taylor", 8, [1, 5, 0], 580.4, 772.3, stubRoster(8)),
   ].map((t) => ({ ...t, isCurrentUser: t.id === userTeamId }));
 
+  // Craft Blitz Brigade as a mutual-trade partner: RB surplus + WR hole
+  // so demo Insights always surfaces at least one realistic PPR package.
+  const blitz = teams.find((t) => t.id === 4);
+  if (blitz) {
+    blitz.roster = blitz.roster.map((pl) => {
+      if (pl.position === "WR") {
+        // Force a clear WR hole (both "starters" below the 9-pt need floor)
+        const weakProj =
+          pl.name === "Davante Adams" || pl.name === "Christian Watson"
+            ? 7.2
+            : 5.8;
+        return {
+          ...pl,
+          projectedPoints: weakProj,
+          percentStarted: 18,
+          recentWeeks: [
+            { week: 4, points: 4.1, projectedPoints: 8.0, opponent: "vs CLE" },
+            { week: 5, points: 6.2, projectedPoints: 7.5, opponent: "@ DEN" },
+            { week: 6, points: 3.8, projectedPoints: 7.8, opponent: "vs SF" },
+          ],
+        };
+      }
+      if (pl.position === "RB") {
+        const isBench = !pl.isStarter;
+        return {
+          ...pl,
+          projectedPoints: isBench
+            ? 11.4
+            : Math.max(pl.projectedPoints, 13.8),
+          percentOwned: isBench ? 68 : pl.percentOwned,
+          recentWeeks: [
+            { week: 4, points: 10.2, projectedPoints: 12.5, opponent: "@ SEA" },
+            { week: 5, points: 14.8, projectedPoints: 12.0, opponent: "vs DEN" },
+            { week: 6, points: 9.6, projectedPoints: 12.8, opponent: "@ LAR" },
+          ],
+        };
+      }
+      return pl;
+    });
+  }
+
+  // Ensure user has a clear RB need (Hall sidelined) + WR surplus for skill↔skill.
+  const seb = teams.find((t) => t.id === 1);
+  if (seb) {
+    seb.roster = seb.roster.map((pl) =>
+      pl.name === "Breece Hall"
+        ? { ...pl, injuryStatus: "OUT" as const, projectedPoints: 0 }
+        : pl,
+    );
+  }
+
   // Situational injury demos for Waiver Wire Shark (documented statuses only).
   const team2 = teams.find((t) => t.id === 2);
   if (team2) {

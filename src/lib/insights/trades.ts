@@ -189,7 +189,8 @@ function fairnessScore(
   const gv = sideValue(give, trends);
   const rv = sideValue(receive, trends);
   const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  return Math.max(0, 1.4 - ratio);
+  // Align with outrage cap (~1.55): score hits 0 there; ~1.25 still clears.
+  return Math.max(0, 1.55 - ratio);
 }
 
 function trendFitBonus(
@@ -330,14 +331,18 @@ function consider(
   const fair = fairnessScore(give, receive, trends);
   const same = samePosBonus(give, receive);
   const trendBonus = trendFitBonus(give, receive, trends);
+  // Packages (2-for-1 / 1-for-2 / QB sweetener) get a small fairness cushion —
+  // uneven chip totals are the point of those shapes.
+  const packageCushion =
+    kind === "1for1" ? 0 : kind === "qb_package" ? 0.08 : 0.12;
   if (fit + same + Math.max(0, trendBonus) < 1.2) return;
-  if (fair < 0.35) return;
+  if (fair + packageCushion < 0.12) return;
 
   list.push({
     them,
     give,
     receive,
-    score: fit * 1.4 + fair * 2 + same + trendBonus,
+    score: fit * 1.4 + fair * 2 + same + trendBonus + packageCushion,
     kind,
   });
 }
