@@ -136,9 +136,9 @@ export function trendBlurb(
   if (label === "Thin") return null;
   const delta =
     t.avgDelta != null
-      ? ` avg ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs stored proj`
+      ? ` — about ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs projection lately`
       : "";
-  return `${p.name}: ${trendLabelCopy(label).toLowerCase()}${delta} (${t.weeksSampled} wk sample).`;
+  return `${p.name} is ${trendLabelCopy(label).toLowerCase()}${delta}.`;
 }
 
 export function needsPosition(

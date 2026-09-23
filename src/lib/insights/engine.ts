@@ -16,7 +16,7 @@ import {
 import { buildRealisticTrades } from "@/lib/insights/trades";
 import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
-import { trendLabelCopy } from "@/lib/insights/trend-labels";
+import { humanTrendSentence } from "@/lib/insights/trend-labels";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -119,7 +119,7 @@ function buildStartSit(
     const formB = recentFormSummary(b);
     const formW = recentFormSummary(weakest);
     if (formB) reasoning.push(formB);
-    if (formW) reasoning.push(`${weakest.name} — ${formW}`);
+    if (formW) reasoning.push(formW);
     if (formDelta != null) {
       reasoning.push(
         `Over recent weeks, ${b.name} has scored about ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} more points per game than ${weakest.name}.`,
@@ -417,21 +417,18 @@ export function buildInsightsBundle(
   }
 
   const startSit = buildStartSit(league, team);
-  // Fold trend notes into start/sit reasoning when available
+  // Fold one plain-English trend sentence into start/sit when available
   if (trends?.size) {
     for (const insight of startSit) {
       for (const pid of insight.relatedPlayerIds ?? []) {
         const player = rosterPool(league).find((p) => p.id === pid);
         const t = player ? trends.get(player.espnId) : undefined;
         if (t && t.trendLabel !== "thin" && t.trendLabel !== "Thin") {
-          insight.reasoning.push(
-            `Trend (${trendLabelCopy(t.trendLabel)}): ${t.rationale}`,
-          );
-          if (t.judgments?.length) {
-            insight.reasoning.push(
-              `Judgment (injury/usage > hot-cold): ${t.judgments.join(" ")}`,
-            );
+          const sentence = humanTrendSentence(t);
+          if (!insight.reasoning.includes(sentence)) {
+            insight.reasoning.push(sentence);
           }
+          break; // one trend blurb per card is enough
         }
       }
     }

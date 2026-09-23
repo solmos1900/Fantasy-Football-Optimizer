@@ -221,11 +221,13 @@ function AnalysisCard({ analysis }: { analysis: TradeAnalysis }) {
 
       <details className="mt-4 group">
         <summary className="cursor-pointer type-eyebrow text-emerald-950/45 hover:text-emerald-950/70">
-          Facts vs judgment
+          Numbers & takeaway
         </summary>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <div>
-            <p className="type-eyebrow text-[10px] text-emerald-950/40">Facts</p>
+            <p className="type-eyebrow text-[10px] text-emerald-950/40">
+              The numbers
+            </p>
             <ul className="mt-1 space-y-1">
               {analysis.facts.map((f) => (
                 <li key={f} className="type-caption text-emerald-950/70">
@@ -236,7 +238,7 @@ function AnalysisCard({ analysis }: { analysis: TradeAnalysis }) {
           </div>
           <div>
             <p className="type-eyebrow text-[10px] text-emerald-950/40">
-              Judgment
+              Our take
             </p>
             <ul className="mt-1 space-y-1">
               {analysis.judgments.map((j) => (

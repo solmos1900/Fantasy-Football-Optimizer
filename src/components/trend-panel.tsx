@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { PlayerTrendLabel, PlayerTrendView } from "@/lib/types";
 import { trendLabelCopy } from "@/lib/insights/trend-labels";
+import { PlayerChip } from "@/components/insight-rich-text";
 
 function labelTone(label: PlayerTrendLabel): string {
   const n =
@@ -27,6 +28,19 @@ function labelTone(label: PlayerTrendLabel): string {
       return "bg-emerald-950/10 text-emerald-950/60";
     default:
       return "bg-emerald-950/15 text-emerald-950";
+  }
+}
+
+function usageTrendPhrase(trend: "rising" | "falling" | "steady" | "unknown") {
+  switch (trend) {
+    case "rising":
+      return "Recent games trending up";
+    case "falling":
+      return "Recent games trending down";
+    case "steady":
+      return "Recent games look steady";
+    default:
+      return null;
   }
 }
 
@@ -61,14 +75,14 @@ export function ProjectionSpark({
                 className="w-1.5 rounded-sm bg-emerald-950/25"
                 style={{ height: `${Math.max(4, projH)}%` }}
                 title={
-                  w.projected != null ? `Proj ${w.projected.toFixed(1)}` : "No proj"
+                  w.projected != null ? `Projected ${w.projected.toFixed(1)}` : "No projection"
                 }
               />
               <div
                 className="w-1.5 rounded-sm bg-orange-600"
                 style={{ height: `${Math.max(4, actH)}%` }}
                 title={
-                  w.actual != null ? `Actual ${w.actual.toFixed(1)}` : "No actual"
+                  w.actual != null ? `Scored ${w.actual.toFixed(1)}` : "No score yet"
                 }
               />
             </div>
@@ -110,27 +124,27 @@ export function TrendPanel({
   if (!trend) {
     return (
       <p className="text-sm text-emerald-950/50">
-        No stored projection history yet — sync the league to start accumulating
-        weekly snapshots.
+        No weekly scores stored yet — sync the league to start building history.
       </p>
     );
   }
 
+  const usage = usageTrendPhrase(trend.usageTrend);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
+        {trend.playerName && <PlayerChip name={trend.playerName} />}
         <TrendBadge label={trend.trendLabel} />
-        {trend.usageTrend !== "unknown" && (
-          <span className="text-xs text-emerald-950/55">
-            Form slope: {trend.usageTrend}
-          </span>
+        {usage && (
+          <span className="text-xs font-medium text-emerald-950/60">{usage}</span>
         )}
         <span className="text-xs text-emerald-950/45">
-          {trend.weeksSampled} week{trend.weeksSampled === 1 ? "" : "s"} sampled
+          Last {trend.weeksSampled} game{trend.weeksSampled === 1 ? "" : "s"}
         </span>
       </div>
       {!compact && (
-        <p className="text-sm leading-relaxed text-emerald-950/75">
+        <p className="text-sm font-medium leading-relaxed text-emerald-950">
           {trend.rationale}
         </p>
       )}
@@ -141,9 +155,9 @@ export function TrendPanel({
             <thead>
               <tr className="border-b border-emerald-950/10 text-xs uppercase tracking-wider text-emerald-950/45">
                 <th className="py-1.5 pr-2 font-semibold">Week</th>
-                <th className="py-1.5 pr-2 font-semibold">Proj</th>
-                <th className="py-1.5 pr-2 font-semibold">Actual</th>
-                <th className="py-1.5 font-semibold">Δ</th>
+                <th className="py-1.5 pr-2 font-semibold">Projected</th>
+                <th className="py-1.5 pr-2 font-semibold">Scored</th>
+                <th className="py-1.5 font-semibold">Diff</th>
               </tr>
             </thead>
             <tbody>
@@ -186,9 +200,7 @@ export function TrendPanel({
             </tbody>
           </table>
           <p className="mt-2 text-[11px] text-emerald-950/45">
-            Gray bars = stored projection · orange = actual PPR. Sources: ESPN
-            Fantasy league scoring or demo seed (heuristic fills only when marked
-            in DB) — not a paid ranking site.
+            Gray bars = projected · burgundy = actual points scored.
           </p>
         </div>
       )}
