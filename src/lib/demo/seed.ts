@@ -32,9 +32,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "qb",
     recentWeeks: [
-      { week: 4, points: 28.4, opponent: "@ BAL" },
-      { week: 5, points: 19.2, opponent: "vs HOU" },
-      { week: 6, points: 24.1, opponent: "@ NYJ" },
+      { week: 4, points: 28.4, projectedPoints: 26.1, opponent: "@ BAL" },
+      { week: 5, points: 19.2, projectedPoints: 17.7, opponent: "vs HOU" },
+      { week: 6, points: 24.1, projectedPoints: 22.2, opponent: "@ NYJ" },
     ],
   }),
   p({
@@ -52,9 +52,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "rb1",
     recentWeeks: [
-      { week: 4, points: 11.2, opponent: "vs DEN" },
-      { week: 5, points: 16.8, opponent: "@ MIN" },
-      { week: 6, points: 8.4, opponent: "vs BUF" },
+      { week: 4, points: 11.2, projectedPoints: 10.3, opponent: "vs DEN" },
+      { week: 5, points: 16.8, projectedPoints: 15.5, opponent: "@ MIN" },
+      { week: 6, points: 8.4, projectedPoints: 9.1, opponent: "vs BUF" },
     ],
   }),
   p({
@@ -72,9 +72,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "rb1",
     recentWeeks: [
-      { week: 4, points: 22.6, opponent: "vs SEA" },
-      { week: 5, points: 14.1, opponent: "@ DAL" },
-      { week: 6, points: 18.9, opponent: "vs CIN" },
+      { week: 4, points: 22.6, projectedPoints: 20.8, opponent: "vs SEA" },
+      { week: 5, points: 14.1, projectedPoints: 13.0, opponent: "@ DAL" },
+      { week: 6, points: 18.9, projectedPoints: 17.4, opponent: "vs CIN" },
     ],
   }),
   p({
@@ -92,9 +92,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "wr_outside",
     recentWeeks: [
-      { week: 4, points: 9.8, opponent: "@ NYG" },
-      { week: 5, points: 17.4, opponent: "vs PIT" },
-      { week: 6, points: 11.2, opponent: "vs DET" },
+      { week: 4, points: 9.8, projectedPoints: 10.6, opponent: "@ NYG" },
+      { week: 5, points: 17.4, projectedPoints: 16.0, opponent: "vs PIT" },
+      { week: 6, points: 11.2, projectedPoints: 10.3, opponent: "vs DET" },
     ],
   }),
   p({
@@ -112,9 +112,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "wr_slot",
     recentWeeks: [
-      { week: 4, points: 15.2, opponent: "vs SEA" },
-      { week: 5, points: 8.1, opponent: "@ DAL" },
-      { week: 6, points: 19.6, opponent: "vs CIN" },
+      { week: 4, points: 15.2, projectedPoints: 14.0, opponent: "vs SEA" },
+      { week: 5, points: 8.1, projectedPoints: 8.7, opponent: "@ DAL" },
+      { week: 6, points: 19.6, projectedPoints: 18.0, opponent: "vs CIN" },
     ],
   }),
   p({
@@ -132,9 +132,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "te",
     recentWeeks: [
-      { week: 4, points: 7.2, opponent: "@ LAC" },
-      { week: 5, points: 12.8, opponent: "vs NO" },
-      { week: 6, points: 6.4, opponent: "@ SF" },
+      { week: 4, points: 7.2, projectedPoints: 7.8, opponent: "@ LAC" },
+      { week: 5, points: 12.8, projectedPoints: 11.8, opponent: "vs NO" },
+      { week: 6, points: 6.4, projectedPoints: 6.9, opponent: "@ SF" },
     ],
   }),
   p({
@@ -152,9 +152,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "wr_outside",
     recentWeeks: [
-      { week: 4, points: 14.6, opponent: "vs CHI" },
-      { week: 5, points: 10.2, opponent: "@ SF" },
-      { week: 6, points: 18.1, opponent: "vs ARI" },
+      { week: 4, points: 14.6, projectedPoints: 13.4, opponent: "vs CHI" },
+      { week: 5, points: 10.2, projectedPoints: 9.4, opponent: "@ SF" },
+      { week: 6, points: 18.1, projectedPoints: 16.7, opponent: "vs ARI" },
     ],
   }),
   p({
@@ -202,9 +202,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "wr_slot",
     recentWeeks: [
-      { week: 4, points: 12.4, opponent: "vs MIN" },
-      { week: 5, points: 4.1, opponent: "@ CLE" },
-      { week: 6, opponent: "vs ARI", points: 11.8 },
+      { week: 4, points: 12.4, projectedPoints: 11.4, opponent: "vs MIN" },
+      { week: 5, points: 4.1, projectedPoints: 4.4, opponent: "@ CLE" },
+      { week: 6, opponent: "vs ARI", points: 11.8, projectedPoints: 10.9 },
     ],
   }),
   p({
@@ -237,9 +237,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "wr_outside",
     recentWeeks: [
-      { week: 4, points: 8.6, opponent: "@ LAR" },
-      { week: 5, points: 13.2, opponent: "vs CAR" },
-      { week: 6, points: 3.4, opponent: "@ CLE" },
+      { week: 4, points: 8.6, projectedPoints: 9.3, opponent: "@ LAR" },
+      { week: 5, points: 13.2, projectedPoints: 12.1, opponent: "vs CAR" },
+      { week: 6, points: 3.4, projectedPoints: 3.7, opponent: "@ CLE" },
     ],
   }),
   p({
@@ -257,9 +257,9 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "qb",
     recentWeeks: [
-      { week: 4, points: 21.2, opponent: "vs PHI" },
-      { week: 5, points: 16.8, opponent: "@ SEA" },
-      { week: 6, points: 19.4, opponent: "vs NO" },
+      { week: 4, points: 21.2, projectedPoints: 19.5, opponent: "vs PHI" },
+      { week: 5, points: 16.8, projectedPoints: 15.5, opponent: "@ SEA" },
+      { week: 6, points: 19.4, projectedPoints: 17.8, opponent: "vs NO" },
     ],
   }),
   p({
@@ -277,8 +277,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "rb2",
     recentWeeks: [
-      { week: 5, points: 4.2, opponent: "@ SF" },
-      { week: 6, points: 7.8, opponent: "vs GB" },
+      { week: 5, points: 4.2, projectedPoints: 4.5, opponent: "@ SF" },
+      { week: 6, points: 7.8, projectedPoints: 8.4, opponent: "vs GB" },
     ],
   }),
 ];
@@ -376,6 +376,57 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
     buildTeam(7, "Hail Mary FC", "HMF", "Morgan", 7, [2, 4, 0], 612.9, 745.1, stubRoster(7)),
     buildTeam(8, "Sack Exchange", "SACK", "Taylor", 8, [1, 5, 0], 580.4, 772.3, stubRoster(8)),
   ].map((t) => ({ ...t, isCurrentUser: t.id === userTeamId }));
+
+  // Craft Blitz Brigade as a mutual-trade partner: RB surplus + WR hole
+  // so demo Insights always surfaces at least one realistic PPR package.
+  const blitz = teams.find((t) => t.id === 4);
+  if (blitz) {
+    blitz.roster = blitz.roster.map((pl) => {
+      if (pl.position === "WR") {
+        // Force a clear WR hole (both "starters" below the 9-pt need floor)
+        const weakProj =
+          pl.name === "Davante Adams" || pl.name === "Christian Watson"
+            ? 7.2
+            : 5.8;
+        return {
+          ...pl,
+          projectedPoints: weakProj,
+          percentStarted: 18,
+          recentWeeks: [
+            { week: 4, points: 4.1, projectedPoints: 8.0, opponent: "vs CLE" },
+            { week: 5, points: 6.2, projectedPoints: 7.5, opponent: "@ DEN" },
+            { week: 6, points: 3.8, projectedPoints: 7.8, opponent: "vs SF" },
+          ],
+        };
+      }
+      if (pl.position === "RB") {
+        const isBench = !pl.isStarter;
+        return {
+          ...pl,
+          projectedPoints: isBench
+            ? 11.4
+            : Math.max(pl.projectedPoints, 13.8),
+          percentOwned: isBench ? 68 : pl.percentOwned,
+          recentWeeks: [
+            { week: 4, points: 10.2, projectedPoints: 12.5, opponent: "@ SEA" },
+            { week: 5, points: 14.8, projectedPoints: 12.0, opponent: "vs DEN" },
+            { week: 6, points: 9.6, projectedPoints: 12.8, opponent: "@ LAR" },
+          ],
+        };
+      }
+      return pl;
+    });
+  }
+
+  // Ensure user has a clear RB need (Hall sidelined) + WR surplus for skill↔skill.
+  const seb = teams.find((t) => t.id === 1);
+  if (seb) {
+    seb.roster = seb.roster.map((pl) =>
+      pl.name === "Breece Hall"
+        ? { ...pl, injuryStatus: "OUT" as const, projectedPoints: 0 }
+        : pl,
+    );
+  }
 
   // Situational injury demos for Waiver Wire Shark (documented statuses only).
   const team2 = teams.find((t) => t.id === 2);

@@ -9,10 +9,23 @@ import {
   fetchEspnPlayerNews,
   newsFromRosterInjuries,
 } from "@/lib/espn/news";
+import {
+  computeTrendsFromLeague,
+  enrichPlayersWithSnapshots,
+  loadTrendMap,
+  refreshProjectionTrends,
+} from "@/lib/insights/trends";
+import { TrendBadge, TrendPanel } from "@/components/trend-panel";
 import { cn, priorityColor } from "@/lib/utils";
-import type { InsightRecommendation } from "@/lib/types";
+import type { InsightRecommendation, PlayerTrendView } from "@/lib/types";
 
-function InsightCard({ insight }: { insight: InsightRecommendation }) {
+function InsightCard({
+  insight,
+  trendsByPlayerId,
+}: {
+  insight: InsightRecommendation;
+  trendsByPlayerId?: Map<string, PlayerTrendView>;
+}) {
   return (
     <article
       className={cn(
@@ -39,6 +52,13 @@ function InsightCard({ insight }: { insight: InsightRecommendation }) {
         <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">
           {insight.priority}
         </span>
+        {(insight.relatedPlayerIds ?? [])
+          .slice(0, 2)
+          .map((pid) => trendsByPlayerId?.get(pid))
+          .filter((t): t is PlayerTrendView => Boolean(t && t.trendLabel !== "thin" && t.trendLabel !== "Thin"))
+          .map((t) => (
+            <TrendBadge key={`${insight.id}-${t.espnId}`} label={t.trendLabel} />
+          ))}
       </div>
       <h3 className="mt-1 text-lg font-semibold text-emerald-950">{insight.title}</h3>
       <p className="text-sm text-emerald-950/65">{insight.summary}</p>
@@ -96,6 +116,45 @@ function InsightCard({ insight }: { insight: InsightRecommendation }) {
         </div>
       )}
 
+      {insight.trade?.alternativeSendables &&
+        insight.trade.alternativeSendables.length > 0 && (
+          <p className="mt-2 text-xs text-emerald-950/55">
+            Other sendables to float:{" "}
+            {insight.trade.alternativeSendables
+              .map((p) => `${p.name} (${p.position})`)
+              .join(", ")}
+          </p>
+        )}
+
+      {insight.trade?.trendNotes && insight.trade.trendNotes.length > 0 && (
+        <div className="mt-3 border-t border-emerald-950/10 pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
+            Trend / projection rationale
+          </p>
+          <ul className="mt-1.5 space-y-1.5">
+            {insight.trade.trendNotes.map((note) => (
+              <li
+                key={note}
+                className="flex gap-2 text-sm leading-relaxed text-emerald-950/80"
+              >
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-emerald-700" />
+                <span>{note}</span>
+              </li>
+            ))}
+          </ul>
+          {(insight.relatedPlayerIds ?? []).slice(0, 2).map((pid) => {
+            const t = trendsByPlayerId?.get(pid);
+            if (!t || t.weeks.length < 2) return null;
+            return (
+              <div key={`spark-${pid}`} className="mt-2">
+                <p className="text-[11px] text-emerald-950/45">{t.playerName}</p>
+                <TrendPanel trend={t} compact />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <ul className="mt-3 space-y-1.5">
         {insight.reasoning.map((reason) => (
           <li
@@ -127,11 +186,13 @@ function Section({
   description,
   items,
   empty,
+  trendsByPlayerId,
 }: {
   title: string;
   description: string;
   items: InsightRecommendation[];
   empty: string;
+  trendsByPlayerId?: Map<string, PlayerTrendView>;
 }) {
   return (
     <section className="space-y-4">
@@ -144,7 +205,13 @@ function Section({
           {empty}
         </p>
       ) : (
-        items.map((insight) => <InsightCard key={insight.id} insight={insight} />)
+        items.map((insight) => (
+          <InsightCard
+            key={insight.id}
+            insight={insight}
+            trendsByPlayerId={trendsByPlayerId}
+          />
+        ))
       )}
     </section>
   );
@@ -152,11 +219,11 @@ function Section({
 
 export default async function InsightsPage() {
   const session = await auth();
-  const league = session?.user?.id
+  const rawLeague = session?.user?.id
     ? await getLeagueDataForUser(session.user.id)
     : null;
 
-  if (!league) {
+  if (!rawLeague) {
     return (
       <div className="max-w-lg">
         <h1 className="type-page text-emerald-950">Insights</h1>
@@ -174,23 +241,49 @@ export default async function InsightsPage() {
     );
   }
 
+  // Persist / refresh weekly proj vs actual snapshots when Insights loads
+  try {
+    await refreshProjectionTrends(rawLeague);
+  } catch {
+    // best-effort
+  }
+
+  let trendMap = await loadTrendMap(rawLeague);
+  if (trendMap.size === 0) {
+    trendMap = computeTrendsFromLeague(rawLeague);
+  }
+  const league = enrichPlayersWithSnapshots(rawLeague, trendMap);
+
   const rosterPlayers = league.teams.flatMap((t) => t.roster);
   let newsItems = await fetchEspnPlayerNews(rosterPlayers, 8);
   if (!newsItems.length) {
     newsItems = newsFromRosterInjuries(rosterPlayers);
   }
 
-  const bundle = buildInsightsBundle(league, newsItems);
+  const bundle = buildInsightsBundle(league, newsItems, trendMap);
   const averages = leaguePositionalAverages(league);
+
+  const trendsByPlayerId = new Map<string, PlayerTrendView>();
+  for (const p of [...rosterPlayers, ...league.freeAgents]) {
+    const t = trendMap.get(p.espnId);
+    if (t) trendsByPlayerId.set(p.id, t);
+  }
+
+  const yourTrends = (league.teams.find((t) => t.isCurrentUser)?.roster ?? [])
+    .map((p) => trendMap.get(p.espnId))
+    .filter((t): t is PlayerTrendView => Boolean(t && t.weeksSampled > 0))
+    .sort((a, b) => Math.abs(b.avgDelta ?? 0) - Math.abs(a.avgDelta ?? 0))
+    .slice(0, 4);
 
   return (
     <div className="space-y-8 sm:space-y-10">
       <div className="animate-fade-up">
         <h1 className="type-page text-emerald-950">Insights</h1>
         <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Rule-based start/sit, waivers, and trades with transparent reasons —
-          projections, recent form, injury, and defense history. News comes from
-          ESPN public feeds (never invented).
+          Rule-based start/sit, waiver-wire shark, and league-aware PPR trades with
+          transparent reasons — projections, stored proj-vs-actual trends, recent
+          form, injury status, and how similar players fared against this week&apos;s
+          defense. News comes from ESPN public feeds (never invented).
         </p>
         {league.isDemo && (
           <p className="type-eyebrow mt-3 text-orange-700">
@@ -198,6 +291,39 @@ export default async function InsightsPage() {
           </p>
         )}
       </div>
+
+      <section className="animate-fade-up-delay space-y-4">
+        <div>
+          <h2 className="type-section text-emerald-950">Trend analyst</h2>
+          <p className="type-body mt-1 text-emerald-950/55">
+            Weekly projection vs actual snapshots accumulate on sync / Insights load
+            (Neon). Labels are derived from that history — not third-party ranks.
+          </p>
+        </div>
+        {yourTrends.length === 0 ? (
+          <p className="type-body text-emerald-950/50">
+            No trend samples yet. Sync your league once to store this week&apos;s
+            projections; after games finish, actuals fill in.
+          </p>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2">
+            {yourTrends.map((t) => (
+              <div
+                key={t.espnId}
+                className="surface-card border-b-0 p-4 pb-4"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="font-semibold text-emerald-950">{t.playerName}</h3>
+                  <span className="type-caption text-emerald-950/45">
+                    {t.position}
+                  </span>
+                </div>
+                <TrendPanel trend={t} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="animate-fade-up-delay surface-card p-5">
         <h2 className="type-eyebrow mb-3 text-emerald-950/45">
@@ -217,16 +343,18 @@ export default async function InsightsPage() {
 
       <Section
         title="Start / Sit"
-        description="Bench vs lineup calls with projection, recent form, injury, and defense-history reasons."
+        description="Bench vs lineup calls with projection, stored trends, recent form, injury, and defense-history reasons."
         items={bundle.startSit}
         empty="No start/sit inefficiencies flagged this week."
+        trendsByPlayerId={trendsByPlayerId}
       />
 
       <Section
         title="Trade ideas"
-        description="Mutually beneficial 1-for-1 or small packages — why it helps both sides."
+        description="Full-PPR mutual deals: same-pos / need-based packages, 2-for-1 when uneven — with trend/projection rationale. Naked QB↔skill 1:1 is blocked."
         items={bundle.trades}
         empty="No balanced trade ideas found against current positional gaps."
+        trendsByPlayerId={trendsByPlayerId}
       />
 
       <Section

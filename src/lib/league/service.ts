@@ -1,7 +1,17 @@
 import { prisma } from "@/lib/db";
 import { createDemoLeague } from "@/lib/demo/seed";
 import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
+import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
+
+async function persistTrendsSafe(league: LeagueData): Promise<void> {
+  try {
+    await refreshProjectionTrends(league);
+  } catch (err) {
+    // Trends are best-effort — never block sync if Neon is briefly unavailable
+    console.error("[trends] refresh failed", err);
+  }
+}
 
 export async function getUserLeagueConnection(userId: string) {
   return prisma.leagueConnection.findFirst({
@@ -32,6 +42,7 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
         leagueName: demo.name,
       },
     });
+    await persistTrendsSafe(demo);
     return demo;
   }
 
@@ -68,6 +79,7 @@ export async function connectDemoLeague(userId: string): Promise<LeagueData> {
       lastSyncedAt: new Date(),
     },
   });
+  await persistTrendsSafe(demo);
   return demo;
 }
 
@@ -130,6 +142,7 @@ export async function connectEspnLeague(
     },
   });
 
+  await persistTrendsSafe(league);
   return league;
 }
 

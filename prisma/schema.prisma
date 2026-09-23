@@ -77,3 +77,136 @@ model LeagueConnection {
   @@unique([userId, leagueId, season])
   @@index([userId])
 }
+
+/// Canonical player identity (ESPN id keyed). Week stats + trends hang off this.
+model Player {
+  id            String               @id @default(cuid())
+  espnId        Int                  @unique
+  /// String form of ESPN id for brief compatibility / cross-system maps
+  espnPlayerId  String?
+  sleeperId     String?
+  name          String
+  position      String
+  nflTeam       String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  weekStats     PlayerWeekStat[]
+  trends        PlayerTrendSnapshot[]
+
+  @@index([position, nflTeam])
+}
+
+/// Weekly projected vs actual PPR + optional usage proxies (research: PlayerWeekStat).
+/// Primary source: ESPN Fantasy league scoring on sync. Usage fields stay null until a free
+/// feed (e.g. nflverse) is wired — never scrape paid FantasyPros/SportsDataIO.
+model PlayerWeekStat {
+  id               String   @id @default(cuid())
+  playerId         String?
+  player           Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  espnId           Int
+  playerName       String
+  position         String
+  nflTeam          String?
+  season           Int
+  week             Int
+  scoringFormat    String   @default("PPR") // PPR | HALF_PPR | STD
+  projectedPpr     Float?
+  actualPpr        Float?
+  /// actual − projected when both known
+  projectionDelta  Float?
+  projectionSource String?
+  actualSource     String?
+  targets          Float?
+  receptions       Float?
+  carries          Float?
+  rushingAttempts  Float?
+  rushingYards     Float?
+  receivingYards   Float?
+  targetShare      Float?
+  rushShare        Float?
+  snapShare        Float?
+  routePct         Float?
+  airYards         Float?
+  redZoneTargets   Float?
+  redZoneTouches   Float?
+  goalLineCarries  Float?
+  gameScriptNote   String?
+  /// espn | demo | heuristic | nflverse — never invent FantasyPros labels
+  source           String   @default("espn")
+  leagueId         String   @default("")
+  opponent         String?
+  capturedAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([espnId, season, week, leagueId])
+  @@index([espnId, season])
+  @@index([leagueId, season, week])
+  @@index([playerId])
+  @@index([projectionDelta])
+}
+
+/// Trend judgment snapshot (research: Rising|Stable|Fading|BoomBust|InjuryRisk).
+/// factJson = measurable evidence; judgmentJson = ranked conclusions (injury/role > usage > hot/cold).
+model PlayerTrendSnapshot {
+  id               String   @id @default(cuid())
+  playerId         String?
+  player           Player?  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  espnId           Int
+  playerName       String
+  position         String
+  season           Int
+  asOfWeek         Int      @default(0)
+  leagueId         String   @default("")
+  weeksSampled     Int      @default(0)
+  avgProjected     Float?
+  avgActual        Float?
+  avgDelta         Float?
+  recentFormAvg    Float?
+  /// Rising | Stable | Fading | BoomBust | InjuryRisk | Thin
+  trendLabel       String   @default("Thin")
+  usageTrend       String   @default("unknown")
+  restOfSeasonAdj  Float    @default(0)
+  /// Ranked signal strengths (research brief §4) — nullable until usage feeds land
+  injuryRoleScore  Float?
+  usageTrajectory  Float?
+  redZoneScore     Float?
+  sosScore         Float?
+  hotColdScore     Float?
+  /// One plain-language evidence sentence for the UI
+  evidenceSentence String?
+  /// JSON: measurable facts only (deltas, samples, injury flag)
+  factJson         String?
+  /// JSON: ordered judgments (never let hot/cold outrank injury/usage)
+  judgmentJson     String?
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  @@unique([espnId, season, leagueId])
+  @@index([espnId, season])
+  @@index([leagueId, season, trendLabel])
+  @@index([playerId])
+}
+
+/// Defense weekly fantasy points allowed by position/role (for matchup SOS).
+model DefenseWeekAllow {
+  id              String   @id @default(cuid())
+  defenseAbbrev   String
+  /// Alias for research brief `nflTeam`
+  nflTeam         String?
+  season          Int
+  week            Int
+  position        String
+  /// Alias for research brief `vsPosition`
+  vsPosition      String?
+  role            String?
+  pointsAllowed   Float
+  pointsAllowedPpr Float?
+  rankVsPos       Int?
+  samplePlayer    String?
+  source          String   @default("seed")
+  createdAt       DateTime @default(now())
+
+  @@unique([defenseAbbrev, season, week, position, role])
+  @@index([defenseAbbrev, season])
+  @@index([nflTeam, season, week])
+}

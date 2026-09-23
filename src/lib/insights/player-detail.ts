@@ -1,10 +1,16 @@
-import type { FantasyPlayer, LeagueData, PlayerPosition } from "@/lib/types";
+import type {
+  FantasyPlayer,
+  LeagueData,
+  PlayerPosition,
+  PlayerTrendView,
+} from "@/lib/types";
 import {
   analyzeDefenseMatchup,
   averageRecentPoints,
   inferPlayerRole,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
+import { trendLabelCopy } from "@/lib/insights/trend-labels";
 
 export type StartSitLean = "START" | "SIT" | "FLEX";
 
@@ -127,6 +133,7 @@ function toComps(
 export function buildPlayerDetailInsight(
   league: LeagueData,
   player: FantasyPlayer,
+  trend?: PlayerTrendView | null,
 ): PlayerDetailInsight {
   const matchup = analyzeDefenseMatchup(player, pool(league));
   const form = recentFormSummary(player);
@@ -166,6 +173,15 @@ export function buildPlayerDetailInsight(
     `This week projection: ${player.projectedPoints.toFixed(1)} PPR (${venue.label}).`,
   );
 
+  if (trend && trend.trendLabel !== "thin" && trend.trendLabel !== "Thin") {
+    reasons.push(
+      `Stored trend: ${trendLabelCopy(trend.trendLabel)} — ${trend.evidenceSentence ?? trend.rationale}`,
+    );
+    if (trend.judgments?.length) {
+      reasons.push(`Judgment order: ${trend.judgments.join(" ")}`);
+    }
+  }
+
   if (recentAvg != null) {
     reasons.push(
       `Recent form avg ${recentAvg.toFixed(1)} PPR across last scored weeks.`,
@@ -199,6 +215,7 @@ export function buildPlayerDetailInsight(
 
   let score = player.projectedPoints;
   if (recentAvg != null) score = score * 0.55 + recentAvg * 0.45;
+  if (trend) score += trend.restOfSeasonAdj * 0.5;
   if (matchup?.toughMatchup) score -= 2.5;
   if (player.injuryStatus === "QUESTIONABLE") score -= 1.5;
   if (player.injuryStatus === "DOUBTFUL") score -= 4;

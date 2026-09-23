@@ -119,13 +119,16 @@ Copy `.env.example` → `.env`. **Never commit secrets.**
 | Signal | Source |
 |--------|--------|
 | Projections / actuals / rosters | ESPN Fantasy unofficial API (synced + cached per user) or demo seed |
-| Prior-week form | ESPN player weekly `stats` when present; demo seed includes `recentWeeks` |
+| Weekly proj vs actual history | Neon `PlayerProjectionSnapshot` + `PlayerTrendMetric` (filled on sync / Insights / `POST /api/trends/refresh`) |
+| Prior-week form | ESPN player weekly `stats` (actual + projected when present); demo seed includes `recentWeeks` |
 | Defense vs similar players | League-wide `recentWeeks` vs opponent + seeded defense history table |
 | Injury / news | ESPN public site news + injuries APIs; roster injury flags as fallback — **never invented** |
-| Trades | `src/lib/insights/trades.ts` — 1QB PPR norms (hard rejects + scoring) |
+| Trades | `src/lib/insights/trades.ts` — full-PPR 1QB norms + stored trend chip nudges |
 | Waiver Wire Shark | `src/lib/insights/waivers.ts` — injury → FA opportunity mapping |
 
-Engine: `src/lib/insights/engine.ts` + `trades.ts` + `waivers.ts` + `defense-matchups.ts`. No paid LLM dependency.
+Engine: `src/lib/insights/engine.ts` + `trades.ts` + `waivers.ts` + `defense-matchups.ts` + `trends.ts`. No paid LLM dependency.
+
+See **[docs/projections-and-trends.md](docs/projections-and-trends.md)** for schema, refresh path, and how to read trend labels.
 
 ### Waiver Wire Shark (injury → opportunity)
 
@@ -137,7 +140,7 @@ Situational claims, not generic “highest projected FA” lists:
 4. **Drop hint** — if the roster looks full, suggest a weak/injured bench drop candidate.
 5. Works for guest/demo leagues and connected ESPN leagues.
 
-### Trade recommendation rules (1QB PPR)
+### Trade recommendation rules (1QB full PPR)
 
 Encoded from common r/fantasyfootball / Trade Analyzer norms — not raw projection swaps:
 
@@ -149,7 +152,11 @@ Encoded from common r/fantasyfootball / Trade Analyzer norms — not raw project
 - Same-position or skill↔skill surplus→need fills.
 - 2-for-1 / 1-for-2 when values are uneven.
 - QB only as a package sweetener (QB + skill ↔ elite skill) when the partner needs QB.
-- Each card includes a short “why this gets accepted” for both managers.
+- Each card includes “why this gets accepted” plus **trend/projection rationale** when Neon snapshots exist (buy-low on bust/cold, sell-high on boom/hot).
+
+**Valuation**
+- Chip blend: 65% this-week projection + 35% recent actual, plus small `restOfSeasonAdj` from stored proj-vs-actual trends.
+- Assumes **full PPR** product default; ESPN `appliedTotal` already reflects connected league scoring when synced.
 
 ---
 
@@ -195,11 +202,15 @@ src/lib/espn/client.ts             ESPN Fantasy + scoreboard + recent weekly sta
 src/lib/espn/news.ts               ESPN public news / injuries
 src/lib/stats/provider.ts          Live stats (ESPN public or demo fallback)
 src/lib/insights/engine.ts         Start/sit, news, matchup notes, other
-src/lib/insights/trades.ts         Realistic 1QB PPR trade filter/scoring
+src/lib/insights/trades.ts         Realistic 1QB full-PPR trade filter/scoring + trends
 src/lib/insights/waivers.ts        Injury → waiver opportunity (Shark)
-src/lib/insights/player-detail.ts  Per-player start/sit + defense comps
+src/lib/insights/player-detail.ts  Per-player start/sit + defense comps + trends
 src/lib/insights/defense-matchups.ts Similar-player vs defense history
-src/lib/league/service.ts          Persist/connect/sync per user
+src/lib/insights/trends.ts         Projection snapshots + trend metrics (Neon)
+src/lib/insights/trend-labels.ts   Shared trend label copy
+src/app/api/trends/refresh/route.ts On-demand trend refresh / read
+src/components/trend-panel.tsx     Proj vs actual spark + table
+src/lib/league/service.ts          Persist/connect/sync per user (+ trend refresh)
 src/lib/demo/seed.ts               Mock league for guest / demo connect
 ```
 

@@ -148,21 +148,32 @@ function mapPlayer(
   const ownership = (player.ownership as Record<string, number> | undefined) ?? {};
   const proTeamId = Number(player.proTeamId ?? 0);
 
-  const recentWeeks = stats
-    .filter(
-      (s) =>
-        Number(s.statSourceId) === 0 &&
-        Number(s.statSplitTypeId) === 1 &&
-        Number(s.scoringPeriodId) > 0 &&
-        Number(s.scoringPeriodId) < scoringPeriodId &&
-        typeof s.appliedTotal === "number",
-    )
-    .map((s) => ({
-      week: Number(s.scoringPeriodId),
-      points: Number(s.appliedTotal),
-    }))
-    .sort((a, b) => b.week - a.week)
-    .slice(0, 4);
+  const recentWeeks = (() => {
+    const byWeek = new Map<
+      number,
+      { week: number; points: number; projectedPoints?: number }
+    >();
+
+    for (const s of stats) {
+      const week = Number(s.scoringPeriodId);
+      if (!week || week <= 0 || week >= scoringPeriodId) continue;
+      if (Number(s.statSplitTypeId) !== 1) continue;
+      if (typeof s.appliedTotal !== "number") continue;
+
+      const existing = byWeek.get(week) ?? { week, points: 0 };
+      if (Number(s.statSourceId) === 0) {
+        existing.points = Number(s.appliedTotal);
+      } else if (Number(s.statSourceId) === 1) {
+        existing.projectedPoints = Number(s.appliedTotal);
+      }
+      byWeek.set(week, existing);
+    }
+
+    return [...byWeek.values()]
+      .filter((w) => w.points > 0 || (w.projectedPoints ?? 0) > 0)
+      .sort((a, b) => b.week - a.week)
+      .slice(0, 6);
+  })();
 
   return {
     id: `espn-${player.id ?? playerPoolEntry.id}`,
