@@ -29,7 +29,7 @@ function InsightCard({
   return (
     <article
       className={cn(
-        "rounded-xl border border-emerald-950/8 border-l-4 py-3.5 pl-4 pr-3 shadow-sm",
+        "surface-card border-l-4 py-3.5 pl-4 pr-3",
         priorityColor(insight.priority),
       )}
     >
@@ -40,13 +40,11 @@ function InsightCard({
         {insight.verdict && (
           <span
             className={cn(
-              "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-              insight.verdict === "START"
-                ? "bg-emerald-700 text-white"
-                : "bg-orange-700 text-white",
+              "stamp animate-stamp",
+              insight.verdict === "START" ? "stamp-start" : "stamp-sit",
             )}
           >
-            {insight.verdict}
+            ★ {insight.verdict}
           </span>
         )}
         <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">

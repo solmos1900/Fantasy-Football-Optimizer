@@ -10,9 +10,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary:
     "bg-emerald-950 text-emerald-50 shadow-sm hover:bg-emerald-900 active:bg-emerald-950 disabled:bg-emerald-950/50",
   ghost:
-    "border border-emerald-950/15 bg-white/80 text-emerald-950 shadow-sm hover:border-emerald-950/25 hover:bg-white active:bg-emerald-50/80 disabled:bg-white/50",
+    "border-[1.5px] border-emerald-950/20 bg-[color-mix(in_srgb,var(--surface)_90%,white)] text-emerald-950 shadow-sm hover:border-emerald-950/35 hover:bg-[var(--surface)] active:bg-emerald-50/80 disabled:bg-white/50",
   danger:
-    "bg-red-600 text-white shadow-sm hover:bg-red-500 active:bg-red-700 disabled:bg-red-600/50",
+    "bg-red-700 text-white shadow-sm hover:bg-red-600 active:bg-red-800 disabled:bg-red-700/50",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

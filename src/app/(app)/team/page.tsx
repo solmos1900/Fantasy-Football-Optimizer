@@ -50,21 +50,31 @@ export default async function TeamPage() {
         </p>
       </div>
 
-      <section className="animate-fade-up-delay surface-card p-4 sm:p-5">
-        <h2 className="type-section mb-3 text-emerald-950">Starters</h2>
-        <div>
-          {starters.map((p) => (
-            <PlayerRow key={p.id} player={p} />
-          ))}
+      <section className="animate-fade-up-delay cork-board p-3 sm:p-4">
+        <div className="surface-card p-4 sm:p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h2 className="type-section text-emerald-950">Starters</h2>
+            <span className="stamp stamp-start">★ Start</span>
+          </div>
+          <div>
+            {starters.map((p) => (
+              <PlayerRow key={p.id} player={p} />
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="animate-fade-up-delay-2 surface-card p-4 sm:p-5">
-        <h2 className="type-section mb-3 text-emerald-950">Bench</h2>
-        <div>
-          {bench.map((p) => (
-            <PlayerRow key={p.id} player={p} />
-          ))}
+      <section className="animate-fade-up-delay-2 cork-board p-3 sm:p-4">
+        <div className="surface-card p-4 sm:p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <h2 className="type-section text-emerald-950">Bench</h2>
+            <span className="stamp stamp-sit">Sit</span>
+          </div>
+          <div>
+            {bench.map((p) => (
+              <PlayerRow key={p.id} player={p} />
+            ))}
+          </div>
         </div>
       </section>
     </div>

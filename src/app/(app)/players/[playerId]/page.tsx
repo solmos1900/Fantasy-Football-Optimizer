@@ -134,18 +134,20 @@ export default async function PlayerDetailPage({
         </div>
       </div>
 
-      <section className="animate-fade-up-delay surface-card p-4 sm:p-5">
+      <section className="animate-fade-up-delay cork-board tape-card p-4 sm:p-5">
+        <div className="surface-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white",
+              "stamp animate-stamp text-xs",
               insight.lean === "START"
-                ? "bg-emerald-700"
+                ? "stamp-start"
                 : insight.lean === "FLEX"
-                  ? "bg-amber-600"
-                  : "bg-orange-700",
+                  ? "stamp-flex"
+                  : "stamp-sit",
             )}
           >
+            {insight.lean === "START" ? "★ " : ""}
             {insight.lean}
           </span>
           <h2 className="type-section text-emerald-950">
@@ -169,6 +171,7 @@ export default async function PlayerDetailPage({
             </li>
           ))}
         </ul>
+        </div>
       </section>
 
       <section className="animate-fade-up-delay-2">

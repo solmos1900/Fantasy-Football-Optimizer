@@ -1,24 +1,64 @@
 @import "tailwindcss";
 
+/*
+  Option F — Retro Draft Board
+  Kraft/cream surfaces, forest green ink, burgundy stamps.
+  Emerald / orange Tailwind scales remapped so existing utilities
+  pick up the locked palette without a full class rewrite.
+*/
 :root {
-  --background: #e8efea;
-  --foreground: #052e1c;
-  --field: #14532d;
-  --accent: #ea580c;
-  --surface: #f4f7f5;
-  --radius-control: 0.75rem;
-  --ring-focus: rgba(234, 88, 12, 0.35);
+  --background: #f5f2e9;
+  --foreground: #1b3022;
+  --field: #1b3022;
+  --accent: #701d21;
+  --surface: #fdf9f0;
+  --cork: #c4a574;
+  --cork-deep: #a88455;
+  --kraft: #ebe4d4;
+  --radius-control: 0.7rem;
+  --ring-focus: rgba(112, 29, 33, 0.32);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-field: var(--field);
+  --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-cork: var(--cork);
+  --color-kraft: var(--kraft);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
+
+  /* Forest green ← emerald */
+  --color-emerald-50: #f3f6f1;
+  --color-emerald-100: #e4ebe3;
+  --color-emerald-200: #c8d5c6;
+  --color-emerald-300: #9bb39a;
+  --color-emerald-400: #6a8a6c;
+  --color-emerald-500: #456348;
+  --color-emerald-600: #2f4a35;
+  --color-emerald-700: #243a2b;
+  --color-emerald-800: #1f3426;
+  --color-emerald-900: #1b3022;
+  --color-emerald-950: #14231a;
+
+  /* Burgundy / maroon ← orange (START stamps & primary CTAs) */
+  --color-orange-50: #f9f0f0;
+  --color-orange-100: #f0d9da;
+  --color-orange-200: #e0b4b6;
+  --color-orange-300: #c97a7e;
+  --color-orange-400: #a8484d;
+  --color-orange-500: #8a2e33;
+  --color-orange-600: #701d21;
+  --color-orange-700: #5c181b;
+  --color-orange-800: #4a1416;
+  --color-orange-900: #3a1012;
+  --color-orange-950: #2a0b0d;
 }
 
 /*
-  Keep html + body the same light field color for the FULL scroll height.
+  Keep html + body the same kraft color for the FULL scroll height.
   Mobile Safari often paints overflow/rubber-band from html; if html is
   viewport-tall only (h-full) while body grows, a darker layer can flash
   behind content. Solid color on both + fixed decorative layer fixes it.
@@ -63,67 +103,100 @@ textarea {
   font-size: 1rem;
 }
 
-/* Decorative atmosphere: fixed to the viewport so scroll never reveals a
-   different color band behind content. */
+/* Kraft paper atmosphere + subtle cork grain */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: #e8efea;
+  background-color: #f5f2e9;
   background-image:
     radial-gradient(
-      ellipse 90% 45% at 50% -15%,
-      rgba(20, 83, 45, 0.12),
+      ellipse 85% 50% at 50% -20%,
+      rgba(27, 48, 34, 0.07),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 50% 35% at 100% 0%,
-      rgba(234, 88, 12, 0.06),
+      ellipse 45% 35% at 100% 10%,
+      rgba(112, 29, 33, 0.05),
       transparent 65%
     ),
+    radial-gradient(
+      ellipse 40% 30% at 0% 80%,
+      rgba(196, 165, 116, 0.18),
+      transparent 70%
+    ),
     repeating-linear-gradient(
-      90deg,
+      0deg,
       transparent,
-      transparent 48px,
-      rgba(20, 83, 45, 0.03) 48px,
-      rgba(20, 83, 45, 0.03) 49px
-    );
+      transparent 3px,
+      rgba(27, 48, 34, 0.015) 3px,
+      rgba(27, 48, 34, 0.015) 4px
+    ),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
 }
 
-/* Legacy class kept for any remaining usages — same light theme, no mid-page flip */
 .field-atmosphere {
-  background-color: #e8efea;
+  background-color: #f5f2e9;
+}
+
+/* Cork board panel — draft-board character */
+.cork-board {
+  position: relative;
+  border-radius: 0.75rem;
+  border: 2px solid var(--field);
+  background-color: #c9a86c;
+  background-image:
+    radial-gradient(circle at 0.8rem 0.8rem, #1b3022 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at calc(100% - 0.8rem) 0.8rem, #1b3022 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at 0.8rem calc(100% - 0.8rem), #1b3022 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at calc(100% - 0.8rem) calc(100% - 0.8rem), #1b3022 0 0.22rem, transparent 0.28rem),
+    radial-gradient(
+      circle at 20% 30%,
+      rgba(255, 255, 255, 0.12) 0,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 80% 70%,
+      rgba(80, 50, 20, 0.12) 0,
+      transparent 45%
+    ),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)' opacity='0.22'/%3E%3C/svg%3E");
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 8px 28px -14px rgba(27, 48, 34, 0.35);
 }
 
 /* —— Typography scale —— */
 .type-brand {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.04em;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   line-height: 1.05;
+  text-transform: uppercase;
 }
 
 .type-page {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.875rem;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
   line-height: 1.15;
+  text-transform: uppercase;
 }
 
 @media (min-width: 640px) {
   .type-page {
-    font-size: 2.25rem;
+    font-size: 2.125rem;
   }
 }
 
 .type-section {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.375rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
   line-height: 1.25;
 }
 
@@ -141,26 +214,55 @@ body::before {
 
 .type-eyebrow {
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .type-stat {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.1;
+}
+
+/* —— Stamp-style START / SIT —— */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fdf9f0;
+  box-shadow: inset 0 0 0 1px rgba(253, 249, 240, 0.25);
+}
+
+.stamp-start {
+  background: #701d21;
+}
+
+.stamp-sit {
+  background: #1b3022;
+}
+
+.stamp-flex {
+  background: #8a6a2f;
 }
 
 /* —— Shared form control surface —— */
 .field-input {
   width: 100%;
   border-radius: var(--radius-control);
-  border: 1px solid rgba(2, 44, 34, 0.14);
-  background: #fff;
+  border: 1.5px solid rgba(27, 48, 34, 0.18);
+  background: #fdf9f0;
   padding: 0.625rem 0.875rem;
   font-size: 1rem;
   line-height: 1.4;
@@ -172,27 +274,47 @@ body::before {
 }
 
 .field-input:hover {
-  border-color: rgba(2, 44, 34, 0.22);
+  border-color: rgba(27, 48, 34, 0.28);
 }
 
 .field-input:focus-visible {
-  border-color: rgba(234, 88, 12, 0.55);
+  border-color: rgba(112, 29, 33, 0.55);
   box-shadow: 0 0 0 3px var(--ring-focus);
 }
 
 .field-input::placeholder {
-  color: rgba(5, 46, 28, 0.4);
+  color: rgba(27, 48, 34, 0.4);
 }
 
-/* —— Card / surface grouping —— */
+/* —— Card / surface grouping (paper on board) —— */
 .surface-card {
-  border-radius: 1rem;
-  border: 1px solid rgba(2, 44, 34, 0.09);
-  background: color-mix(in srgb, var(--surface) 92%, white);
+  border-radius: 0.85rem;
+  border: 1.5px solid rgba(27, 48, 34, 0.12);
+  background: color-mix(in srgb, var(--surface) 94%, white);
   box-shadow:
-    0 1px 2px rgba(5, 46, 28, 0.04),
-    0 8px 24px -12px rgba(5, 46, 28, 0.12);
-  backdrop-filter: blur(8px);
+    0 1px 0 rgba(253, 249, 240, 0.8) inset,
+    0 1px 2px rgba(27, 48, 34, 0.04),
+    0 10px 28px -14px rgba(27, 48, 34, 0.18);
+}
+
+/* Masking-tape accent for featured cards */
+.tape-card {
+  position: relative;
+}
+
+.tape-card::before {
+  content: "";
+  position: absolute;
+  top: -0.45rem;
+  left: 50%;
+  z-index: 2;
+  width: 4.5rem;
+  height: 1.05rem;
+  transform: translateX(-50%) rotate(-2deg);
+  background: rgba(235, 220, 170, 0.72);
+  border: 1px solid rgba(180, 150, 80, 0.25);
+  box-shadow: 0 1px 2px rgba(27, 48, 34, 0.08);
+  pointer-events: none;
 }
 
 @keyframes fade-up {
@@ -216,6 +338,17 @@ body::before {
   }
 }
 
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: scale(1.15) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+}
+
 .animate-fade-up {
   animation: fade-up 0.55s ease-out both;
 }
@@ -226,4 +359,8 @@ body::before {
 
 .animate-fade-up-delay-2 {
   animation: fade-up 0.55s ease-out 0.24s both;
+}
+
+.animate-stamp {
+  animation: stamp-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
 }
