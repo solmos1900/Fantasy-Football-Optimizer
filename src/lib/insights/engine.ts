@@ -10,7 +10,6 @@ import type {
 import {
   analyzeDefenseMatchup,
   averageRecentPoints,
-  inferPlayerRole,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { buildRealisticTrades } from "@/lib/insights/trades";
