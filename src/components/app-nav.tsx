@@ -56,46 +56,51 @@ export function AppNav() {
     <>
       {/* Slim top chrome — brand + utilities (not primary section tabs) */}
       <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_92%,white)]/95 shadow-[0_1px_0_rgba(253,249,240,0.8)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
           <PendingLink href="/dashboard" className="group min-w-0 shrink">
             <BrandWordmark
               markSize={28}
-              className="transition-opacity group-hover:opacity-90 sm:[&_.type-brand]:text-2xl [&_.type-brand]:text-lg"
+              className="min-w-0 transition-opacity group-hover:opacity-90 sm:[&_.type-brand]:text-2xl [&_.type-brand]:truncate [&_.type-brand]:text-base sm:[&_.type-brand]:text-lg"
             />
           </PendingLink>
 
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-            <InstallHowToLink className="shrink-0 px-1.5 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:text-sm">
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-2.5">
+            <InstallHowToLink className="px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
               Install
             </InstallHowToLink>
             <PendingLink
               href="/connect"
-              className="shrink-0 px-1.5 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:text-sm"
+              className="px-1 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
             >
               Connect
             </PendingLink>
-            {data?.user?.isGuest && (
+            {data?.user?.isGuest ? (
               <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
                 Guest
               </span>
+            ) : (
+              <span className="hidden max-w-[10rem] truncate text-sm text-emerald-950/60 md:inline">
+                {data?.user?.name ?? data?.user?.email}
+              </span>
             )}
-            <span className="hidden max-w-[10rem] truncate text-sm text-emerald-950/60 md:inline">
-              {data?.user?.name ?? data?.user?.email}
-            </span>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               loading={signingOut}
               disabled={signingOut}
+              aria-label={signingOut ? "Signing out" : "Sign out"}
               onClick={() =>
                 startSignOut(() => {
                   void signOut({ callbackUrl: "/" });
                 })
               }
-              className="min-h-9 shrink-0 px-2.5 text-xs sm:px-3"
+              className="min-h-9 min-w-9 shrink-0 px-2 text-xs sm:px-3"
             >
-              {signingOut ? "Signing out…" : "Sign out"}
+              <span className="sm:hidden">{signingOut ? "…" : "Out"}</span>
+              <span className="hidden sm:inline">
+                {signingOut ? "Signing out…" : "Sign out"}
+              </span>
             </Button>
           </div>
         </div>
