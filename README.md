@@ -21,6 +21,7 @@ Built with **Next.js App Router**, **TypeScript**, **Tailwind CSS**, **Auth.js (
    - **Injury / news** cards from ESPN public feeds (never invented)
    - **Matchup notes** — how similar-role players fared vs that defense recently
    - Drop/add, weak positions, streaming as supporting signals
+8. **Trade Analyzer** — Interactive give/get builder against any league mate; instant verdict (Accept → Hard reject), chip totals + value gap, hard-reject reasons, For you / For them, and partner acceptance lean as a Low/Medium/High band (not a fake %). Same 1QB full-PPR chip math + trend nudges as Insights suggestions. Works with demo or ESPN-synced leagues.
 
 Guest and email/password work **without** OAuth secrets. Demo-seeded league still loads from Connect for guests.
 
@@ -123,10 +124,11 @@ Copy `.env.example` → `.env`. **Never commit secrets.**
 | Prior-week form | ESPN player weekly `stats` (actual + projected when present); demo seed includes `recentWeeks` |
 | Defense vs similar players | League-wide `recentWeeks` vs opponent + seeded defense history table |
 | Injury / news | ESPN public site news + injuries APIs; roster injury flags as fallback — **never invented** |
-| Trades | `src/lib/insights/trades.ts` — full-PPR 1QB norms + stored trend chip nudges |
+| Trades | `src/lib/insights/trade-value.ts` + `trades.ts` — full-PPR 1QB norms + stored trend chip nudges |
+| Trade Analyzer | `src/lib/insights/trade-analyzer.ts` — grades user-built packages with the same chip / need helpers |
 | Waiver Wire Shark | `src/lib/insights/waivers.ts` — injury → FA opportunity mapping |
 
-Engine: `src/lib/insights/engine.ts` + `trades.ts` + `waivers.ts` + `defense-matchups.ts` + `trends.ts`. No paid LLM dependency.
+Engine: `src/lib/insights/engine.ts` + `trade-value.ts` + `trades.ts` + `trade-analyzer.ts` + `waivers.ts` + `defense-matchups.ts` + `trends.ts`. No paid LLM dependency.
 
 See **[docs/projections-and-trends.md](docs/projections-and-trends.md)** for schema, refresh path, and how to read trend labels.
 
@@ -155,8 +157,23 @@ Encoded from common r/fantasyfootball / Trade Analyzer norms — not raw project
 - Each card includes “why this gets accepted” plus **trend/projection rationale** when Neon snapshots exist (buy-low on bust/cold, sell-high on boom/hot).
 
 **Valuation**
-- Chip blend: 65% this-week projection + 35% recent actual, plus small `restOfSeasonAdj` from stored proj-vs-actual trends.
+- Chip blend: ~70% ROS/recent form + ~30% this-week projection, plus `restOfSeasonAdj` from stored proj-vs-actual trends; scarcity TE/RB1 > WR1 > QB.
 - Assumes **full PPR** product default; ESPN `appliedTotal` already reflects connected league scoring when synced.
+
+### Trade Analyzer (interactive)
+
+Page: `/trades` (also linked from Insights → Trade ideas).
+
+1. Pick a partner team from the league.
+2. Select players to **Give** (your roster) and **Get** (theirs).
+3. Instant analysis card:
+   - Verdict: Accept / Lean accept / Fair / Lean reject / Hard reject (plain language)
+   - Side chip totals + value gap (shared `chipValue` from `trade-value.ts`, including trend nudges when available)
+   - Hard-reject reasons when applicable
+   - For you / For them / why accepted or not (need-fit)
+   - Partner acceptance lean as **Low / Medium / High** (or None if blocked) — not a calibrated %
+4. Deep-link from an Insights suggestion: `/trades?partner=<teamId>&give=<ids>&get=<ids>`
+5. Default scoring: full PPR / 1QB redraft. Dynasty, draft picks, and half-PPR toggles are out of scope for v1.
 
 ---
 
@@ -202,7 +219,9 @@ src/lib/espn/client.ts             ESPN Fantasy + scoreboard + recent weekly sta
 src/lib/espn/news.ts               ESPN public news / injuries
 src/lib/stats/provider.ts          Live stats (ESPN public or demo fallback)
 src/lib/insights/engine.ts         Start/sit, news, matchup notes, other
-src/lib/insights/trades.ts         Realistic 1QB full-PPR trade filter/scoring + trends
+src/lib/insights/trade-value.ts    Shared 1QB full-PPR chip / need / hard-reject helpers
+src/lib/insights/trades.ts         Auto mutual trade suggestions (uses trade-value)
+src/lib/insights/trade-analyzer.ts Interactive package grading (uses trade-value)
 src/lib/insights/waivers.ts        Injury → waiver opportunity (Shark)
 src/lib/insights/player-detail.ts  Per-player start/sit + defense comps + trends
 src/lib/insights/defense-matchups.ts Similar-player vs defense history
@@ -210,11 +229,12 @@ src/lib/insights/trends.ts         Projection snapshots + trend metrics (Neon)
 src/lib/insights/trend-labels.ts   Shared trend label copy
 src/app/api/trends/refresh/route.ts On-demand trend refresh / read
 src/components/trend-panel.tsx     Proj vs actual spark + table
+src/components/trade-analyzer.tsx  Client UI for give/get + analysis card
 src/lib/league/service.ts          Persist/connect/sync per user (+ trend refresh)
 src/lib/demo/seed.ts               Mock league for guest / demo connect
 ```
 
-Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/connect`, `/login`.
+Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/connect`, `/login`.
 
 ---
 
@@ -227,7 +247,8 @@ Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/connect`, `/
 5. **League** — standings, matchups, every roster + **Sync** (no re-entry of League ID).
 6. **Players** — search/filter owned + free agents.
 7. **Insights** — Start/Sit, Trades (PPR norms), Waiver Wire Shark, News, Matchup notes, and supporting signals.
-8. **Sync** (Home / League / Connect) — re-fetch ESPN or re-seed demo from the saved connection.
+8. **Trades** — Interactive Trade Analyzer (give/get builder + instant grade); deep-links from Insights suggestions.
+9. **Sync** (Home / League / Connect) — re-fetch ESPN or re-seed demo from the saved connection.
 
 ---
 

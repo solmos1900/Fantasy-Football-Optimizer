@@ -8,6 +8,9 @@
  * - Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB).
  * - Chip blend ~70% ROS/form + ~30% this-week proj; half-PPR only when lean flips.
  * - Mutually beneficial For you / For them / Why accepted; optional sendables.
+ *
+ * Shared chip / need / hard-reject math lives in trade-value.ts (also used by
+ * the interactive Trade Analyzer).
  */
 
 import type {
@@ -15,302 +18,37 @@ import type {
   FantasyTeam,
   InsightRecommendation,
   LeagueData,
-  PlayerPosition,
-  PlayerTrendView,
 } from "@/lib/types";
 import {
   analyzeDefenseMatchup,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
-import { trendLabelCopy, normalizeTrendLabel } from "@/lib/insights/trend-labels";
-
-const SKILL: PlayerPosition[] = ["RB", "WR", "TE"];
-
-const STARTER_NEED: Partial<Record<PlayerPosition, number>> = {
-  QB: 1,
-  RB: 2,
-  WR: 2,
-  TE: 1,
-};
-
-type Tier = "elite" | "high" | "mid" | "low" | "streamer";
-
-const TIER_RANK: Record<Tier, number> = {
-  elite: 5,
-  high: 4,
-  mid: 3,
-  low: 2,
-  streamer: 1,
-};
-
-function healthy(p: FantasyPlayer): boolean {
-  return !["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus);
-}
-
-function byProj(a: FantasyPlayer, b: FantasyPlayer): number {
-  return b.projectedPoints - a.projectedPoints;
-}
-
-function atPos(team: FantasyTeam, pos: PlayerPosition): FantasyPlayer[] {
-  return team.roster.filter((p) => p.position === pos && healthy(p)).sort(byProj);
-}
-
-function depth(team: FantasyTeam, pos: PlayerPosition): number {
-  return atPos(team, pos).length;
-}
+import {
+  SKILL_POSITIONS,
+  STARTER_NEED,
+  TIER_RANK,
+  type TrendLookup,
+  acceptanceReason,
+  byProjectedDesc,
+  chipValue,
+  depthAtPosition,
+  fairnessScore,
+  hasSurplus,
+  isForbiddenOneForOne,
+  isOutrageousValue,
+  needFitScore,
+  needsPosition,
+  playersAtPosition,
+  samePosBonus,
+  sideValue,
+  surplusAt,
+  tierOf,
+  trendBlurb,
+  trendFitBonus,
+} from "@/lib/insights/trade-value";
 
 function rosterPool(league: LeagueData): FantasyPlayer[] {
   return league.teams.flatMap((t) => t.roster);
-}
-
-function tierOf(p: FantasyPlayer): Tier {
-  const pts = p.projectedPoints;
-  if (p.position === "QB") {
-    if (pts >= 22) return "elite";
-    if (pts >= 18) return "high";
-    if (pts >= 15) return "mid";
-    return "streamer";
-  }
-  if (p.position === "TE") {
-    if (pts >= 14) return "elite";
-    if (pts >= 10) return "high";
-    if (pts >= 7) return "mid";
-    return "low";
-  }
-  if (pts >= 16) return "elite";
-  if (pts >= 12) return "high";
-  if (pts >= 9) return "mid";
-  if (pts >= 6) return "low";
-  return "streamer";
-}
-
-type TrendLookup = Map<number, PlayerTrendView> | undefined;
-
-/** Trade-chip value; full-PPR. ROS/form ~70%, this-week proj ~30% (research brief).
- * Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB). */
-function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
-  const recent =
-    p.recentWeeks && p.recentWeeks.length
-      ? p.recentWeeks.reduce((a, w) => a + w.points, 0) / p.recentWeeks.length
-      : p.projectedPoints;
-  let blended = p.projectedPoints * 0.3 + recent * 0.7;
-  const trend = trends?.get(p.espnId);
-  // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
-  if (trend) blended += trend.restOfSeasonAdj;
-  if (["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus)) blended *= 0.15;
-
-  if (p.position === "QB") return blended * 0.45;
-  if (p.position === "TE") {
-    const elite = p.projectedPoints >= 12 || tierOf(p) === "elite";
-    return blended * (elite ? 1.2 : 1.05);
-  }
-  if (p.position === "RB") {
-    const locked = p.projectedPoints >= 14 || tierOf(p) === "elite" || tierOf(p) === "high";
-    return blended * (locked ? 1.15 : 1.05);
-  }
-  // WR — volume WR1 slightly above replacement WRs
-  if (tierOf(p) === "elite" || tierOf(p) === "high") return blended * 1.05;
-  return blended;
-}
-
-function sideValue(players: FantasyPlayer[], trends?: TrendLookup): number {
-  return players.reduce((a, p) => a + chipValue(p, trends), 0);
-}
-
-function trendBlurb(p: FantasyPlayer, trends?: TrendLookup): string | null {
-  const t = trends?.get(p.espnId);
-  if (!t) return null;
-  const label = normalizeTrendLabel(t.trendLabel);
-  if (label === "Thin") return null;
-  const delta =
-    t.avgDelta != null
-      ? ` avg ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs stored proj`
-      : "";
-  return `${p.name}: ${trendLabelCopy(label).toLowerCase()}${delta} (${t.weeksSampled} wk sample).`;
-}
-
-function needsPos(team: FantasyTeam, pos: PlayerPosition): boolean {
-  const need = STARTER_NEED[pos] ?? 1;
-  const sorted = atPos(team, pos);
-  if (sorted.length < need) return true;
-  const floor = pos === "QB" ? 14 : pos === "TE" ? 7 : 9;
-  const nth = sorted[need - 1];
-  return !nth || nth.projectedPoints < floor;
-}
-
-function hasSurplus(team: FantasyTeam, pos: PlayerPosition): boolean {
-  const need = STARTER_NEED[pos] ?? 1;
-  const sorted = atPos(team, pos);
-  if (sorted.length <= need) return false;
-  const extra = sorted[need];
-  return Boolean(extra && extra.projectedPoints >= (pos === "QB" ? 14 : 7));
-}
-
-function surplusOf(team: FantasyTeam, pos: PlayerPosition): FantasyPlayer[] {
-  const need = STARTER_NEED[pos] ?? 1;
-  return atPos(team, pos).slice(need);
-}
-
-function isSkill(pos: PlayerPosition): boolean {
-  return SKILL.includes(pos);
-}
-
-/** Hard reject: naked QB-for-skill 1:1. */
-function isForbiddenOneForOne(
-  give: FantasyPlayer[],
-  receive: FantasyPlayer[],
-): boolean {
-  if (give.length !== 1 || receive.length !== 1) return false;
-  return (give[0].position === "QB") !== (receive[0].position === "QB");
-}
-
-function isOutrageousValue(
-  give: FantasyPlayer[],
-  receive: FantasyPlayer[],
-  trends?: TrendLookup,
-): boolean {
-  const gv = sideValue(give, trends);
-  const rv = sideValue(receive, trends);
-  const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  if (ratio > 1.55) return true;
-
-  if (give.length === 1 && receive.length === 1) {
-    const gap = Math.abs(TIER_RANK[tierOf(give[0])] - TIER_RANK[tierOf(receive[0])]);
-    if (gap >= 2) return true;
-  }
-  return false;
-}
-
-function fairnessScore(
-  give: FantasyPlayer[],
-  receive: FantasyPlayer[],
-  trends?: TrendLookup,
-): number {
-  const gv = sideValue(give, trends);
-  const rv = sideValue(receive, trends);
-  const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  // Align with outrage cap (~1.55): score hits 0 there; ~1.25 still clears.
-  return Math.max(0, 1.55 - ratio);
-}
-
-function trendFitBonus(
-  give: FantasyPlayer[],
-  receive: FantasyPlayer[],
-  trends?: TrendLookup,
-): number {
-  if (!trends?.size) return 0;
-  let bonus = 0;
-  for (const p of receive) {
-    const t = trends.get(p.espnId);
-    if (!t) continue;
-    const label = normalizeTrendLabel(t.trendLabel);
-    // Buy-low on fading / injury-cleared boom-bust — never chase InjuryRisk
-    if (label === "InjuryRisk") bonus -= 0.5;
-    if (label === "Fading" || label === "BoomBust") bonus += 0.3;
-    if (label === "Rising") bonus += 0.15;
-  }
-  for (const p of give) {
-    const t = trends.get(p.espnId);
-    if (!t) continue;
-    const label = normalizeTrendLabel(t.trendLabel);
-    if (label === "Rising") bonus += 0.2; // sell-high
-    if (label === "Fading") bonus -= 0.15;
-    if (label === "InjuryRisk") bonus += 0.1; // moving a risk asset off
-  }
-  return bonus;
-}
-
-function needFitScore(
-  you: FantasyTeam,
-  them: FantasyTeam,
-  give: FantasyPlayer[],
-  receive: FantasyPlayer[],
-): number {
-  let score = 0;
-  for (const p of receive) {
-    if (needsPos(you, p.position)) score += 1.2;
-    else if (isSkill(p.position)) score += 0.25;
-  }
-  for (const p of give) {
-    if (needsPos(them, p.position)) score += 1.2;
-    else if (isSkill(p.position)) score += 0.25;
-    if (needsPos(you, p.position) && !hasSurplus(you, p.position)) score -= 1.5;
-  }
-  return score;
-}
-
-function samePosBonus(give: FantasyPlayer[], receive: FantasyPlayer[]): number {
-  if (
-    give.length === 1 &&
-    receive.length === 1 &&
-    give[0].position === receive[0].position
-  ) {
-    return 0.85;
-  }
-  return 0;
-}
-
-function acceptanceReason(
-  you: FantasyTeam,
-  them: FantasyTeam,
-  give: FantasyPlayer[],
-  receive: FantasyPlayer[],
-  trends?: TrendLookup,
-): string {
-  const parts: string[] = [];
-
-  if (
-    give.length === 1 &&
-    receive.length === 1 &&
-    give[0].position === receive[0].position
-  ) {
-    parts.push(
-      `Same-position ${give[0].position} swap (${tierOf(give[0])} ↔ ${tierOf(receive[0])}) — the deal shape leagues actually accept.`,
-    );
-  } else if (
-    give.every((p) => isSkill(p.position)) &&
-    receive.every((p) => isSkill(p.position))
-  ) {
-    parts.push(
-      `Skill-for-skill (no naked QB) matching surplus on one side to need on the other.`,
-    );
-  } else {
-    parts.push(
-      `QB only appears as a package sweetener beside skill value — never 1:1 for a WR/RB/TE.`,
-    );
-  }
-
-  parts.push(
-    `Chip values close on a full-PPR 1QB scale with QBs discounted (${sideValue(give, trends).toFixed(1)} vs ${sideValue(receive, trends).toFixed(1)}).`,
-  );
-
-  const theirNeed = give.filter((p) => needsPos(them, p.position));
-  const yourNeed = receive.filter((p) => needsPos(you, p.position));
-  if (theirNeed.length) {
-    parts.push(
-      `${them.name} has a ${[...new Set(theirNeed.map((p) => p.position))].join("/")} hole this fills.`,
-    );
-  }
-  if (yourNeed.length) {
-    parts.push(
-      `You have a ${[...new Set(yourNeed.map((p) => p.position))].join("/")} hole this fills.`,
-    );
-  }
-
-  const buyLow = receive
-    .map((p) => trends?.get(p.espnId))
-    .filter((t) => {
-      if (!t) return false;
-      const label = normalizeTrendLabel(t.trendLabel);
-      return label === "Fading" || label === "BoomBust";
-    });
-  if (buyLow.length) {
-    parts.push(
-      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} vs stored projections (usage/injury ranked above hot/cold).`,
-    );
-  }
-
-  return parts.join(" ");
 }
 
 type Candidate = {
@@ -338,8 +76,6 @@ function consider(
   const fair = fairnessScore(give, receive, trends);
   const same = samePosBonus(give, receive);
   const trendBonus = trendFitBonus(give, receive, trends);
-  // Packages (2-for-1 / 1-for-2 / QB sweetener) get a small fairness cushion —
-  // uneven chip totals are the point of those shapes.
   const packageCushion =
     kind === "1for1" ? 0 : kind === "qb_package" ? 0.08 : 0.12;
   if (fit + same + Math.max(0, trendBonus) < 1.2) return;
@@ -364,22 +100,21 @@ export function buildRealisticTrades(
   const allPlayers = rosterPool(league);
 
   // 1) Same-position 1:1
-  for (const pos of SKILL) {
+  for (const pos of SKILL_POSITIONS) {
     if (!hasSurplus(you, pos)) continue;
     for (const them of others) {
-      const give = surplusOf(you, pos)[0];
+      const give = surplusAt(you, pos)[0];
       if (!give) continue;
       const theirPool = hasSurplus(them, pos)
-        ? surplusOf(them, pos)
-        : atPos(them, pos).slice(1);
+        ? surplusAt(them, pos)
+        : playersAtPosition(them, pos).slice(1);
       for (const receive of theirPool) {
         if (Math.abs(TIER_RANK[tierOf(receive)] - TIER_RANK[tierOf(give)]) > 1) {
           continue;
         }
-        // Prefer deals where at least one side has a real need, or it's a lateral upgrade
         if (
-          !needsPos(them, pos) &&
-          !needsPos(you, pos) &&
+          !needsPosition(them, pos) &&
+          !needsPosition(you, pos) &&
           tierOf(receive) <= tierOf(give)
         ) {
           continue;
@@ -390,15 +125,16 @@ export function buildRealisticTrades(
   }
 
   // 2) Skill surplus → different skill need (never QB)
-  for (const givePos of SKILL) {
+  for (const givePos of SKILL_POSITIONS) {
     if (!hasSurplus(you, givePos)) continue;
-    for (const getPos of SKILL) {
+    for (const getPos of SKILL_POSITIONS) {
       if (givePos === getPos) continue;
-      if (!needsPos(you, getPos)) continue;
+      if (!needsPosition(you, getPos)) continue;
       for (const them of others) {
-        if (!needsPos(them, givePos)) continue;
-        const give = surplusOf(you, givePos)[0];
-        const receive = surplusOf(them, getPos)[0] ?? atPos(them, getPos)[1];
+        if (!needsPosition(them, givePos)) continue;
+        const give = surplusAt(you, givePos)[0];
+        const receive =
+          surplusAt(them, getPos)[0] ?? playersAtPosition(them, getPos)[1];
         if (!give || !receive) continue;
         consider(candidates, you, them, [give], [receive], "1for1", trends);
       }
@@ -407,18 +143,21 @@ export function buildRealisticTrades(
 
   // 3) 2-for-1: two startable skill pieces → one better skill (≤10% premium)
   for (const them of others) {
-    for (const starPos of SKILL) {
-      if (!needsPos(you, starPos)) continue;
-      const star = atPos(them, starPos)[0];
+    for (const starPos of SKILL_POSITIONS) {
+      if (!needsPosition(you, starPos)) continue;
+      const star = playersAtPosition(them, starPos)[0];
       if (!star || TIER_RANK[tierOf(star)] < TIER_RANK.high) continue;
-      if (depth(them, starPos) <= (STARTER_NEED[starPos] ?? 1)) continue;
+      if (depthAtPosition(them, starPos) <= (STARTER_NEED[starPos] ?? 1)) {
+        continue;
+      }
 
       const pieces: FantasyPlayer[] = [];
-      for (const pos of SKILL) {
+      for (const pos of SKILL_POSITIONS) {
         if (!hasSurplus(you, pos)) continue;
-        if (!(needsPos(them, pos) || depth(them, pos) <= 2)) continue;
-        const extra = surplusOf(you, pos)[0];
-        // Both package pieces must be startable (research: both pieces start)
+        if (!(needsPosition(them, pos) || depthAtPosition(them, pos) <= 2)) {
+          continue;
+        }
+        const extra = surplusAt(you, pos)[0];
         const floor = pos === "TE" ? 7 : 8;
         if (extra && extra.id !== star.id && extra.projectedPoints >= floor) {
           pieces.push(extra);
@@ -429,7 +168,6 @@ export function buildRealisticTrades(
       const pkg = pieces.slice(0, 2);
       const starChip = chipValue(star, trends);
       const pkgChip = sideValue(pkg, trends);
-      // ≈ star value with at most ~10% premium either way
       if (pkgChip < starChip * 0.9) continue;
       if (pkgChip > starChip * 1.1) continue;
       consider(candidates, you, them, pkg, [star], "2for1", trends);
@@ -437,18 +175,19 @@ export function buildRealisticTrades(
   }
 
   // 4) 1-for-2: your stud → their two need fills
-  for (const givePos of SKILL) {
-    const stud = surplusOf(you, givePos)[0] ?? atPos(you, givePos)[1];
+  for (const givePos of SKILL_POSITIONS) {
+    const stud =
+      surplusAt(you, givePos)[0] ?? playersAtPosition(you, givePos)[1];
     if (!stud || TIER_RANK[tierOf(stud)] < TIER_RANK.high) continue;
 
     for (const them of others) {
-      if (!needsPos(them, givePos)) continue;
+      if (!needsPosition(them, givePos)) continue;
       const recv: FantasyPlayer[] = [];
-      for (const pos of SKILL) {
+      for (const pos of SKILL_POSITIONS) {
         if (pos === givePos) continue;
-        if (!needsPos(you, pos)) continue;
+        if (!needsPosition(you, pos)) continue;
         if (!hasSurplus(them, pos)) continue;
-        const p = surplusOf(them, pos)[0];
+        const p = surplusAt(them, pos)[0];
         if (p) recv.push(p);
         if (recv.length >= 2) break;
       }
@@ -459,19 +198,21 @@ export function buildRealisticTrades(
 
   // 5) QB package only (never naked): QB + skill ↔ elite skill, partner needs QB
   if (hasSurplus(you, "QB")) {
-    const qb = surplusOf(you, "QB")[0];
+    const qb = surplusAt(you, "QB")[0];
     if (qb) {
       for (const them of others) {
-        if (!needsPos(them, "QB")) continue;
-        for (const skillPos of SKILL) {
+        if (!needsPosition(them, "QB")) continue;
+        for (const skillPos of SKILL_POSITIONS) {
           if (!hasSurplus(you, skillPos)) continue;
-          const skillGive = surplusOf(you, skillPos)[0];
+          const skillGive = surplusAt(you, skillPos)[0];
           if (!skillGive) continue;
-          for (const getPos of SKILL) {
-            if (!needsPos(you, getPos)) continue;
-            const elite = atPos(them, getPos)[0];
+          for (const getPos of SKILL_POSITIONS) {
+            if (!needsPosition(you, getPos)) continue;
+            const elite = playersAtPosition(them, getPos)[0];
             if (!elite || TIER_RANK[tierOf(elite)] < TIER_RANK.high) continue;
-            if (depth(them, getPos) <= (STARTER_NEED[getPos] ?? 1)) continue;
+            if (depthAtPosition(them, getPos) <= (STARTER_NEED[getPos] ?? 1)) {
+              continue;
+            }
             consider(
               candidates,
               you,
@@ -507,10 +248,10 @@ export function buildRealisticTrades(
       `You send: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
       `You get: ${c.receive.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
       ...c.receive
-        .filter((p) => needsPos(you, p.position))
+        .filter((p) => needsPosition(you, p.position))
         .map(
           (p) =>
-            `Fills your ${p.position} need (healthy depth was ${depth(you, p.position)}).`,
+            `Fills your ${p.position} need (healthy depth was ${depthAtPosition(you, p.position)}).`,
         ),
     ];
     for (const p of c.receive) {
@@ -532,10 +273,10 @@ export function buildRealisticTrades(
       `They send: ${c.receive.map((p) => `${p.name} (${p.position})`).join(" + ")}.`,
       `They get: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
       ...c.give
-        .filter((p) => needsPos(c.them, p.position))
+        .filter((p) => needsPosition(c.them, p.position))
         .map(
           (p) =>
-            `${c.them.name} needs ${p.position} help (depth ${depth(c.them, p.position)}).`,
+            `${c.them.name} needs ${p.position} help (depth ${depthAtPosition(c.them, p.position)}).`,
         ),
     ];
     for (const p of c.give) {
@@ -550,12 +291,11 @@ export function buildRealisticTrades(
 
     const accept = acceptanceReason(you, c.them, c.give, c.receive, trends);
 
-    // Alternate sendables at same pos / similar tier (raise acceptance)
     const giveIds = new Set(c.give.map((p) => p.id));
-    const alternativeSendables = SKILL.flatMap((pos) =>
-      surplusOf(you, pos).filter((p) => !giveIds.has(p.id)),
+    const alternativeSendables = SKILL_POSITIONS.flatMap((pos) =>
+      surplusAt(you, pos).filter((p) => !giveIds.has(p.id)),
     )
-      .sort(byProj)
+      .sort(byProjectedDesc)
       .slice(0, 3)
       .map((p) => ({ id: p.id, name: p.name, position: p.position }));
 

@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/league", label: "League" },
   { href: "/players", label: "Players" },
   { href: "/insights", label: "Insights" },
+  { href: "/trades", label: "Trades" },
 ];
 
 export function AppNav() {
