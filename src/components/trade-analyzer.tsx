@@ -46,9 +46,9 @@ const VERDICT_STYLE: Record<TradeVerdict, string> = {
   hard_reject: "bg-red-800 text-white",
 };
 
-/** Tab bar clearance: icon row (~3.625rem) + max(0.5rem, safe-area). */
+/** Tab bar clearance: icon row (~3.75rem) + max(0.75rem, safe-area) + optional install banner. */
 const TAB_BAR_BOTTOM =
-  "bottom-[calc(3.625rem+max(0.5rem,env(safe-area-inset-bottom,0px)))]";
+  "bottom-[calc(3.75rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--install-banner-offset,0px))]";
 
 function sortRoster(roster: FantasyPlayer[]): FantasyPlayer[] {
   return sortByEspnRosterOrder(roster);
@@ -474,10 +474,13 @@ function StickyStepActions({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
+  // Extra spacer when the iOS install soft-banner is lifting the CTA.
+  const spacerClass =
+    "h-[calc(4.75rem+var(--install-banner-offset,0px))]";
+
   return (
     <>
-      {/* Spacer so list/summary aren't covered by the fixed bar */}
-      <div className="h-[4.75rem]" aria-hidden />
+      <div className={spacerClass} aria-hidden />
       {mounted
         ? createPortal(
             <div

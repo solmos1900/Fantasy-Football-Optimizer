@@ -9,6 +9,7 @@ import {
   isSafariBrowser,
   isStandaloneDisplay,
   openInstallGuide,
+  setInstallBannerOffset,
   wasInstallDismissed,
 } from "@/lib/pwa";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -183,9 +184,10 @@ export function InstallAppExperience() {
     setStandalone(standaloneNow);
     setMode(detectGuideMode());
     // Soft banner for iPhone/iPad browser sessions only; desktop uses hero / How to install.
-    setBannerVisible(
-      !standaloneNow && isIosDevice() && !wasInstallDismissed(),
-    );
+    const showBanner =
+      !standaloneNow && isIosDevice() && !wasInstallDismissed();
+    setBannerVisible(showBanner);
+    setInstallBannerOffset(showBanner);
     setReady(true);
 
     function onOpen() {
@@ -194,7 +196,10 @@ export function InstallAppExperience() {
       setCopied(false);
     }
     window.addEventListener(INSTALL_OPEN_EVENT, onOpen);
-    return () => window.removeEventListener(INSTALL_OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener(INSTALL_OPEN_EVENT, onOpen);
+      setInstallBannerOffset(false);
+    };
   }, []);
 
   function closeSheet() {
@@ -234,7 +239,7 @@ export function InstallAppExperience() {
           className={cn(
             "fixed inset-x-0 z-50 px-3 pt-2",
             aboveTabBar
-              ? "bottom-[calc(3.625rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] pb-2"
+              ? "bottom-[calc(3.75rem+max(0.75rem,env(safe-area-inset-bottom,0px)))] pb-2"
               : "bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
           )}
           role="region"
