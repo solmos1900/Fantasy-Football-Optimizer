@@ -47,7 +47,7 @@ export function PlayerRow({
         </div>
       </div>
       <div className="text-right">
-        <div className="font-[family-name:var(--font-display)] text-lg leading-none text-emerald-950">
+        <div className="type-stat text-lg text-emerald-950">
           {player.actualPoints > 0 ? player.actualPoints.toFixed(1) : "—"}
         </div>
         <div className="text-[11px] text-emerald-950/45">

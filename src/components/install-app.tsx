@@ -10,6 +10,7 @@ import {
   openInstallGuide,
   wasInstallDismissed,
 } from "@/lib/pwa";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type GuideMode = "safari-steps" | "open-safari" | "generic";
 
@@ -130,14 +131,16 @@ export function InstallHeroCta() {
 
   return (
     <div className="animate-fade-up-delay-2 mt-4 w-full max-w-md">
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="lg"
+        className="w-full !text-orange-300 hover:!text-orange-200"
         onClick={() => openInstallGuide()}
-        className="w-full bg-emerald-950 px-6 py-3.5 text-center text-sm font-semibold uppercase tracking-wide text-orange-400 transition hover:bg-emerald-900 hover:text-orange-300"
       >
         Install the app
-      </button>
-      <p className="mt-2 text-center text-xs text-emerald-950/55">
+      </Button>
+      <p className="type-caption mt-2 text-center text-emerald-950/55">
         Free. 3 taps in Safari. Full-screen Home Screen shortcut.
       </p>
     </div>
@@ -211,29 +214,31 @@ export function InstallAppExperience() {
           role="region"
           aria-label="Install Gridiron IQ"
         >
-          <div className="mx-auto flex max-w-lg items-center gap-3 border border-emerald-950/15 bg-emerald-950 px-3 py-3 text-emerald-50 shadow-lg">
+          <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl border border-emerald-950/15 bg-emerald-950 px-3 py-3 text-emerald-50 shadow-lg">
             <div className="min-w-0 flex-1">
-              <p className="font-[family-name:var(--font-display)] text-sm uppercase tracking-wide">
+              <p className="type-brand text-base text-emerald-50">
                 Install Gridiron IQ
               </p>
-              <p className="mt-0.5 text-xs leading-snug text-emerald-50/75">
+              <p className="type-caption mt-0.5 leading-snug text-emerald-50/75">
                 Add to your Home Screen for a full-screen app shortcut.
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
+              className="shrink-0"
               onClick={() => {
                 setMode(detectGuideMode());
                 setSheetOpen(true);
               }}
-              className="shrink-0 bg-orange-600 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-orange-500"
             >
               Install
-            </button>
+            </Button>
             <button
               type="button"
               onClick={dismissBanner}
-              className="shrink-0 px-1 text-xs font-medium text-emerald-50/70 hover:text-white"
+              className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-50/70 hover:bg-white/10 hover:text-white"
               aria-label="Maybe later"
             >
               Later
@@ -254,22 +259,19 @@ export function InstallAppExperience() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="relative z-[61] w-full max-w-md border border-emerald-950/10 bg-[#F4F7F5] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 shadow-xl sm:mb-0 sm:rounded-lg"
+            className="surface-card relative z-[61] w-full max-w-md px-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 sm:mb-0"
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-emerald-950/15 sm:hidden" />
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">
+                <p className="type-eyebrow text-orange-700">
                   {mode === "open-safari"
                     ? "iPhone · Safari only"
                     : mode === "safari-steps"
                       ? "iPhone · 3 taps"
                       : "Home Screen"}
                 </p>
-                <h2
-                  id={titleId}
-                  className="mt-1 font-[family-name:var(--font-display)] text-2xl uppercase tracking-wide text-emerald-950"
-                >
+                <h2 id={titleId} className="type-section mt-1 text-emerald-950">
                   {mode === "open-safari"
                     ? "Open in Safari to install"
                     : "Add to Home Screen"}
@@ -278,7 +280,7 @@ export function InstallAppExperience() {
               <button
                 type="button"
                 onClick={closeSheet}
-                className="rounded-md px-2 py-1 text-sm font-medium text-emerald-950/50 hover:bg-emerald-950/5 hover:text-emerald-950"
+                className="rounded-lg px-2 py-1 text-sm font-medium text-emerald-950/50 hover:bg-emerald-950/5 hover:text-emerald-950"
                 aria-label="Close"
               >
                 Close
@@ -297,7 +299,7 @@ export function InstallAppExperience() {
                 <ol className="space-y-4">
                   {SAFARI_STEPS.map((step) => (
                     <li key={step.title} className="flex gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-emerald-950 text-emerald-50">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-950 text-emerald-50">
                         <step.Icon className="h-5 w-5" />
                       </span>
                       <div className="min-w-0">
@@ -329,13 +331,18 @@ export function InstallAppExperience() {
                         ? window.location.origin
                         : ""
                     }
-                    className="min-w-0 flex-1 border border-emerald-950/15 bg-white px-3 py-2 text-base text-emerald-950 outline-none"
+                    className="field-input min-w-0 flex-1"
                     aria-label="App URL"
                   />
                   <button
                     type="button"
                     onClick={copyLink}
-                    className="shrink-0 bg-emerald-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-orange-400 hover:bg-emerald-900"
+                    className={buttonVariants({
+                      variant: "secondary",
+                      size: "sm",
+                      className:
+                        "shrink-0 !text-orange-300 hover:!text-orange-200",
+                    })}
                   >
                     {copied ? "Copied" : "Copy link"}
                   </button>

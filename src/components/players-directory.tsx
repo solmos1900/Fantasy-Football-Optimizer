@@ -53,20 +53,20 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block flex-1 text-sm">
-          <span className="mb-1 block font-medium text-emerald-950">Search</span>
+          <span className="mb-1.5 block font-medium text-emerald-950">Search</span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Name, team, position…"
-            className="w-full rounded-md border border-emerald-950/15 bg-white px-3 py-2 outline-none ring-orange-500/30 focus:ring-2"
+            className="field-input"
           />
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block font-medium text-emerald-950">Position</span>
+          <span className="mb-1.5 block font-medium text-emerald-950">Position</span>
           <select
             value={position}
             onChange={(e) => setPosition(e.target.value)}
-            className="rounded-md border border-emerald-950/15 bg-white px-3 py-2 outline-none"
+            className="field-input"
           >
             {["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"].map((pos) => (
               <option key={pos} value={pos}>
@@ -76,11 +76,11 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
           </select>
         </label>
         <label className="block text-sm">
-          <span className="mb-1 block font-medium text-emerald-950">Pool</span>
+          <span className="mb-1.5 block font-medium text-emerald-950">Pool</span>
           <select
             value={pool}
             onChange={(e) => setPool(e.target.value as typeof pool)}
-            className="rounded-md border border-emerald-950/15 bg-white px-3 py-2 outline-none"
+            className="field-input"
           >
             <option value="all">All</option>
             <option value="owned">Owned</option>
@@ -130,10 +130,10 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
                   {ownership.get(p.espnId) ?? "FA"}
                 </td>
                 <td className="py-2.5 pr-2">{p.percentOwned.toFixed(0)}%</td>
-                <td className="py-2.5 pr-2 font-[family-name:var(--font-display)] text-base">
+                <td className="py-2.5 pr-2 type-stat text-base">
                   {p.projectedPoints.toFixed(1)}
                 </td>
-                <td className="py-2.5 font-[family-name:var(--font-display)] text-base text-orange-600">
+                <td className="py-2.5 type-stat text-base text-orange-600">
                   {p.actualPoints > 0 ? p.actualPoints.toFixed(1) : "—"}
                 </td>
               </tr>

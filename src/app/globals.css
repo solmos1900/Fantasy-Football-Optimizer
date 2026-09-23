@@ -6,6 +6,8 @@
   --field: #14532d;
   --accent: #ea580c;
   --surface: #f4f7f5;
+  --radius-control: 0.75rem;
+  --ring-focus: rgba(234, 88, 12, 0.35);
 }
 
 @theme inline {
@@ -39,7 +41,10 @@ body {
   margin: 0;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.011em;
   overflow-x: clip;
   /* Standalone / notch: horizontal + home indicator. Top inset is on sticky
      header / marketing mains so chrome can sit under the status bar cleanly. */
@@ -90,6 +95,104 @@ body::before {
 /* Legacy class kept for any remaining usages — same light theme, no mid-page flip */
 .field-atmosphere {
   background-color: #e8efea;
+}
+
+/* —— Typography scale —— */
+.type-brand {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.type-page {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+@media (min-width: 640px) {
+  .type-page {
+    font-size: 2.25rem;
+  }
+}
+
+.type-section {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.type-body {
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.011em;
+}
+
+.type-caption {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+
+.type-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.type-stat {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* —— Shared form control surface —— */
+.field-input {
+  width: 100%;
+  border-radius: var(--radius-control);
+  border: 1px solid rgba(2, 44, 34, 0.14);
+  background: #fff;
+  padding: 0.625rem 0.875rem;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--foreground);
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.field-input:hover {
+  border-color: rgba(2, 44, 34, 0.22);
+}
+
+.field-input:focus-visible {
+  border-color: rgba(234, 88, 12, 0.55);
+  box-shadow: 0 0 0 3px var(--ring-focus);
+}
+
+.field-input::placeholder {
+  color: rgba(5, 46, 28, 0.4);
+}
+
+/* —— Card / surface grouping —— */
+.surface-card {
+  border-radius: 1rem;
+  border: 1px solid rgba(2, 44, 34, 0.09);
+  background: color-mix(in srgb, var(--surface) 92%, white);
+  box-shadow:
+    0 1px 2px rgba(5, 46, 28, 0.04),
+    0 8px 24px -12px rgba(5, 46, 28, 0.12);
+  backdrop-filter: blur(8px);
 }
 
 @keyframes fade-up {
