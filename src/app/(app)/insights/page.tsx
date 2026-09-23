@@ -73,7 +73,7 @@ function InsightCard({
         <span className="rounded bg-emerald-950/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/70">
           {TYPE_LABEL[insight.type] ?? insight.type.replaceAll("_", " ")}
         </span>
-        {insight.verdict && (
+        {insight.verdict ? (
           <span
             className={cn(
               "stamp animate-stamp text-xs",
@@ -82,12 +82,11 @@ function InsightCard({
           >
             ★ {insight.verdict}
           </span>
-        )}
-        {insight.priority === "high" && (
+        ) : insight.priority === "high" ? (
           <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-800">
             Do this week
           </span>
-        )}
+        ) : null}
       </div>
 
       {names.length > 0 && (

@@ -26,7 +26,7 @@ import type {
   UsageTrend,
   WeeklyScore,
 } from "@/lib/types";
-import { normalizeTrendLabel, trendLabelCopy } from "@/lib/insights/trend-labels";
+import { humanTrendSentence, normalizeTrendLabel, trendLabelCopy } from "@/lib/insights/trend-labels";
 import { seededDefenseAllowRows } from "@/lib/insights/defense-matchups";
 
 export type SnapshotSource = "espn" | "demo" | "heuristic";
@@ -145,7 +145,7 @@ export function deriveTrendFromWeeks(
   const injured = ["OUT", "IR", "DOUBTFUL"].includes(injuryStatus);
 
   if (weeksSampled === 0 && !injured) {
-    const evidence = `${playerName}: no stored weekly actuals yet — low confidence until syncs accumulate (league projection only).`;
+    const evidence = `${playerName} does not have enough recent games yet — lean on this week's projection.`;
     return {
       weeksSampled: 0,
       avgProjected: null,
@@ -588,11 +588,7 @@ function toTrendView(
   }
 
   const label = normalizeTrendLabel(m.trendLabel);
-  const rationale =
-    m.evidenceSentence ??
-    `${m.playerName}: ${label} (${m.weeksSampled} wk sample).`;
-
-  return {
+  const draft: PlayerTrendView = {
     espnId: m.espnId,
     playerName: m.playerName,
     position: m.position,
@@ -604,12 +600,18 @@ function toTrendView(
     avgDelta: m.avgDelta,
     recentFormAvg: m.recentFormAvg,
     restOfSeasonAdj: m.restOfSeasonAdj,
-    rationale,
-    evidenceSentence: m.evidenceSentence ?? undefined,
+    rationale: "",
+    evidenceSentence: undefined,
     facts,
-    judgments,
+    // Never expose internal judgment strings to the UI
+    judgments: undefined,
     weeks,
   };
+  // Always rebuild display copy — never surface stale DB evidenceSentence jargon
+  const sentence = humanTrendSentence(draft);
+  draft.rationale = sentence;
+  draft.evidenceSentence = sentence;
+  return draft;
 }
 
 export async function loadTrendMap(

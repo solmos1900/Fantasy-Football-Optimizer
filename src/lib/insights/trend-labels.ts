@@ -27,6 +27,31 @@ export function trendLabelCopy(label: PlayerTrendLabel): string {
   }
 }
 
+function normalizeBucket(label: PlayerTrendLabel): string {
+  if (label === "rising" || label === "hot" || label === "Rising") return "Rising";
+  if (label === "falling" || label === "cold" || label === "Fading")
+    return "Fading";
+  if (label === "boom" || label === "bust" || label === "BoomBust")
+    return "BoomBust";
+  if (label === "InjuryRisk") return "InjuryRisk";
+  if (label === "thin" || label === "Thin") return "Thin";
+  return "Stable";
+}
+
+function lockedInPhrase(position: string, avg: number): string {
+  const pos = position.toUpperCase();
+  if (pos === "QB" && avg >= 18)
+    return "That's a locked-in QB1 — start him with confidence.";
+  if (pos === "RB" && avg >= 14)
+    return "That's locked-in RB production — start with confidence.";
+  if (pos === "WR" && avg >= 12)
+    return "That's locked-in WR production — start with confidence.";
+  if (pos === "TE" && avg >= 10)
+    return "That's locked-in TE production — start with confidence.";
+  if (avg >= 12) return "Start with confidence.";
+  return "Solid enough to start if the projection holds.";
+}
+
 /** One plain-English sentence for an insight card (no internals). */
 export function humanTrendSentence(trend: PlayerTrendView): string {
   const name = trend.playerName;
@@ -39,26 +64,9 @@ export function humanTrendSentence(trend: PlayerTrendView): string {
     scored.length > 0
       ? scored.map((w) => w.actual!.toFixed(1)).join(", ")
       : null;
+  const bucket = normalizeBucket(trend.trendLabel);
 
-  switch (
-    trend.trendLabel === "rising" ||
-    trend.trendLabel === "hot" ||
-    trend.trendLabel === "Rising"
-      ? "Rising"
-      : trend.trendLabel === "falling" ||
-          trend.trendLabel === "cold" ||
-          trend.trendLabel === "Fading"
-        ? "Fading"
-        : trend.trendLabel === "boom" ||
-            trend.trendLabel === "bust" ||
-            trend.trendLabel === "BoomBust"
-          ? "BoomBust"
-          : trend.trendLabel === "InjuryRisk"
-            ? "InjuryRisk"
-            : trend.trendLabel === "thin" || trend.trendLabel === "Thin"
-              ? "Thin"
-              : "Stable"
-  ) {
+  switch (bucket) {
     case "InjuryRisk":
       return `${name} is on the injury report — sit or have a backup ready until the status clears.`;
     case "Thin":
@@ -79,7 +87,7 @@ export function humanTrendSentence(trend: PlayerTrendView): string {
         : `${name} has been boom-or-bust lately — fine if you need upside, expect volatility.`;
     default:
       return scores && avg != null
-        ? `${name} is averaging about ${avg.toFixed(1)} points over the last ${scored.length} games (${scores}). Scoring is steady — start with confidence.`
+        ? `${name} is averaging about ${avg.toFixed(1)} points over the last ${scored.length} games (${scores}). ${lockedInPhrase(trend.position, avg)}`
         : `${name}'s recent scoring looks steady — start with confidence if the projection is solid.`;
   }
 }
