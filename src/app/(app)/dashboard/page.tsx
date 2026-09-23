@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { getLiveStats } from "@/lib/stats/provider";
@@ -6,6 +5,7 @@ import { generateInsights } from "@/lib/insights/engine";
 import { LiveStatsPanel } from "@/components/live-stats-panel";
 import { SyncButton } from "@/components/sync-button";
 import { InstallHowToLink } from "@/components/install-app";
+import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 import { formatRecord } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
           Connect a demo league or your ESPN fantasy football league to unlock
           your dashboard, roster, and insights.
         </p>
-        <Link
+        <PendingLink
           href="/connect"
           className={buttonVariants({
             variant: "primary",
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
           })}
         >
           Connect league
-        </Link>
+        </PendingLink>
         <p className="type-caption mt-4 text-emerald-950/50">
           On iPhone? <InstallHowToLink /> for a Home Screen shortcut.
         </p>
@@ -112,12 +112,12 @@ export default async function DashboardPage() {
                     </span>
                   </p>
                 )}
-                <Link
+                <PendingLink
                   href="/team"
                   className="inline-block text-sm font-semibold text-orange-700 hover:text-orange-800"
                 >
                   View full roster →
-                </Link>
+                </PendingLink>
               </div>
             )}
           </div>
@@ -152,12 +152,12 @@ export default async function DashboardPage() {
                 </li>
               )}
             </ul>
-            <Link
+            <PendingLink
               href="/insights"
               className="mt-3 inline-block text-sm font-semibold text-orange-700 hover:text-orange-800"
             >
               All insights →
-            </Link>
+            </PendingLink>
           </div>
         </section>
 

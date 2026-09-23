@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import {
@@ -7,6 +6,7 @@ import {
   loadTrendMap,
 } from "@/lib/insights/trends";
 import { TradeAnalyzer } from "@/components/trade-analyzer";
+import { PendingLink } from "@/components/pending-link";
 import type { PlayerTrendView } from "@/lib/types";
 
 export default async function TradesPage({
@@ -32,12 +32,12 @@ export default async function TradesPage({
           Connect a league (or load the demo league as a guest) to build and
           grade trades with your 1QB full-PPR chip values and roster needs.
         </p>
-        <Link
+        <PendingLink
           href="/connect"
           className="mt-4 inline-flex text-sm font-semibold text-orange-700"
         >
           Connect league →
-        </Link>
+        </PendingLink>
       </div>
     );
   }

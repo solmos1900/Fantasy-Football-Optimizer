@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { PlayersDirectory } from "@/components/players-directory";
+import { PendingLink } from "@/components/pending-link";
 
 export default async function PlayersPage() {
   const session = await auth();
@@ -17,9 +17,9 @@ export default async function PlayersPage() {
           Search the player pool with ownership and projections after connecting
           a league.
         </p>
-        <Link href="/connect" className="mt-4 inline-flex text-sm font-semibold text-orange-700">
+        <PendingLink href="/connect" className="mt-4 inline-flex text-sm font-semibold text-orange-700">
           Connect league →
-        </Link>
+        </PendingLink>
       </div>
     );
   }

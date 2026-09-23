@@ -16,8 +16,15 @@ import { buildRealisticTrades } from "@/lib/insights/trades";
 import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
+import { formatStatusCode } from "@/lib/utils";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
+
+function injuryCodeLabel(status: string): string {
+  return formatStatusCode(status) === "IR"
+    ? "on the IR"
+    : formatStatusCode(status);
+}
 
 function startersOf(team: FantasyTeam): FantasyPlayer[] {
   return team.roster.filter((p) => p.isStarter);
@@ -131,10 +138,14 @@ function buildStartSit(
       reasoning.push(`For ${weakest.name}: ${sitDefense.summary}`);
     }
     if (weakest.injuryStatus !== "ACTIVE") {
-      reasoning.push(`${weakest.name} injury status: ${weakest.injuryStatus}.`);
+      reasoning.push(
+        `${weakest.name} injury status: ${injuryCodeLabel(weakest.injuryStatus)}.`,
+      );
     }
     if (b.injuryStatus !== "ACTIVE") {
-      reasoning.push(`${b.name} injury status: ${b.injuryStatus}.`);
+      reasoning.push(
+        `${b.name} injury status: ${injuryCodeLabel(b.injuryStatus)}.`,
+      );
     }
     if (sitDespiteProj && defense) {
       out.push({
@@ -177,11 +188,11 @@ function buildStartSit(
 
     const reasoning = [
       replacement
-        ? `Sit ${s.name} (${s.injuryStatus}) and start ${replacement.name} instead.`
-        : `Sit ${s.name} (${s.injuryStatus}) — no healthy same-position bench option yet.`,
-      `${s.name} is still listed in a starting slot (${s.slot}) with injury status ${s.injuryStatus}.`,
+        ? `Sit ${s.name} (${injuryCodeLabel(s.injuryStatus)}) and start ${replacement.name} instead.`
+        : `Sit ${s.name} (${injuryCodeLabel(s.injuryStatus)}) — no healthy same-position bench option yet.`,
+      `${s.name} is still listed in a starting slot (${formatStatusCode(s.slot ?? s.position)}) with injury status ${injuryCodeLabel(s.injuryStatus)}.`,
       replacement
-        ? `Best bench option: ${replacement.name} (${replacement.projectedPoints.toFixed(1)} projected, ${replacement.injuryStatus}).`
+        ? `Best bench option: ${replacement.name} (${replacement.projectedPoints.toFixed(1)} projected, ${injuryCodeLabel(replacement.injuryStatus)}).`
         : `Check the waiver wire for a healthy ${s.position}.`,
     ];
     const form = recentFormSummary(replacement ?? s);
@@ -196,7 +207,7 @@ function buildStartSit(
       type: "start_sit",
       priority: "high",
       verdict: "SIT",
-      title: `SIT ${s.name} (${s.injuryStatus})${replacement ? ` — START ${replacement.name}` : ""}`,
+      title: `SIT ${s.name} (${formatStatusCode(s.injuryStatus)})${replacement ? ` — START ${replacement.name}` : ""}`,
       summary: replacement
         ? `Move ${replacement.name} into the lineup over injured ${s.name}.`
         : `Sit ${s.name}; no clear bench replacement.`,
@@ -312,7 +323,7 @@ function buildOther(
       reasoning: [
         `${drop.name} is benched with ${drop.projectedPoints.toFixed(1)} projected and ${drop.percentOwned.toFixed(0)}% ownership.`,
         drop.injuryStatus !== "ACTIVE"
-          ? `Drop candidate injury status: ${drop.injuryStatus}.`
+          ? `Drop candidate injury status: ${injuryCodeLabel(drop.injuryStatus)}.`
           : `Low utilization / projection makes the roster spot costly.`,
         `${add.name} is available (${add.percentOwned.toFixed(0)}% owned) projecting ${add.projectedPoints.toFixed(1)}.`,
         `Projection uplift: +${(add.projectedPoints - drop.projectedPoints).toFixed(1)} if the add earns a role.`,

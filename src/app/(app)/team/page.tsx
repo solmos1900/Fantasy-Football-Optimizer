@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { PlayerRow } from "@/components/player-row";
+import { PendingLink } from "@/components/pending-link";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 
 export default async function TeamPage() {
@@ -88,12 +88,12 @@ function EmptyConnect({ message }: { message: string }) {
     <div className="max-w-lg">
       <h1 className="type-page text-emerald-950">My Team</h1>
       <p className="type-body mt-2 text-emerald-950/65">{message}</p>
-      <Link
+      <PendingLink
         href="/connect"
         className="mt-4 inline-flex text-sm font-semibold text-orange-700"
       >
         Connect league →
-      </Link>
+      </PendingLink>
     </div>
   );
 }

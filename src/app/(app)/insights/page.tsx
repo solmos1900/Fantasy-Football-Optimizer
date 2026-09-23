@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import {
@@ -20,6 +19,7 @@ import {
   InsightRichText,
   PlayerChip,
 } from "@/components/insight-rich-text";
+import { PendingLink } from "@/components/pending-link";
 import { cn, priorityColor } from "@/lib/utils";
 import type { InsightRecommendation, InsightType, PlayerTrendView } from "@/lib/types";
 
@@ -276,12 +276,12 @@ export default async function InsightsPage() {
           Connect a league (or load the demo as a guest) to unlock start/sit,
           trades, waivers, news, and defense matchup history.
         </p>
-        <Link
+        <PendingLink
           href="/connect"
           className="mt-4 inline-flex text-sm font-semibold text-orange-700"
         >
           Connect league →
-        </Link>
+        </PendingLink>
       </div>
     );
   }
@@ -332,9 +332,9 @@ export default async function InsightsPage() {
           projections, recent scoring, injuries, and how similar players did
           against this week&apos;s defense. News comes from ESPN (never invented).
           Build any package in the{" "}
-          <Link href="/trades" className="font-semibold text-orange-700">
+          <PendingLink href="/trades" className="font-semibold text-orange-700">
             Trade Analyzer
-          </Link>
+          </PendingLink>
           .
         </p>
         {league.isDemo && (
@@ -410,12 +410,12 @@ export default async function InsightsPage() {
                 Analyzer to grade any deal.
               </p>
             </div>
-            <Link
+            <PendingLink
               href="/trades"
               className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800"
             >
               Trade Analyzer →
-            </Link>
+            </PendingLink>
           </div>
         </div>
         {bundle.trades.length === 0 ? (
@@ -430,12 +430,12 @@ export default async function InsightsPage() {
                 nameById={nameById}
               />
               {insight.trade && (
-                <Link
+                <PendingLink
                   href={`/trades?partner=${insight.trade.partnerTeamId}&give=${insight.trade.give.map((p) => p.id).join(",")}&get=${insight.trade.receive.map((p) => p.id).join(",")}`}
                   className="inline-flex text-xs font-semibold text-orange-700 hover:text-orange-800"
                 >
                   Analyze this trade →
-                </Link>
+                </PendingLink>
               )}
             </div>
           ))
@@ -484,9 +484,9 @@ export default async function InsightsPage() {
         </h2>
         <p className="mb-4 text-sm text-emerald-950/55">
           Standings and every roster so trade and start/sit context is league-wide.{" "}
-          <Link href="/league" className="font-semibold text-orange-700">
+          <PendingLink href="/league" className="font-semibold text-orange-700">
             Open League →
-          </Link>
+          </PendingLink>
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[32rem] text-left text-sm">

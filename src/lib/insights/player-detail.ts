@@ -11,6 +11,7 @@ import {
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
+import { formatStatusCode } from "@/lib/utils";
 
 export type StartSitLean = "START" | "SIT" | "FLEX";
 
@@ -144,11 +145,17 @@ export function buildPlayerDetailInsight(
   let dataThin = false;
 
   if (player.injuryStatus === "OUT" || player.injuryStatus === "IR") {
+    const status = formatStatusCode(player.injuryStatus);
     return {
       lean: "SIT",
-      headline: `Sit ${player.name} — listed ${player.injuryStatus}`,
+      headline:
+        status === "IR"
+          ? `Sit ${player.name} — on the IR`
+          : `Sit ${player.name} — listed ${status}`,
       reasons: [
-        `Roster injury status is ${player.injuryStatus}. Gridiron IQ does not invent injury details.`,
+        status === "IR"
+          ? `Roster lists them on the IR. Gridiron IQ does not invent injury details.`
+          : `Roster injury status is ${status}. Gridiron IQ does not invent injury details.`,
         `Projection is ${player.projectedPoints.toFixed(1)}; treat as unavailable until status flips.`,
       ],
       dataThin: false,

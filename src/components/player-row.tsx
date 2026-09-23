@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cn, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 import type { FantasyPlayer } from "@/lib/types";
 
 export function PlayerRow({
@@ -9,13 +9,16 @@ export function PlayerRow({
   player: FantasyPlayer;
   showOwnership?: boolean;
 }) {
+  const slot = formatStatusCode(player.slot ?? player.position);
+  const injury = formatStatusCode(player.injuryStatus);
+
   return (
     <Link
       href={`/players/${encodeURIComponent(player.id)}`}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-emerald-950/5 py-2.5 last:border-0 transition hover:bg-orange-50/50 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto]"
     >
       <div className="hidden text-xs font-semibold uppercase tracking-wider text-emerald-950/45 sm:block">
-        {player.slot ?? player.position}
+        {slot}
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
@@ -25,14 +28,14 @@ export function PlayerRow({
           <span className="text-xs text-emerald-950/50">
             {player.position} · {player.nflTeam}
           </span>
-          {player.injuryStatus !== "ACTIVE" && (
+          {injury !== "ACTIVE" && (
             <span
               className={cn(
                 "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                statusColor(player.injuryStatus),
+                statusColor(injury),
               )}
             >
-              {player.injuryStatus}
+              {injury}
             </span>
           )}
         </div>

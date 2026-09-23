@@ -72,7 +72,8 @@ function tokenize(text: string, names: string[]): Token[] {
   parts.push(`(?<verdict>\\b(?:START|SIT)\\b)`);
   parts.push(`(?<injury>\\b(?:${INJURY_WORDS.join("|")})\\b)`);
   parts.push(`(?<stat>\\+?-?\\d+(?:\\.\\d+)?)`);
-  const re = new RegExp(parts.join("|"), "g");
+  // Case-insensitive so raw "ir" from copy still highlights as IR
+  const re = new RegExp(parts.join("|"), "gi");
 
   const tokens: Token[] = [];
   let last = 0;
@@ -89,9 +90,9 @@ function tokenize(text: string, names: string[]): Token[] {
         primary: groups.name === primary,
       });
     } else if (groups.verdict) {
-      tokens.push({ kind: "verdict", value: groups.verdict });
+      tokens.push({ kind: "verdict", value: groups.verdict.toUpperCase() });
     } else if (groups.injury) {
-      tokens.push({ kind: "injury", value: groups.injury });
+      tokens.push({ kind: "injury", value: groups.injury.toUpperCase() });
     } else if (groups.stat) {
       tokens.push({ kind: "stat", value: groups.stat });
     }

@@ -1,4 +1,5 @@
 import type { FantasyPlayer, PlayerNewsItem } from "@/lib/types";
+import { formatStatusCode } from "@/lib/utils";
 
 // Re-export name used by call sites that expect PlayerNewsItem
 export type { PlayerNewsItem };
@@ -147,12 +148,18 @@ export async function fetchEspnPlayerNews(
 export function newsFromRosterInjuries(players: FantasyPlayer[]): PlayerNewsItem[] {
   return players
     .filter((p) => p.injuryStatus !== "ACTIVE" && p.injuryStatus !== "UNKNOWN")
-    .map((p) => ({
-      id: `roster-inj-${p.id}`,
-      headline: `${p.name} listed as ${p.injuryStatus}`,
-      description: `Status from your league roster sync (${p.nflTeam}). Open ESPN for the latest report — Gridiron IQ does not invent injury details.`,
-      url: `https://www.espn.com/nfl/player/_/id/${Math.abs(p.espnId)}`,
-      source: "League roster",
-      playerNames: [p.name],
-    }));
+    .map((p) => {
+      const status = formatStatusCode(p.injuryStatus);
+      return {
+        id: `roster-inj-${p.id}`,
+        headline:
+          status === "IR"
+            ? `${p.name} is on the IR`
+            : `${p.name} listed as ${status}`,
+        description: `Status from your league roster sync (${p.nflTeam}). Open ESPN for the latest report — Gridiron IQ does not invent injury details.`,
+        url: `https://www.espn.com/nfl/player/_/id/${Math.abs(p.espnId)}`,
+        source: "League roster",
+        playerNames: [p.name],
+      };
+    });
 }

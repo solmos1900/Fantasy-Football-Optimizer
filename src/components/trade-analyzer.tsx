@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { cn, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 import {
   analyzeTrade,
@@ -73,7 +73,7 @@ function PlayerPickRow({
                 statusColor(player.injuryStatus),
               )}
             >
-              {player.injuryStatus}
+              {formatStatusCode(player.injuryStatus)}
             </span>
           )}
         </div>
