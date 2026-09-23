@@ -274,5 +274,5 @@ Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/c
 
 - Insights are explicit heuristics, not ML.
 - ESPN unofficial APIs can change; sync errors surface in the Connect form.
-- Demo NFL team abbreviations in ESPN-synced rosters may show as `T{id}` until a pro-team map is expanded.
+- ESPN-synced `nflTeam` / opponent labels come from the proTeamId map + public NFL scoreboard (re-sync to refresh).
 - Postgres is required for local and Vercel.

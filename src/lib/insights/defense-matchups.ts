@@ -266,7 +266,7 @@ export function normalizeOpponentAbbrev(opponent?: string): string | null {
     .replace(/^@\s*/i, "")
     .replace(/\s+/g, "")
     .toUpperCase();
-  if (!cleaned || cleaned.length > 4) return null;
+  if (!cleaned || cleaned === "BYE" || cleaned.length > 4) return null;
   return cleaned;
 }
 
