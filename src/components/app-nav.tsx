@@ -56,11 +56,11 @@ export function AppNav() {
     <>
       {/* Slim top chrome — brand + utilities (not primary section tabs) */}
       <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_92%,white)]/95 shadow-[0_1px_0_rgba(253,249,240,0.8)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-1.5 px-2.5 py-2.5 sm:gap-3 sm:px-4">
           <PendingLink href="/dashboard" className="group min-w-0 shrink">
             <BrandWordmark
               markSize={28}
-              className="min-w-0 transition-opacity group-hover:opacity-90 sm:[&_.type-brand]:text-2xl [&_.type-brand]:truncate [&_.type-brand]:text-base sm:[&_.type-brand]:text-lg"
+              className="min-w-0 gap-1.5 transition-opacity group-hover:opacity-90 sm:gap-2.5 sm:[&_.type-brand]:text-2xl [&_.type-brand]:truncate [&_.type-brand]:text-base sm:[&_.type-brand]:text-lg"
             />
           </PendingLink>
 
@@ -95,12 +95,9 @@ export function AppNav() {
                   void signOut({ callbackUrl: "/" });
                 })
               }
-              className="min-h-9 min-w-9 shrink-0 px-2 text-xs sm:px-3"
+              className="min-h-9 shrink-0 px-1.5 text-xs whitespace-nowrap sm:px-3"
             >
-              <span className="sm:hidden">{signingOut ? "…" : "Out"}</span>
-              <span className="hidden sm:inline">
-                {signingOut ? "Signing out…" : "Sign out"}
-              </span>
+              {signingOut ? "Signing out…" : "Sign out"}
             </Button>
           </div>
         </div>
