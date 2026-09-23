@@ -81,6 +81,9 @@ export function parseVenue(opponent?: string): {
     return { abbrev: null, venue: "unknown", label: "Opponent TBD" };
   }
   const raw = opponent.trim();
+  if (/^bye$/i.test(raw)) {
+    return { abbrev: null, venue: "unknown", label: "BYE" };
+  }
   const venue = raw.startsWith("@")
     ? "away"
     : /^vs\.?\s+/i.test(raw)

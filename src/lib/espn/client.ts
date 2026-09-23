@@ -18,6 +18,12 @@ import type {
   Matchup,
   PlayerPosition,
 } from "@/lib/types";
+import { nflTeamFromEspn } from "@/lib/espn/pro-teams";
+import {
+  enrichLeagueOpponents,
+  parseEspnScoreboard,
+  type ScoreboardEvent,
+} from "@/lib/espn/scoreboard";
 import { defaultEspnSeason } from "@/lib/season";
 
 const ESPN_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
@@ -148,6 +154,15 @@ function mapPlayer(
   const slot = SLOT_MAP[lineupSlotId] ?? "BN";
   const ownership = (player.ownership as Record<string, number> | undefined) ?? {};
   const proTeamId = Number(player.proTeamId ?? 0);
+  // Prefer an abbreviation ESPN already returned; fall back to the proTeamId table.
+  const preferredAbbrev =
+    (typeof player.proTeamAbbreviation === "string"
+      ? player.proTeamAbbreviation
+      : undefined) ??
+    (typeof player.proTeamAbbrev === "string" ? player.proTeamAbbrev : undefined) ??
+    (typeof (player.proTeam as { abbrev?: string } | undefined)?.abbrev === "string"
+      ? (player.proTeam as { abbrev: string }).abbrev
+      : undefined);
 
   const recentWeeks = (() => {
     const byWeek = new Map<
@@ -181,7 +196,7 @@ function mapPlayer(
     espnId: Number(player.id ?? 0),
     name: String(player.fullName ?? "Unknown"),
     position,
-    nflTeam: proTeamId ? `T${proTeamId}` : "FA",
+    nflTeam: nflTeamFromEspn(proTeamId, preferredAbbrev),
     injuryStatus: injuryFromPlayer(player),
     projectedPoints: Number((projected?.appliedTotal as number) ?? 0),
     actualPoints: Number((actual?.appliedTotal as number) ?? 0),
@@ -264,7 +279,7 @@ export async function fetchEspnLeague(creds: EspnCredentials): Promise<LeagueDat
     freeAgents = [];
   }
 
-  return {
+  const league: LeagueData = {
     leagueId: String(creds.leagueId),
     season: creds.season,
     name: String(settings.name ?? `League ${creds.leagueId}`),
@@ -277,6 +292,19 @@ export async function fetchEspnLeague(creds: EspnCredentials): Promise<LeagueDat
     lastSyncedAt: new Date().toISOString(),
     userTeamId: creds.teamId,
   };
+
+  // Bake opponent / venue from the public NFL scoreboard so My Team, Insights,
+  // and player detail all see the same home/away (or BYE) label — not TBD.
+  try {
+    const board = (await fetchEspnScoreboard(
+      scoringPeriodId,
+      creds.season,
+    )) as { events?: ScoreboardEvent[] };
+    return enrichLeagueOpponents(league, parseEspnScoreboard(board));
+  } catch (err) {
+    console.error("[espn] scoreboard opponent enrichment failed", err);
+    return league;
+  }
 }
 
 export async function fetchEspnFreeAgents(
