@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
@@ -220,6 +220,33 @@ function SelectedSummary({
         {playerNames(players)}
       </p>
     </div>
+  );
+}
+
+/**
+ * Pins the step continue CTA above the fixed bottom tab bar so it stays
+ * visible while the roster list scrolls. Matches install-banner tab offset.
+ */
+function StickyStepActions({ children }: { children: ReactNode }) {
+  return (
+    <>
+      {/* Spacer so list/summary aren't covered by the fixed bar */}
+      <div className="h-[4.75rem]" aria-hidden />
+      <div
+        className={cn(
+          "fixed inset-x-0 z-30 border-t-[1.5px] border-emerald-950/12",
+          "bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 backdrop-blur-md",
+          "shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.3)]",
+          "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]",
+        )}
+        role="region"
+        aria-label="Trade step actions"
+      >
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+          {children}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -555,7 +582,7 @@ export function TradeAnalyzer({
                 ? `From ${you.name} — select one or more players.`
                 : "Select one or more players leaving Side A."}
             </p>
-            <div className="mt-3 max-h-[min(28rem,55vh)] overflow-y-auto border-t border-emerald-950/10">
+            <div className="mt-3 border-t border-emerald-950/10">
               {(mode === "team" ? yourRoster : freePool).map((p) => (
                 <PlayerPickRow
                   key={`a-${p.id}`}
@@ -575,7 +602,7 @@ export function TradeAnalyzer({
             />
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-950/10 pt-4">
+          <StickyStepActions>
             {(give.length > 0 || receive.length > 0) && (
               <Button type="button" variant="ghost" size="sm" onClick={clearTrade}>
                 Clear picks
@@ -583,14 +610,14 @@ export function TradeAnalyzer({
             )}
             <Button
               type="button"
-              className="ml-auto"
+              className="ml-auto min-w-[10.5rem]"
               disabled={!canReachTheirs}
               onClick={() => setStep("theirs")}
             >
               Select their side
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Button>
-          </div>
+          </StickyStepActions>
         </section>
       )}
 
@@ -634,7 +661,7 @@ export function TradeAnalyzer({
                 ? `From ${partner!.name} — select one or more players.`
                 : "Select one or more players leaving Side B."}
             </p>
-            <div className="mt-3 max-h-[min(28rem,55vh)] overflow-y-auto border-t border-emerald-950/10">
+            <div className="mt-3 border-t border-emerald-950/10">
               {(mode === "team" ? theirRoster : freePool).map((p) => (
                 <PlayerPickRow
                   key={`b-${p.id}`}
@@ -654,7 +681,7 @@ export function TradeAnalyzer({
             />
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-emerald-950/10 pt-4">
+          <StickyStepActions>
             <Button
               type="button"
               variant="ghost"
@@ -666,13 +693,14 @@ export function TradeAnalyzer({
             </Button>
             <Button
               type="button"
+              className="ml-auto min-w-[9.5rem]"
               disabled={!canReachResults}
               onClick={() => setStep("results")}
             >
               See results
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Button>
-          </div>
+          </StickyStepActions>
         </section>
       )}
 
