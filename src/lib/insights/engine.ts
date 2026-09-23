@@ -144,7 +144,7 @@ function buildStartSit(
         priority: "medium",
         verdict: "SIT",
         title: `SIT ${b.name} despite higher projection — tough ${defense.opponent} matchup`,
-        summary: `${b.name} projects ${b.projectedPoints.toFixed(1)} but similar ${inferPlayerRole(b)}s have struggled vs ${defense.opponent}.`,
+        summary: `${b.name} projects ${b.projectedPoints.toFixed(1)} but similar ${b.position === "RB" ? "running backs" : b.position === "WR" ? "receivers" : b.position === "TE" ? "tight ends" : "players"} have struggled vs ${defense.opponent}.`,
         reasoning,
         relatedPlayerIds: [b.id, weakest.id],
       });
