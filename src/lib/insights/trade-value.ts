@@ -348,7 +348,7 @@ export function hardRejectReasons(
     const qbSide = give[0].position === "QB" ? give[0] : receive[0];
     const skillSide = give[0].position === "QB" ? receive[0] : give[0];
     reasons.push(
-      `Hard reject: naked QB↔skill 1:1 (${qbSide.name} for ${skillSide.name}). In 1QB leagues, streamer QBs are deep and elite skill is scarce — this almost never clears.`,
+      `Don't swap a skill player 1-for-1 for a QB (${skillSide.name} ↔ ${qbSide.name}). In 1QB leagues, backup QBs are easy to find — star skill players aren't.`,
     );
   }
 
@@ -358,11 +358,11 @@ export function hardRejectReasons(
     const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
     if (ratio > OUTRAGEOUS_VALUE_RATIO) {
       reasons.push(
-        `Hard reject: chip-value ratio ${ratio.toFixed(2)} exceeds ~${OUTRAGEOUS_VALUE_RATIO} on our 1QB-discounted scale (${gv.toFixed(1)} vs ${rv.toFixed(1)}).`,
+        `The values are too far apart (${gv.toFixed(1)} vs ${rv.toFixed(1)}). One side is giving up way more than they're getting.`,
       );
     } else if (give.length === 1 && receive.length === 1) {
       reasons.push(
-        `Hard reject: tier gap of 2+ (${tierOf(give[0])} ↔ ${tierOf(receive[0])}) on a 1:1.`,
+        `These players aren't in the same tier (${tierOf(give[0])} vs ${tierOf(receive[0])}). A straight swap almost never works.`,
       );
     }
   }
