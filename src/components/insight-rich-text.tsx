@@ -16,8 +16,8 @@ export function PlayerChip({
       className={cn(
         "inline-flex max-w-full items-center truncate rounded-md border px-1.5 py-0.5 align-baseline text-[0.8125rem] font-semibold leading-snug",
         tone === "primary"
-          ? "border-emerald-950/25 bg-[color-mix(in_srgb,var(--surface)_88%,#1b3022)] text-emerald-50 shadow-sm"
-          : "border-emerald-950/15 bg-[color-mix(in_srgb,var(--kraft)_70%,white)] text-emerald-950",
+          ? "border-emerald-900 bg-emerald-900 text-emerald-50 shadow-sm"
+          : "border-emerald-950/25 bg-[color-mix(in_srgb,var(--kraft)_55%,white)] text-emerald-950",
         className,
       )}
     >
@@ -37,8 +37,8 @@ export function StatCallout({
   return (
     <span
       className={cn(
-        "inline-flex items-baseline rounded px-1 py-0.5 font-semibold tabular-nums text-orange-700",
-        "bg-orange-50/80",
+        "inline-flex items-baseline rounded px-1 py-0.5 font-semibold tabular-nums text-orange-800",
+        "bg-orange-100/90",
         className,
       )}
     >
@@ -68,6 +68,7 @@ function tokenize(text: string, names: string[]): Token[] {
   if (sortedNames.length) {
     parts.push(`(?<name>${sortedNames.map(escape).join("|")})`);
   }
+  // Keep START/SIT as tokens so we can bold them — not full chips (stamp covers that).
   parts.push(`(?<verdict>\\b(?:START|SIT)\\b)`);
   parts.push(`(?<injury>\\b(?:${INJURY_WORDS.join("|")})\\b)`);
   parts.push(`(?<stat>\\+?-?\\d+(?:\\.\\d+)?)`);
@@ -105,6 +106,7 @@ function tokenize(text: string, names: string[]): Token[] {
 /**
  * Render insight prose with player-name chips and highlighted numbers / injury words.
  * Pass related player names (longest match wins). First name is treated as primary chip.
+ * START/SIT render as bold accent text (not chips) so card headers stay scannable.
  */
 export function InsightRichText({
   text,
@@ -145,8 +147,8 @@ export function InsightRichText({
             <span
               key={i}
               className={cn(
-                "inline-flex rounded px-1.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide text-white",
-                t.value === "START" ? "bg-emerald-700" : "bg-orange-700",
+                "font-bold tracking-wide",
+                t.value === "START" ? "text-emerald-800" : "text-orange-800",
               )}
             >
               {t.value}
