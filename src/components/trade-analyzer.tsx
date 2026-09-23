@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
@@ -225,27 +226,39 @@ function SelectedSummary({
 
 /**
  * Pins the step continue CTA above the fixed bottom tab bar so it stays
- * visible while the roster list scrolls. Matches install-banner tab offset.
+ * visible while the roster list scrolls. Portaled to document.body so
+ * ancestor `animate-fade-up` transforms cannot trap `position: fixed`.
+ * Offset matches the install-banner tab clearance.
  */
 function StickyStepActions({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <>
       {/* Spacer so list/summary aren't covered by the fixed bar */}
       <div className="h-[4.75rem]" aria-hidden />
-      <div
-        className={cn(
-          "fixed inset-x-0 z-30 border-t-[1.5px] border-emerald-950/12",
-          "bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 backdrop-blur-md",
-          "shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.3)]",
-          "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]",
-        )}
-        role="region"
-        aria-label="Trade step actions"
-      >
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
-          {children}
-        </div>
-      </div>
+      {mounted
+        ? createPortal(
+            <div
+              className={cn(
+                "fixed inset-x-0 z-30 border-t-[1.5px] border-emerald-950/12",
+                "bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 backdrop-blur-md",
+                "shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.3)]",
+                "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]",
+              )}
+              role="region"
+              aria-label="Trade step actions"
+            >
+              <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+                {children}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
