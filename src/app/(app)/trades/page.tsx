@@ -71,10 +71,9 @@ export default async function TradesPage({
       <div className="animate-fade-up">
         <h1 className="type-page text-emerald-950">Trade Analyzer</h1>
         <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Two modes: roster-aware <span className="font-semibold">Team trade</span>{" "}
-          with a league mate, or free{" "}
-          <span className="font-semibold">Player vs player</span> compare for any
-          package. Same 1QB full-PPR chip norms — not a fake win probability.
+          Build a trade in three steps: pick what you give, pick what you get,
+          then see a short verdict — reason, value difference, and who wins the
+          deal.
         </p>
       </div>
 
