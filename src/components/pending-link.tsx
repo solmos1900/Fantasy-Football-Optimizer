@@ -25,9 +25,11 @@ function LinkPendingHint({ className }: { className?: string }) {
 function PendingLinkInner({
   children,
   className,
+  pendingHintClassName,
 }: {
   children: ReactNode;
   className?: string;
+  pendingHintClassName?: string;
 }) {
   const { pending } = useLinkStatus();
   return (
@@ -40,7 +42,7 @@ function PendingLinkInner({
       aria-busy={pending || undefined}
     >
       {children}
-      <LinkPendingHint />
+      <LinkPendingHint className={pendingHintClassName} />
     </span>
   );
 }
@@ -49,6 +51,8 @@ type PendingLinkProps = Omit<ComponentProps<typeof Link>, "children"> & {
   children: ReactNode;
   /** Extra classes applied to the inner pending wrapper (not the <a>). */
   contentClassName?: string;
+  /** Classes for the pending spinner (e.g. absolute corner on compact tabs). */
+  pendingHintClassName?: string;
 };
 
 /**
@@ -59,11 +63,17 @@ export function PendingLink({
   children,
   className,
   contentClassName,
+  pendingHintClassName,
   ...props
 }: PendingLinkProps) {
   return (
     <Link className={className} {...props}>
-      <PendingLinkInner className={contentClassName}>{children}</PendingLinkInner>
+      <PendingLinkInner
+        className={contentClassName}
+        pendingHintClassName={pendingHintClassName}
+      >
+        {children}
+      </PendingLinkInner>
     </Link>
   );
 }
