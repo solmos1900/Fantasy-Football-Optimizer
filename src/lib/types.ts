@@ -160,6 +160,8 @@ export interface TradeProposal {
   whyThem: string[];
   /** Plain-language trend/projection rationale for the deal */
   trendNotes?: string[];
+  /** Alternate sendable names (2–4) to raise acceptance — research brief */
+  alternativeSendables?: { id: string; name: string; position: PlayerPosition }[];
 }
 
 export interface InsightRecommendation {

@@ -1,18 +1,21 @@
 # Projection snapshots & PPR trend analyst
 
-Aligned to the **PPR Fantasy Intelligence** research brief. Gridiron IQ stores weekly **projected vs actual PPR** in Neon so trade / start-sit advice cites accumulated samples — not invented third-party accuracy claims.
+Aligned to the **PPR Fantasy Intelligence** research brief
+(`gridiron-iq-ppr-research-brief-2026-09-22`, 2026-09-22).
+Gridiron IQ stores weekly **projected vs actual PPR** in Neon so trade / start-sit
+advice cites accumulated samples — not invented third-party accuracy claims.
 
 ## Schema (preferred)
 
 | Model | Role |
 |-------|------|
-| `Player` | Canonical ESPN-id player identity |
-| `PlayerWeekStat` | Weekly `projectedPpr`, `actualPpr`, `projectionDelta`, optional usage (`targets`, shares, snaps, airYards, RZ) |
-| `PlayerTrendSnapshot` | `Rising` \| `Stable` \| `Fading` \| `BoomBust` \| `InjuryRisk` \| `Thin` + `evidenceSentence`, `factJson`, `judgmentJson` |
-| `DefenseWeekAllow` | Defense fantasy points allowed by week/position (matchup SOS) |
+| `Player` | ESPN-id identity (`espnId`, optional `espnPlayerId` / `sleeperId`) |
+| `PlayerWeekStat` | Weekly `projectedPpr`, `actualPpr`, `projectionDelta`, `scoringFormat`, usage columns (targets/shares/snaps/airYards/RZ…), `projectionSource` / `actualSource` |
+| `PlayerTrendSnapshot` | `Rising` \| `Stable` \| `Fading` \| `BoomBust` \| `InjuryRisk` \| `Thin` + ranked scores + `evidenceSentence` + `factJson` / `judgmentJson` |
+| `DefenseWeekAllow` | Defense points allowed by week/position (SOS) |
 | `LeagueConnection` | ESPN/demo connection + cached payload (kept; not the only truth) |
 
-Migration: `prisma/migrations/20260923020000_research_player_week_trend/` (replaces the earlier snapshot/metric table names).
+Migrations: `20260923020000_research_player_week_trend`, `20260923030000_research_brief_field_parity`.
 
 ## Sources (honest)
 
@@ -27,22 +30,23 @@ Migration: `prisma/migrations/20260923020000_research_player_week_trend/` (repla
 
 ## Trend judgment rank (do not invert)
 
-1. Injury / role  
-2. Target / rush / snap trajectory (3-game vs season) — fall back to actual-PPR slope when usage null  
-3. Red-zone (when present)  
-4. SOS / matchup (`DefenseWeekAllow` + in-memory defense comps)  
-5. Hot/cold vs projection — **only with** usage/form context; never outranks #1–2  
+1. Injury / role (`injuryRoleScore`)  
+2. Target / rush / snap trajectory — form-slope proxy until usage lands (`usageTrajectory`)  
+3. Red-zone (`redZoneScore`, nullable)  
+4. SOS / matchup (`sosScore` + `DefenseWeekAllow`)  
+5. Hot/cold vs projection (`hotColdScore`) — **only with** usage/form context  
 
-`factJson` = measurable evidence. `judgmentJson` = ordered conclusions for the UI.
+Hot scoring + flat usage ⇒ **Boom-Bust**, not Rising.
 
 ## Trade rules (full PPR, 1QB)
 
 - Surplus → need; improve **starters**, not spreadsheet win%.  
 - Reject naked QB ↔ skill 1:1 (especially QB ↔ WR1).  
-- 2-for-1 ≈ star with **≤10% premium**, and **both package pieces startable**.  
-- Scarcity chips: elite TE ≈ locked RB1 > volume WR1 > QB.  
-- Mutually beneficial copy: For you / For them / Why accepted.  
-- Half-PPR: only matters when it flips TE / pass-catching RB leans (ESPN `appliedTotal` already reflects league settings when synced).
+- 2-for-1 ≈ star with **≤10% premium**, and **both package pieces startable**; debit bench/drop cost.  
+- Chip blend ~**70% ROS/form + 30% this-week** proj; scarcity elite TE ≈ locked RB1 > volume WR1 > QB.  
+- Mutually beneficial For you / For them / Why accepted; optional **alternative sendables**.  
+- Half-PPR: only note when it flips TE / pass-catching RB leans (ESPN `appliedTotal` already reflects league settings when synced).  
+- No fake win%. Verdict + ≤6 fact-then-judgment bullets.
 
 ## How trends update
 
@@ -52,16 +56,15 @@ Migration: `prisma/migrations/20260923020000_research_player_week_trend/` (repla
 
 ## How managers should read recommendations
 
-- Verdict + bullets: **facts first**, then judgment.  
-- No fake win%. Labels describe **your stored sample**.  
-- Thin / Injury risk means wait or sit — don’t overfit one game.  
+- Labels describe **your stored sample**, not a paid ECR.  
+- Thin / Injury risk → wait or sit; don’t overfit one game.  
 - Waivers only recommend in-league available FAs.
 
 ## Code map
 
 | Path | Role |
 |------|------|
-| `src/lib/insights/trends.ts` | Week stat upsert + trend derivation |
+| `src/lib/insights/trends.ts` | Week stat upsert + ranked trend derivation |
 | `src/lib/insights/trades.ts` | Full-PPR trade engine (research norms) |
 | `src/lib/insights/engine.ts` | Insights bundle |
 | `src/components/trend-panel.tsx` | Spark + table |

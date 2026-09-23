@@ -402,3 +402,50 @@ export function averageRecentPoints(weeks?: WeeklyScore[], n = 3): number | null
   if (!sorted.length) return null;
   return sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
 }
+
+/** Flatten seeded defense comps for Neon DefenseWeekAllow rows. */
+export function seededDefenseAllowRows(season: number): {
+  defenseAbbrev: string;
+  nflTeam: string;
+  season: number;
+  week: number;
+  position: string;
+  vsPosition: string;
+  role: string;
+  pointsAllowed: number;
+  pointsAllowedPpr: number;
+  samplePlayer: string;
+  source: string;
+}[] {
+  const rows: {
+    defenseAbbrev: string;
+    nflTeam: string;
+    season: number;
+    week: number;
+    position: string;
+    vsPosition: string;
+    role: string;
+    pointsAllowed: number;
+    pointsAllowedPpr: number;
+    samplePlayer: string;
+    source: string;
+  }[] = [];
+  for (const [abbr, samples] of Object.entries(SEEDED_DEFENSE_HISTORY)) {
+    for (const s of samples) {
+      rows.push({
+        defenseAbbrev: abbr,
+        nflTeam: abbr,
+        season,
+        week: s.week,
+        position: s.position,
+        vsPosition: s.position,
+        role: s.role,
+        pointsAllowed: s.points,
+        pointsAllowedPpr: s.points,
+        samplePlayer: s.playerName,
+        source: "seed",
+      });
+    }
+  }
+  return rows;
+}

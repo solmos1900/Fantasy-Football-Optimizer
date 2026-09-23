@@ -116,6 +116,16 @@ function InsightCard({
         </div>
       )}
 
+      {insight.trade?.alternativeSendables &&
+        insight.trade.alternativeSendables.length > 0 && (
+          <p className="mt-2 text-xs text-emerald-950/55">
+            Other sendables to float:{" "}
+            {insight.trade.alternativeSendables
+              .map((p) => `${p.name} (${p.position})`)
+              .join(", ")}
+          </p>
+        )}
+
       {insight.trade?.trendNotes && insight.trade.trendNotes.length > 0 && (
         <div className="mt-3 border-t border-emerald-950/10 pt-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">

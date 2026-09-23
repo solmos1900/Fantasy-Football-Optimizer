@@ -1,27 +1,13 @@
 /**
  * PPR trade recommender for standard 1QB leagues.
  *
- * Norms encoded from public r/fantasyfootball trade threads / Trade Analyzer
- * discussions (value-over-replacement, positional scarcity, mutual need):
- * - In 1QB, startable QBs are plentiful; WRs/RBs fill multiple starter + flex
- *   slots, so naked QB↔skill 1:1 almost never clears (e.g. Baker ≠ Adams).
- * - Value QBs by points above waiver replacement, not raw projection.
- * - Accepted deals usually match surplus→need (same-pos or skill↔skill) and
- *   look fair to BOTH managers; 2-for-1 / 1-for-2 when values are uneven.
- *
- * HARD REJECTS
- * - Never 1-for-1 QB ↔ WR/RB/TE (or any non-QB).
- * - Never elite skill for mid/streamer when tiers differ by 2+.
- * - Never deals with value ratio > ~1.55 on our 1QB-discounted chip scale.
- *
- * PREFERRED
- * - Same-position depth swaps at similar tiers.
- * - Surplus skill → need skill (WR depth for RB need, etc.) — still not QB.
- * - 2-for-1 / 1-for-2 when one side is uneven.
- * - QB only as a package sweetener (QB + skill ↔ elite skill) when the partner
- *   clearly needs QB help.
- *
- * Every suggestion includes a short “why this gets accepted” grounded in holes + fair value.
+ * Aligned to PPR Fantasy Intelligence research brief (2026-09-22):
+ * - Improve starters, not spreadsheet win%; surplus → need.
+ * - Reject naked QB↔skill 1:1 (esp QB↔WR1); QB = package sweetener only.
+ * - 2-for-1 ≈ star + 0–10% premium only if both pieces start.
+ * - Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB).
+ * - Chip blend ~70% ROS/form + ~30% this-week proj; half-PPR only when lean flips.
+ * - Mutually beneficial For you / For them / Why accepted; optional sendables.
  */
 
 import type {
@@ -100,13 +86,14 @@ function tierOf(p: FantasyPlayer): Tier {
 
 type TrendLookup = Map<number, PlayerTrendView> | undefined;
 
-/** Trade-chip value; full-PPR blended. Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB). */
+/** Trade-chip value; full-PPR. ROS/form ~70%, this-week proj ~30% (research brief).
+ * Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB). */
 function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
   const recent =
     p.recentWeeks && p.recentWeeks.length
       ? p.recentWeeks.reduce((a, w) => a + w.points, 0) / p.recentWeeks.length
       : p.projectedPoints;
-  let blended = p.projectedPoints * 0.65 + recent * 0.35;
+  let blended = p.projectedPoints * 0.3 + recent * 0.7;
   const trend = trends?.get(p.espnId);
   // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
   if (trend) blended += trend.restOfSeasonAdj;
@@ -516,7 +503,7 @@ export function buildRealisticTrades(
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const whyYou = [
+    const whyYouRaw = [
       `You send: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
       `You get: ${c.receive.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
       ...c.receive
@@ -528,14 +515,20 @@ export function buildRealisticTrades(
     ];
     for (const p of c.receive) {
       const form = recentFormSummary(p);
-      if (form) whyYou.push(form);
+      if (form) whyYouRaw.push(form);
       const def = analyzeDefenseMatchup(p, allPlayers);
-      if (def) whyYou.push(`This week: ${def.summary}`);
+      if (def) whyYouRaw.push(`This week: ${def.summary}`);
       const tb = trendBlurb(p, trends);
-      if (tb) whyYou.push(`Trend: ${tb}`);
+      if (tb) whyYouRaw.push(`Trend: ${tb}`);
     }
+    if (c.kind === "2for1" || c.kind === "qb_package") {
+      whyYouRaw.push(
+        "Roster-spot note: you consolidate to one starter — debit any flex piece that becomes a bench/drop.",
+      );
+    }
+    const whyYou = whyYouRaw.slice(0, 6);
 
-    const whyThem = [
+    const whyThemRaw = [
       `They send: ${c.receive.map((p) => `${p.name} (${p.position})`).join(" + ")}.`,
       `They get: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
       ...c.give
@@ -547,14 +540,24 @@ export function buildRealisticTrades(
     ];
     for (const p of c.give) {
       const tb = trendBlurb(p, trends);
-      if (tb) whyThem.push(`Trend on asset you send: ${tb}`);
+      if (tb) whyThemRaw.push(`Trend on asset you send: ${tb}`);
     }
+    const whyThem = whyThemRaw.slice(0, 6);
 
     const trendNotes = [...c.give, ...c.receive]
       .map((p) => trendBlurb(p, trends))
       .filter((x): x is string => Boolean(x));
 
     const accept = acceptanceReason(you, c.them, c.give, c.receive, trends);
+
+    // Alternate sendables at same pos / similar tier (raise acceptance)
+    const giveIds = new Set(c.give.map((p) => p.id));
+    const alternativeSendables = SKILL.flatMap((pos) =>
+      surplusOf(you, pos).filter((p) => !giveIds.has(p.id)),
+    )
+      .sort(byProj)
+      .slice(0, 3)
+      .map((p) => ({ id: p.id, name: p.name, position: p.position }));
 
     out.push({
       id: `trade-${c.kind}-${key}`,
@@ -566,12 +569,12 @@ export function buildRealisticTrades(
           : `Trade ${c.give.map((p) => p.name).join(" + ")} ↔ ${c.receive.map((p) => p.name).join(" + ")} with ${c.them.name}`,
       summary: accept,
       reasoning: [
-        ...whyYou.map((r) => `For you: ${r}`),
-        ...whyThem.map((r) => `For them: ${r}`),
-        `Why this gets accepted: ${accept}`,
-        `Scoring: full PPR chip blend (65% this-week proj + 35% recent actual) with 1QB QB discount; stored boom/bust nudges when snapshots exist.`,
-        `Rule check: blocked naked QB↔skill 1:1; value within 1QB PPR norms.`,
-      ],
+        `Verdict: TRADE lean — improves starters via surplus→need (full PPR, 1QB).`,
+        ...whyYou.slice(0, 2).map((r) => `Fact — you: ${r}`),
+        ...whyThem.slice(0, 2).map((r) => `Fact — them: ${r}`),
+        `Judgment — why accepted: ${accept}`,
+        `Scoring: ~70% ROS/form + ~30% this-week proj; scarcity TE/RB1 > WR1 > QB; no fake win%.`,
+      ].slice(0, 6),
       relatedPlayerIds: [...c.give, ...c.receive].map((p) => p.id),
       relatedPositions: [
         ...new Set([...c.give, ...c.receive].map((p) => p.position)),
@@ -592,6 +595,9 @@ export function buildRealisticTrades(
         whyYou,
         whyThem,
         trendNotes: trendNotes.length ? trendNotes : undefined,
+        alternativeSendables: alternativeSendables.length
+          ? alternativeSendables
+          : undefined,
       },
     });
 
