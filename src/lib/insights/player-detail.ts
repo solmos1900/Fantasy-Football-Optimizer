@@ -10,7 +10,7 @@ import {
   inferPlayerRole,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
-import { trendLabelCopy } from "@/lib/insights/trend-labels";
+import { humanTrendSentence } from "@/lib/insights/trend-labels";
 
 export type StartSitLean = "START" | "SIT" | "FLEX";
 
@@ -170,30 +170,25 @@ export function buildPlayerDetailInsight(
   }
 
   reasons.push(
-    `This week projection: ${player.projectedPoints.toFixed(1)} PPR (${venue.label}).`,
+    `This week's projection is ${player.projectedPoints.toFixed(1)} points (${venue.label}).`,
   );
 
   if (trend && trend.trendLabel !== "thin" && trend.trendLabel !== "Thin") {
+    reasons.push(humanTrendSentence(trend));
+  } else if (recentAvg != null) {
     reasons.push(
-      `Stored trend: ${trendLabelCopy(trend.trendLabel)} — ${trend.evidenceSentence ?? trend.rationale}`,
-    );
-    if (trend.judgments?.length) {
-      reasons.push(`Judgment order: ${trend.judgments.join(" ")}`);
-    }
-  }
-
-  if (recentAvg != null) {
-    reasons.push(
-      `Recent form avg ${recentAvg.toFixed(1)} PPR across last scored weeks.`,
+      `${player.name} is averaging about ${recentAvg.toFixed(1)} points in recent games.`,
     );
   } else {
     dataThin = true;
     reasons.push(
-      "Prior-week scoring history is thin for this player — leaning more on projection + defense comps.",
+      "Not enough prior-week scores yet — leaning more on this week's projection and the matchup.",
     );
   }
 
-  if (form) reasons.push(form);
+  if (form && !(trend && trend.trendLabel !== "thin" && trend.trendLabel !== "Thin")) {
+    reasons.push(form);
+  }
 
   const comps = toComps(player, defenseAbbrev, matchup?.samples ?? []);
 
@@ -211,7 +206,9 @@ export function buildPlayerDetailInsight(
     );
   }
 
-  reasons.push(`Role used for comps: ${roleLabel(inferPlayerRole(player))}.`);
+  reasons.push(
+    `Comparing similar ${roleLabel(inferPlayerRole(player))}s against this defense.`,
+  );
 
   let score = player.projectedPoints;
   if (recentAvg != null) score = score * 0.55 + recentAvg * 0.45;
@@ -228,10 +225,10 @@ export function buildPlayerDetailInsight(
 
   const headline =
     lean === "START"
-      ? `Start lean: ${player.name}`
+      ? `Start ${player.name}`
       : lean === "FLEX"
-        ? `Flex lean: ${player.name}`
-        : `Sit lean: ${player.name}`;
+        ? `Flex ${player.name}`
+        : `Sit ${player.name}`;
 
   return {
     lean,

@@ -134,18 +134,20 @@ export default async function PlayerDetailPage({
         </div>
       </div>
 
-      <section className="animate-fade-up-delay surface-card p-4 sm:p-5">
+      <section className="animate-fade-up-delay cork-board tape-card p-4 sm:p-5">
+        <div className="surface-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
-              "rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white",
+              "stamp animate-stamp text-xs",
               insight.lean === "START"
-                ? "bg-emerald-700"
+                ? "stamp-start"
                 : insight.lean === "FLEX"
-                  ? "bg-amber-600"
-                  : "bg-orange-700",
+                  ? "stamp-flex"
+                  : "stamp-sit",
             )}
           >
+            {insight.lean === "START" ? "★ " : ""}
             {insight.lean}
           </span>
           <h2 className="type-section text-emerald-950">
@@ -154,8 +156,8 @@ export default async function PlayerDetailPage({
         </div>
         {insight.dataThin && (
           <p className="mt-2 text-xs text-emerald-950/55">
-            Early-season / thin sample — lean uses whatever projection, form, and
-            defense comps are available.
+            Early season — not many games on record yet, so this lean leans more
+            on this week&apos;s projection and the matchup.
           </p>
         )}
         <ul className="mt-3 space-y-1.5">
@@ -169,6 +171,7 @@ export default async function PlayerDetailPage({
             </li>
           ))}
         </ul>
+        </div>
       </section>
 
       <section className="animate-fade-up-delay-2">
@@ -223,10 +226,10 @@ export default async function PlayerDetailPage({
       </section>
 
       <section>
-        <h2 className="type-section text-emerald-950">Projection vs actual</h2>
+        <h2 className="type-section text-emerald-950">Recent scoring</h2>
         <p className="type-body mt-1 text-emerald-950/55">
-          Stored weekly snapshots (Neon) compare projected PPR to what actually
-          scored — used for start/sit and trade chip nudges.
+          How projected points compare to what they actually scored — used to
+          spot heating up / cooling off for start/sit and trades.
         </p>
         <div className="mt-3">
           <TrendPanel trend={playerTrend} />

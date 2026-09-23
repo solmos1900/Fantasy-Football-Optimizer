@@ -10,13 +10,12 @@ import type {
 import {
   analyzeDefenseMatchup,
   averageRecentPoints,
-  inferPlayerRole,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { buildRealisticTrades } from "@/lib/insights/trades";
 import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
-import { trendLabelCopy } from "@/lib/insights/trend-labels";
+import { humanTrendSentence } from "@/lib/insights/trend-labels";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -112,31 +111,31 @@ function buildStartSit(
     if (!shouldStart && !sitDespiteProj) continue;
 
     const reasoning: string[] = [
-      `${b.name} (${b.position}, ${b.nflTeam}) is on your bench projecting ${b.projectedPoints.toFixed(1)} PPR.`,
-      `${weakest.name} is slotted at ${weakest.slot} projecting ${weakest.projectedPoints.toFixed(1)} PPR.`,
-      `Projection delta: ${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} (1.5-pt threshold).`,
+      shouldStart
+        ? `Start ${b.name} over ${weakest.name} — ${b.projectedPoints.toFixed(1)} projected vs ${weakest.projectedPoints.toFixed(1)} (${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} edge).`
+        : `Leave ${b.name} on the bench this week despite the higher projection — the ${defense?.opponent ?? "opponent"} matchup has been rough.`,
+      `${b.name} is on your bench at ${b.projectedPoints.toFixed(1)} projected points (full PPR).`,
+      `${weakest.name} is starting in the ${weakest.slot} slot at only ${weakest.projectedPoints.toFixed(1)}.`,
     ];
     const formB = recentFormSummary(b);
     const formW = recentFormSummary(weakest);
     if (formB) reasoning.push(formB);
-    if (formW) reasoning.push(`${weakest.name} — ${formW}`);
+    if (formW) reasoning.push(formW);
     if (formDelta != null) {
       reasoning.push(
-        `Recent-form delta: ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} PPR.`,
+        `Over recent weeks, ${b.name} has scored about ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} more points per game than ${weakest.name}.`,
       );
     }
-    if (defense) reasoning.push(`Matchup history for ${b.name}: ${defense.summary}`);
+    if (defense) reasoning.push(defense.summary);
     if (sitDefense) {
-      reasoning.push(`Matchup history for ${weakest.name}: ${sitDefense.summary}`);
+      reasoning.push(`For ${weakest.name}: ${sitDefense.summary}`);
     }
     if (weakest.injuryStatus !== "ACTIVE") {
-      reasoning.push(`${weakest.name} injury flag: ${weakest.injuryStatus}.`);
+      reasoning.push(`${weakest.name} injury status: ${weakest.injuryStatus}.`);
     }
     if (b.injuryStatus !== "ACTIVE") {
-      reasoning.push(`${b.name} injury flag: ${b.injuryStatus}.`);
+      reasoning.push(`${b.name} injury status: ${b.injuryStatus}.`);
     }
-    reasoning.push(`Role comparison uses ${inferPlayerRole(b)} vs similar players.`);
-
     if (sitDespiteProj && defense) {
       out.push({
         id: `start-sit-caution-${b.id}-${weakest.id}`,
@@ -144,7 +143,7 @@ function buildStartSit(
         priority: "medium",
         verdict: "SIT",
         title: `SIT ${b.name} despite higher projection — tough ${defense.opponent} matchup`,
-        summary: `${b.name} projects ${b.projectedPoints.toFixed(1)} but similar ${inferPlayerRole(b)}s have struggled vs ${defense.opponent}.`,
+        summary: `${b.name} projects ${b.projectedPoints.toFixed(1)} but similar ${b.position === "RB" ? "running backs" : b.position === "WR" ? "receivers" : b.position === "TE" ? "tight ends" : "players"} have struggled vs ${defense.opponent}.`,
         reasoning,
         relatedPlayerIds: [b.id, weakest.id],
       });
@@ -177,11 +176,13 @@ function buildStartSit(
       .sort((a, b) => b.projectedPoints - a.projectedPoints)[0];
 
     const reasoning = [
-      `${s.name} carries injury status ${s.injuryStatus} but is still in a starting slot (${s.slot}).`,
       replacement
-        ? `Best bench option: ${replacement.name} (${replacement.projectedPoints.toFixed(1)} proj, ${replacement.injuryStatus}).`
-        : `No healthy same-position bench replacement — check free agents.`,
-      `Starting injured players risks a zero and weakens weekly ceiling.`,
+        ? `Sit ${s.name} (${s.injuryStatus}) and start ${replacement.name} instead.`
+        : `Sit ${s.name} (${s.injuryStatus}) — no healthy same-position bench option yet.`,
+      `${s.name} is still listed in a starting slot (${s.slot}) with injury status ${s.injuryStatus}.`,
+      replacement
+        ? `Best bench option: ${replacement.name} (${replacement.projectedPoints.toFixed(1)} projected, ${replacement.injuryStatus}).`
+        : `Check the waiver wire for a healthy ${s.position}.`,
     ];
     const form = recentFormSummary(replacement ?? s);
     if (form) reasoning.push(form);
@@ -222,20 +223,24 @@ function buildMatchupNotes(
     if (!def?.toughMatchup) continue;
 
     const formAvg = averageRecentPoints(s.recentWeeks);
+    const punch =
+      formAvg != null
+        ? `${s.name} faces a tough ${def.opponent} matchup — similar players have been held down lately. Consider a safer option if you have one.`
+        : `${s.name} faces a tough ${def.opponent} matchup based on how similar players have scored there.`;
     out.push({
       id: `matchup-note-${s.id}`,
       type: "matchup_note",
       priority: "medium",
       verdict: "SIT",
       title: `Matchup caution: ${s.name} vs ${def.opponent}`,
-      summary: def.summary,
+      summary: punch,
       reasoning: [
-        `${s.name} projects ${s.projectedPoints.toFixed(1)} this week vs ${def.opponent}.`,
+        punch,
+        `${s.name} is projected for ${s.projectedPoints.toFixed(1)} points this week vs ${def.opponent}.`,
         def.summary,
         formAvg != null
-          ? `Recent form avg ${formAvg.toFixed(1)} PPR across last scored weeks.`
-          : `No prior-week scoring history stored yet — relying on projection + defense samples.`,
-        `Role used for comparison: ${inferPlayerRole(s)}.`,
+          ? `${s.name} has been averaging about ${formAvg.toFixed(1)} points in recent games.`
+          : `Not enough recent scores stored yet — leaning on this week's projection and the defense history.`,
       ],
       relatedPlayerIds: [s.id],
     });
@@ -419,21 +424,19 @@ export function buildInsightsBundle(
   }
 
   const startSit = buildStartSit(league, team);
-  // Fold trend notes into start/sit reasoning when available
+  // Prefer a plain-English trend sentence as the Why punch line when available
   if (trends?.size) {
     for (const insight of startSit) {
       for (const pid of insight.relatedPlayerIds ?? []) {
         const player = rosterPool(league).find((p) => p.id === pid);
         const t = player ? trends.get(player.espnId) : undefined;
         if (t && t.trendLabel !== "thin" && t.trendLabel !== "Thin") {
-          insight.reasoning.push(
-            `Trend (${trendLabelCopy(t.trendLabel)}): ${t.rationale}`,
-          );
-          if (t.judgments?.length) {
-            insight.reasoning.push(
-              `Judgment (injury/usage > hot-cold): ${t.judgments.join(" ")}`,
-            );
+          const sentence = humanTrendSentence(t);
+          if (!insight.reasoning.includes(sentence)) {
+            // Keep the actionable headline first; trend sentence is supporting why
+            insight.reasoning.splice(1, 0, sentence);
           }
+          break;
         }
       }
     }

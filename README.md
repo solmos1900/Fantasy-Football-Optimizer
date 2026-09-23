@@ -108,7 +108,8 @@ prisma generate && prisma migrate deploy && next build
 | `AUTH_URL` | Recommended (prod) | Absolute app URL for the deployment |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Optional | Google OAuth (or `GOOGLE_CLIENT_*`) |
 | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | Optional | GitHub OAuth (or `GITHUB_ID` / `GITHUB_SECRET`) |
-| `DEFAULT_ESPN_SEASON` | Optional | Default season year (e.g. `2025`) |
+| `DEFAULT_ESPN_SEASON` | Optional | Default season year (e.g. `2026`) |
+| `NEXT_PUBLIC_DEFAULT_SEASON` | Optional | Client form default; keep in sync with `DEFAULT_ESPN_SEASON` |
 | `NEXT_PUBLIC_APP_NAME` | Optional | Display name |
 
 Copy `.env.example` → `.env`. **Never commit secrets.**

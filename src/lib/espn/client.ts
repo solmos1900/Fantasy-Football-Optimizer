@@ -18,6 +18,7 @@ import type {
   Matchup,
   PlayerPosition,
 } from "@/lib/types";
+import { defaultEspnSeason } from "@/lib/season";
 
 const ESPN_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
 
@@ -308,7 +309,7 @@ export async function fetchEspnFreeAgents(
  * Used for live game status refresh on the dashboard / team pages.
  */
 export async function fetchEspnScoreboard(week?: number, season?: number): Promise<unknown> {
-  const year = season ?? Number(process.env.DEFAULT_ESPN_SEASON ?? new Date().getFullYear());
+  const year = season ?? defaultEspnSeason();
   const url = new URL("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard");
   url.searchParams.set("seasontype", "2");
   url.searchParams.set("dates", String(year));

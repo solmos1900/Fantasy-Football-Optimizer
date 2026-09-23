@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { BrandMark } from "@/components/brand";
 import { InstallHeroCta, InstallHowToLink } from "@/components/install-app";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -11,17 +12,20 @@ export default async function HomePage() {
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        className="pointer-events-none absolute inset-0 opacity-[0.4]"
         style={{
           backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2314532d' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
+            "url(\"data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%231B3022' fill-opacity='0.04'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/svg%3E\")",
         }}
       />
 
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-28">
-        <p className="animate-fade-up type-brand text-5xl text-emerald-950 sm:text-7xl md:text-8xl">
-          Gridiron IQ
-        </p>
+        <div className="animate-fade-up flex flex-col items-start gap-5">
+          <BrandMark size={72} className="shadow-[0_8px_28px_-12px_rgba(27,48,34,0.35)]" />
+          <p className="type-brand text-5xl text-emerald-950 sm:text-7xl md:text-8xl">
+            Gridiron IQ
+          </p>
+        </div>
         <h1 className="animate-fade-up-delay mt-6 max-w-xl text-2xl font-semibold leading-snug tracking-tight text-emerald-950 sm:text-3xl">
           Own your league week with clearer starts, smarter adds, and live ESPN
           sync.

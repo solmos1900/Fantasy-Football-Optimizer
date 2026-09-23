@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { BrandWordmark } from "@/components/brand";
 import { InstallHowToLink } from "@/components/install-app";
 import { Button } from "@/components/ui/button";
 
@@ -21,12 +22,13 @@ export function AppNav() {
   const { data } = useSession();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[color-mix(in_srgb,var(--surface)_88%,white)]/95 shadow-sm backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
+    <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_92%,white)]/95 shadow-[0_1px_0_rgba(253,249,240,0.8)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/dashboard" className="group flex items-baseline gap-2">
-          <span className="type-brand text-xl text-emerald-950 transition-colors group-hover:text-orange-600 sm:text-2xl">
-            Gridiron IQ
-          </span>
+        <Link href="/dashboard" className="group">
+          <BrandWordmark
+            markSize={32}
+            className="transition-opacity group-hover:opacity-90 sm:[&_.type-brand]:text-2xl [&_.type-brand]:text-lg"
+          />
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">

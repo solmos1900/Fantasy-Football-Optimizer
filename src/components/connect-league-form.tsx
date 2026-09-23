@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { SyncButton } from "@/components/sync-button";
 import { Button } from "@/components/ui/button";
+import { scrollToTopNow } from "@/components/scroll-to-top";
+import { defaultEspnSeasonClient } from "@/lib/season";
 
 export type ConnectedLeagueSummary = {
   leagueId: string;
@@ -19,62 +21,82 @@ type Props = {
   isGuest: boolean;
 };
 
+type ConnectAction = "demo" | "espn" | null;
+
 export function ConnectLeagueForm({ connection, isGuest }: Props) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const [action, setAction] = useState<ConnectAction>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showReconnect, setShowReconnect] = useState(!connection);
   const [form, setForm] = useState({
     leagueId: connection && !connection.isDemo ? connection.leagueId : "",
-    season: String(
-      connection?.season ?? process.env.NEXT_PUBLIC_DEFAULT_SEASON ?? "2025",
-    ),
+    season: String(connection?.season ?? defaultEspnSeasonClient()),
     teamId: connection?.teamId != null ? String(connection.teamId) : "",
     swid: "",
     espnS2: "",
   });
 
+  const demoLoading = action === "demo";
+  const espnLoading = action === "espn";
+  const busy = action != null;
+
   function connectDemo() {
     setError(null);
+    setAction("demo");
     startTransition(async () => {
-      const res = await fetch("/api/league/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "demo" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Demo connect failed");
-        return;
+      try {
+        const res = await fetch("/api/league/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "demo" }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Demo connect failed");
+          setAction(null);
+          return;
+        }
+        scrollToTopNow();
+        router.push("/dashboard");
+        router.refresh();
+      } catch {
+        setError("Demo connect failed");
+        setAction(null);
       }
-      router.push("/dashboard");
-      router.refresh();
     });
   }
 
   function connectEspn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setAction("espn");
     startTransition(async () => {
-      const res = await fetch("/api/league/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "espn",
-          leagueId: form.leagueId,
-          season: Number(form.season),
-          teamId: form.teamId ? Number(form.teamId) : undefined,
-          swid: form.swid || undefined,
-          espnS2: form.espnS2 || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "ESPN connect failed");
-        return;
+      try {
+        const res = await fetch("/api/league/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "espn",
+            leagueId: form.leagueId,
+            season: Number(form.season),
+            teamId: form.teamId ? Number(form.teamId) : undefined,
+            swid: form.swid || undefined,
+            espnS2: form.espnS2 || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "ESPN connect failed");
+          setAction(null);
+          return;
+        }
+        scrollToTopNow();
+        router.push("/dashboard");
+        router.refresh();
+      } catch {
+        setError("ESPN connect failed");
+        setAction(null);
       }
-      router.push("/dashboard");
-      router.refresh();
     });
   }
 
@@ -89,10 +111,9 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
             {connection.leagueName ?? `League ${connection.leagueId}`}
           </h2>
           <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-            Connecting once saves the league on your user record. Come back any
-            time — use <span className="font-semibold text-emerald-950">Sync</span>{" "}
-            to refresh ESPN (or re-seed demo). You do not need to re-enter the
-            League ID each visit.
+            Your league stays on this account. Use{" "}
+            <span className="font-semibold text-emerald-950">Sync</span> to
+            refresh, or pick a different option below anytime.
           </p>
           <dl className="mt-4 grid gap-3 text-sm text-emerald-950/70 sm:grid-cols-2">
             <div>
@@ -113,13 +134,6 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
           </dl>
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <SyncButton />
-            <button
-              type="button"
-              onClick={() => setShowReconnect((v) => !v)}
-              className="text-sm font-semibold text-orange-700 hover:text-orange-600"
-            >
-              {showReconnect ? "Hide connect form" : "Connect a different league"}
-            </button>
           </div>
           <p className="type-caption mt-4 max-w-2xl leading-relaxed text-emerald-950/55">
             {isGuest
@@ -129,124 +143,138 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
         </section>
       )}
 
-      {showReconnect && (
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div className="animate-fade-up surface-card p-5 sm:p-6">
-            <h2 className="type-section text-emerald-950">Try demo mode</h2>
-            <p className="type-body mt-2 max-w-md text-emerald-950/65">
-              Load a seeded 8-team league with rosters, matchups, free agents, and
-              insights — no ESPN credentials required.
+      <div>
+        <h2 className="type-section text-emerald-950">Choose how to connect</h2>
+        <p className="type-body mt-1 max-w-2xl text-emerald-950/65">
+          Two equal options — try the seeded demo, or link your ESPN fantasy
+          league. Only the action you click shows a loading state.
+        </p>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+        <section className="animate-fade-up surface-card flex h-full flex-col p-5 sm:p-6">
+          <p className="type-eyebrow text-orange-700">Option A</p>
+          <h3 className="type-section mt-1 text-emerald-950">Load demo league</h3>
+          <p className="type-body mt-2 flex-1 text-emerald-950/65">
+            Instant seeded 8-team league with rosters, matchups, free agents, and
+            insights — no ESPN credentials.{" "}
+            {isGuest
+              ? "Your guest display name becomes your demo team name."
+              : "Uses your account name as the demo team name when set."}
+          </p>
+          <Button
+            type="button"
+            variant="primary"
+            className="mt-5 w-full sm:w-auto"
+            onClick={connectDemo}
+            disabled={busy}
+            loading={demoLoading}
+          >
+            {demoLoading ? "Loading…" : "Load demo league"}
+          </Button>
+        </section>
+
+        <form
+          onSubmit={connectEspn}
+          className="animate-fade-up-delay surface-card space-y-4 p-5 sm:p-6"
+        >
+          <div>
+            <p className="type-eyebrow text-orange-700">Option B</p>
+            <h3 className="type-section mt-1 text-emerald-950">
+              Connect ESPN league
+            </h3>
+            <p className="type-body mt-2 text-emerald-950/65">
+              Public leagues need only League ID + season. Private leagues also
+              need SWID and espn_s2 cookies from fantasy.espn.com.
             </p>
-            <Button
-              type="button"
-              variant="primary"
-              className="mt-5"
-              onClick={connectDemo}
-              disabled={pending}
-              loading={pending}
-            >
-              {pending ? "Loading…" : "Load demo league"}
-            </Button>
           </div>
 
-          <form
-            onSubmit={connectEspn}
-            className="animate-fade-up-delay surface-card space-y-4 p-5 sm:p-6"
-          >
-            <div>
-              <h2 className="type-section text-emerald-950">
-                {connection ? "Connect another ESPN league" : "Connect ESPN league"}
-              </h2>
-              <p className="type-body mt-2 text-emerald-950/65">
-                Public leagues need only League ID + season. Private leagues also
-                need SWID and espn_s2 cookies from fantasy.espn.com. After the
-                first connect, use Sync to refresh — credentials stay on your
-                account.
-              </p>
-            </div>
+          <label className="block text-sm">
+            <span className="mb-1.5 block font-medium text-emerald-950">
+              League ID
+            </span>
+            <input
+              required
+              value={form.leagueId}
+              onChange={(e) => setForm({ ...form, leagueId: e.target.value })}
+              className="field-input"
+              placeholder="e.g. 123456789"
+              disabled={busy}
+            />
+          </label>
 
+          <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium text-emerald-950">
-                League ID
+                Season
               </span>
               <input
                 required
-                value={form.leagueId}
-                onChange={(e) => setForm({ ...form, leagueId: e.target.value })}
+                type="number"
+                value={form.season}
+                onChange={(e) => setForm({ ...form, season: e.target.value })}
                 className="field-input"
-                placeholder="e.g. 123456789"
+                disabled={busy}
               />
             </label>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm">
-                <span className="mb-1.5 block font-medium text-emerald-950">
-                  Season
-                </span>
-                <input
-                  required
-                  type="number"
-                  value={form.season}
-                  onChange={(e) => setForm({ ...form, season: e.target.value })}
-                  className="field-input"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1.5 block font-medium text-emerald-950">
-                  Your team ID
-                </span>
-                <input
-                  type="number"
-                  value={form.teamId}
-                  onChange={(e) => setForm({ ...form, teamId: e.target.value })}
-                  className="field-input"
-                  placeholder="Optional"
-                />
-              </label>
-            </div>
-
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium text-emerald-950">
-                SWID (private)
+                Your team ID
               </span>
               <input
-                value={form.swid}
-                onChange={(e) => setForm({ ...form, swid: e.target.value })}
-                className="field-input font-mono text-base"
-                placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
+                type="number"
+                value={form.teamId}
+                onChange={(e) => setForm({ ...form, teamId: e.target.value })}
+                className="field-input"
+                placeholder="Optional"
+                disabled={busy}
               />
             </label>
+          </div>
 
-            <label className="block text-sm">
-              <span className="mb-1.5 block font-medium text-emerald-950">
-                espn_s2 (private)
-              </span>
-              <textarea
-                value={form.espnS2}
-                onChange={(e) => setForm({ ...form, espnS2: e.target.value })}
-                rows={3}
-                className="field-input font-mono text-base"
-                placeholder="Long cookie value — keep URL encoding"
-              />
-            </label>
+          <label className="block text-sm">
+            <span className="mb-1.5 block font-medium text-emerald-950">
+              SWID (private)
+            </span>
+            <input
+              value={form.swid}
+              onChange={(e) => setForm({ ...form, swid: e.target.value })}
+              className="field-input font-mono text-base"
+              placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
+              disabled={busy}
+            />
+          </label>
 
-            {error && (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
-                {error}
-              </p>
-            )}
+          <label className="block text-sm">
+            <span className="mb-1.5 block font-medium text-emerald-950">
+              espn_s2 (private)
+            </span>
+            <textarea
+              value={form.espnS2}
+              onChange={(e) => setForm({ ...form, espnS2: e.target.value })}
+              rows={3}
+              className="field-input font-mono text-base"
+              placeholder="Long cookie value — keep URL encoding"
+              disabled={busy}
+            />
+          </label>
 
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={pending}
-              loading={pending}
-            >
-              {pending ? "Saving…" : "Connect & save"}
-            </Button>
-          </form>
-        </div>
-      )}
+          {error && (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
+              {error}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={busy}
+            loading={espnLoading}
+          >
+            {espnLoading ? "Saving…" : "Connect & save"}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

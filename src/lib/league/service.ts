@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
-import { createDemoLeague } from "@/lib/demo/seed";
+import {
+  applyDemoOwnerDisplayName,
+  createDemoLeague,
+} from "@/lib/demo/seed";
 import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
 import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
@@ -13,6 +16,14 @@ async function persistTrendsSafe(league: LeagueData): Promise<void> {
   }
 }
 
+async function demoOwnerDisplayName(userId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true },
+  });
+  return user?.name ?? null;
+}
+
 export async function getUserLeagueConnection(userId: string) {
   return prisma.leagueConnection.findFirst({
     where: { userId },
@@ -24,16 +35,26 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
   const connection = await getUserLeagueConnection(userId);
   if (!connection) return null;
 
+  const ownerName = connection.isDemo
+    ? await demoOwnerDisplayName(userId)
+    : null;
+
   if (connection.cachedPayload) {
     try {
-      return JSON.parse(connection.cachedPayload) as LeagueData;
+      const cached = JSON.parse(connection.cachedPayload) as LeagueData;
+      if (connection.isDemo) {
+        return applyDemoOwnerDisplayName(cached, ownerName);
+      }
+      return cached;
     } catch {
       // fall through
     }
   }
 
   if (connection.isDemo) {
-    const demo = createDemoLeague(connection.teamId ?? 1);
+    const demo = createDemoLeague(connection.teamId ?? 1, {
+      ownerDisplayName: ownerName,
+    });
     await prisma.leagueConnection.update({
       where: { id: connection.id },
       data: {
@@ -50,7 +71,8 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
 }
 
 export async function connectDemoLeague(userId: string): Promise<LeagueData> {
-  const demo = createDemoLeague(1);
+  const ownerName = await demoOwnerDisplayName(userId);
+  const demo = createDemoLeague(1, { ownerDisplayName: ownerName });
   await prisma.leagueConnection.upsert({
     where: {
       userId_leagueId_season: {

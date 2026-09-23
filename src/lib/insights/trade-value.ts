@@ -136,9 +136,9 @@ export function trendBlurb(
   if (label === "Thin") return null;
   const delta =
     t.avgDelta != null
-      ? ` avg ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs stored proj`
+      ? ` — about ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs projection lately`
       : "";
-  return `${p.name}: ${trendLabelCopy(label).toLowerCase()}${delta} (${t.weeksSampled} wk sample).`;
+  return `${p.name} is ${trendLabelCopy(label).toLowerCase()}${delta}.`;
 }
 
 export function needsPosition(
@@ -330,7 +330,7 @@ export function acceptanceReason(
     });
   if (buyLow.length) {
     parts.push(
-      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} vs stored projections (usage/injury ranked above hot/cold).`,
+      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} — they have been cooling off or boom-or-bust lately.`,
     );
   }
 

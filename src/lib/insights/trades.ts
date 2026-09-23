@@ -245,13 +245,13 @@ export function buildRealisticTrades(
     seen.add(key);
 
     const whyYouRaw = [
-      `You send: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
-      `You get: ${c.receive.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
+      `You send: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+      `You get: ${c.receive.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
       ...c.receive
         .filter((p) => needsPosition(you, p.position))
         .map(
           (p) =>
-            `Fills your ${p.position} need (healthy depth was ${depthAtPosition(you, p.position)}).`,
+            `Helps fill your ${p.position} gap (you currently have ${depthAtPosition(you, p.position)} healthy options there).`,
         ),
     ];
     for (const p of c.receive) {
@@ -260,11 +260,11 @@ export function buildRealisticTrades(
       const def = analyzeDefenseMatchup(p, allPlayers);
       if (def) whyYouRaw.push(`This week: ${def.summary}`);
       const tb = trendBlurb(p, trends);
-      if (tb) whyYouRaw.push(`Trend: ${tb}`);
+      if (tb) whyYouRaw.push(tb);
     }
     if (c.kind === "2for1" || c.kind === "qb_package") {
       whyYouRaw.push(
-        "Roster-spot note: you consolidate to one starter — debit any flex piece that becomes a bench/drop.",
+        "Note: you turn two roster spots into one starter — someone on your bench may become a drop.",
       );
     }
     const whyYou = whyYouRaw.slice(0, 6);
@@ -276,12 +276,12 @@ export function buildRealisticTrades(
         .filter((p) => needsPosition(c.them, p.position))
         .map(
           (p) =>
-            `${c.them.name} needs ${p.position} help (depth ${depthAtPosition(c.them, p.position)}).`,
+            `${c.them.name} could use ${p.position} help (they have ${depthAtPosition(c.them, p.position)} healthy options).`,
         ),
     ];
     for (const p of c.give) {
       const tb = trendBlurb(p, trends);
-      if (tb) whyThemRaw.push(`Trend on asset you send: ${tb}`);
+      if (tb) whyThemRaw.push(tb);
     }
     const whyThem = whyThemRaw.slice(0, 6);
 
@@ -309,12 +309,11 @@ export function buildRealisticTrades(
           : `Trade ${c.give.map((p) => p.name).join(" + ")} ↔ ${c.receive.map((p) => p.name).join(" + ")} with ${c.them.name}`,
       summary: accept,
       reasoning: [
-        `Verdict: TRADE lean — improves starters via surplus→need (full PPR, 1QB).`,
-        ...whyYou.slice(0, 2).map((r) => `Fact — you: ${r}`),
-        ...whyThem.slice(0, 2).map((r) => `Fact — them: ${r}`),
-        `Judgment — why accepted: ${accept}`,
-        `Scoring: ~70% ROS/form + ~30% this-week proj; scarcity TE/RB1 > WR1 > QB; no fake win%.`,
-      ].slice(0, 6),
+        "This trade fills a starter need on your side using a depth piece they want.",
+        ...whyYou.slice(0, 2),
+        ...whyThem.slice(0, 2),
+        accept,
+      ].slice(0, 5),
       relatedPlayerIds: [...c.give, ...c.receive].map((p) => p.id),
       relatedPositions: [
         ...new Set([...c.give, ...c.receive].map((p) => p.position)),

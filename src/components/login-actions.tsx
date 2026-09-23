@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { scrollToTopNow } from "@/components/scroll-to-top";
 
 type FormMode = "signin" | "register";
 export type LoginFlow = "account" | "guest";
@@ -31,6 +32,8 @@ export function LoginActions({
 
   function goDashboard() {
     // Avoid Auth.js client redirect races that briefly hit a broken route / 404.
+    // Reset scroll before navigation so post-login never opens mid-page.
+    scrollToTopNow();
     router.replace("/dashboard");
     router.refresh();
   }

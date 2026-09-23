@@ -374,8 +374,8 @@ export function analyzeDefenseMatchup(
     .join("; ");
 
   const summary = toughMatchup
-    ? `Similar ${roleLabel(role)}s averaged only ${avgPoints.toFixed(1)} PPR vs ${opponent} recently (${concrete}).`
-    : `Similar ${roleLabel(role)}s averaged ${avgPoints.toFixed(1)} PPR vs ${opponent} recently (${concrete}).`;
+    ? `Tough matchup: similar ${roleLabel(role)}s averaged only ${avgPoints.toFixed(1)} points vs ${opponent} lately (${concrete}).`
+    : `Matchup look: similar ${roleLabel(role)}s averaged ${avgPoints.toFixed(1)} points vs ${opponent} lately (${concrete}).`;
 
   return {
     opponent,
@@ -392,8 +392,8 @@ export function recentFormSummary(player: FantasyPlayer): string | null {
   if (!weeks?.length) return null;
   const sorted = [...weeks].sort((a, b) => b.week - a.week).slice(0, 3);
   const avg = sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
-  const detail = sorted.map((w) => `W${w.week}: ${w.points.toFixed(1)}`).join(", ");
-  return `Recent form (last ${sorted.length} scored weeks): ${detail} — avg ${avg.toFixed(1)} PPR.`;
+  const detail = sorted.map((w) => w.points.toFixed(1)).join(", ");
+  return `${player.name} scored ${detail} over the last ${sorted.length} games — about ${avg.toFixed(1)} points per game.`;
 }
 
 export function averageRecentPoints(weeks?: WeeklyScore[], n = 3): number | null {

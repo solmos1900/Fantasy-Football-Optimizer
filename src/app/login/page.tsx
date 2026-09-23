@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, githubOAuthConfigured, googleOAuthConfigured } from "@/lib/auth";
+import { BrandWordmark } from "@/components/brand";
 import { LoginActions, type LoginFlow } from "@/components/login-actions";
 import { InstallHowToLink } from "@/components/install-app";
 
@@ -23,10 +24,10 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-16 pt-[max(4rem,env(safe-area-inset-top,0px))]">
       <div className="w-full max-w-md">
-        <Link href="/" className="type-brand text-3xl text-emerald-950">
-          Gridiron IQ
+        <Link href="/">
+          <BrandWordmark markSize={40} className="[&_.type-brand]:text-3xl" />
         </Link>
-        <p className="type-body mt-2 text-emerald-950/60">
+        <p className="type-body mt-3 text-emerald-950/60">
           {flow === "guest"
             ? "Continue as a guest to try the product — no account required."
             : "Sign in with Google, GitHub, or email to sync your ESPN league."}

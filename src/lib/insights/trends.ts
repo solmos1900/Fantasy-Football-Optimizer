@@ -26,7 +26,7 @@ import type {
   UsageTrend,
   WeeklyScore,
 } from "@/lib/types";
-import { normalizeTrendLabel } from "@/lib/insights/trend-labels";
+import { humanTrendSentence, normalizeTrendLabel, trendLabelCopy } from "@/lib/insights/trend-labels";
 import { seededDefenseAllowRows } from "@/lib/insights/defense-matchups";
 
 export type SnapshotSource = "espn" | "demo" | "heuristic";
@@ -145,7 +145,7 @@ export function deriveTrendFromWeeks(
   const injured = ["OUT", "IR", "DOUBTFUL"].includes(injuryStatus);
 
   if (weeksSampled === 0 && !injured) {
-    const evidence = `${playerName}: no stored weekly actuals yet — low confidence until syncs accumulate (league projection only).`;
+    const evidence = `${playerName} does not have enough recent games yet — lean on this week's projection.`;
     return {
       weeksSampled: 0,
       avgProjected: null,
@@ -160,7 +160,9 @@ export function deriveTrendFromWeeks(
       factJson: JSON.stringify({ weeksSampled: 0, injuryStatus }),
       judgmentJson: JSON.stringify({
         rank: ["injury/role", "usage/form", "RZ", "SOS", "proj delta"],
-        judgments: ["Thin sample — wait for more syncs; do not overfit one week."],
+        judgments: [
+          "Not enough recent games yet — lean on this week's projection.",
+        ],
       }),
       injuryRoleScore: injuryStatus === "QUESTIONABLE" ? -0.5 : 0,
       usageTrajectory: null,
@@ -224,21 +226,19 @@ export function deriveTrendFromWeeks(
   if (injured) {
     trendLabel = "InjuryRisk";
     judgments.push(
-      `Injury/role first: roster status ${injuryStatus} — deprioritize start/trade chip until cleared.`,
+      `On the injury report (${injuryStatus}) — sit or have a backup ready until cleared.`,
     );
   } else if (weeksSampled < 2 && withBoth.length < 1) {
     trendLabel = "Thin";
-    judgments.push("Thin sample — prefer projection + role over hot/cold.");
+    judgments.push(
+      "Not enough recent games yet — lean on this week's projection more than the trend.",
+    );
   } else if (usageTrend === "rising") {
     trendLabel = "Rising";
-    judgments.push(
-      "Usage/form trajectory (recent actuals as proxy until target/snap shares land) rising vs prior weeks.",
-    );
+    judgments.push("Recent games are trending up versus prior weeks.");
   } else if (usageTrend === "falling") {
     trendLabel = "Fading";
-    judgments.push(
-      "Usage/form trajectory (recent actuals as proxy) fading vs prior weeks.",
-    );
+    judgments.push("Recent games are trending down versus prior weeks.");
   } else if (
     avgDelta != null &&
     Math.abs(avgDelta) >= 3 &&
@@ -248,11 +248,11 @@ export function deriveTrendFromWeeks(
     // Hot/cold without usage direction → Boom-Bust, not Rising (research anti-pattern)
     trendLabel = "BoomBust";
     judgments.push(
-      `Proj-vs-actual swing avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} with flat usage proxy — Boom-Bust, not a Rising label.`,
+      `Scoring has swung a lot lately (about ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} vs projection on average) — boom-or-bust, not a steady climb.`,
     );
   } else {
     trendLabel = "Stable";
-    judgments.push("Stable vs recent form and stored projections.");
+    judgments.push("Recent scoring looks steady versus projections.");
   }
 
   if (
@@ -262,7 +262,7 @@ export function deriveTrendFromWeeks(
     Math.abs(avgDelta) >= 2
   ) {
     judgments.push(
-      `Secondary (#5): avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} vs stored proj — never outranks injury/usage.`,
+      `Also: averaging about ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} versus projection lately.`,
     );
   }
 
@@ -278,10 +278,12 @@ export function deriveTrendFromWeeks(
   restOfSeasonAdj = Math.round(restOfSeasonAdj * 10) / 10;
 
   const evidenceSentence = injured
-    ? `${playerName}: listed ${injuryStatus} — Injury risk until status flips.`
-    : avgDelta != null && withBoth.length
-      ? `${playerName}: ${withBoth.length} wk proj+actual (avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)}), recent form ${recentFormAvg?.toFixed(1) ?? "—"} — ${trendLabel}.`
-      : `${playerName}: ${weeksSampled} scored week(s); projection history thin — ${trendLabel} (low confidence).`;
+    ? `${playerName} is listed ${injuryStatus} — sit or have a backup ready until that clears.`
+    : avgDelta != null && withBoth.length && recentFormAvg != null
+      ? `${playerName} is averaging about ${recentFormAvg.toFixed(1)} points lately (${trendLabelCopy(trendLabel).toLowerCase()}).`
+      : weeksSampled > 0 && recentFormAvg != null
+        ? `${playerName} has about ${recentFormAvg.toFixed(1)} points per game so far — still a short sample.`
+        : `${playerName} does not have enough recent games yet — lean on this week's projection.`;
 
   const facts = {
     weeksSampled,
@@ -311,7 +313,7 @@ export function deriveTrendFromWeeks(
     trendLabel,
     usageTrend,
     restOfSeasonAdj,
-    rationale: `${evidenceSentence} Chip nudge ${restOfSeasonAdj >= 0 ? "+" : ""}${restOfSeasonAdj.toFixed(1)}.`,
+    rationale: evidenceSentence,
     evidenceSentence,
     factJson: JSON.stringify(facts),
     judgmentJson: JSON.stringify({
@@ -586,11 +588,7 @@ function toTrendView(
   }
 
   const label = normalizeTrendLabel(m.trendLabel);
-  const rationale =
-    m.evidenceSentence ??
-    `${m.playerName}: ${label} (${m.weeksSampled} wk sample).`;
-
-  return {
+  const draft: PlayerTrendView = {
     espnId: m.espnId,
     playerName: m.playerName,
     position: m.position,
@@ -602,12 +600,18 @@ function toTrendView(
     avgDelta: m.avgDelta,
     recentFormAvg: m.recentFormAvg,
     restOfSeasonAdj: m.restOfSeasonAdj,
-    rationale,
-    evidenceSentence: m.evidenceSentence ?? undefined,
+    rationale: "",
+    evidenceSentence: undefined,
     facts,
-    judgments,
+    // Never expose internal judgment strings to the UI
+    judgments: undefined,
     weeks,
   };
+  // Always rebuild display copy — never surface stale DB evidenceSentence jargon
+  const sentence = humanTrendSentence(draft);
+  draft.rationale = sentence;
+  draft.evidenceSentence = sentence;
+  return draft;
 }
 
 export async function loadTrendMap(

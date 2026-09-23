@@ -6,11 +6,13 @@ import { cn, statusColor } from "@/lib/utils";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 import {
   analyzeTrade,
+  comparePlayerPackages,
   type AcceptanceLean,
   type TradeAnalysis,
   type TradeVerdict,
 } from "@/lib/insights/trade-analyzer";
 import { chipValue } from "@/lib/insights/trade-value";
+import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { Button } from "@/components/ui/button";
 
 const VERDICT_STYLE: Record<TradeVerdict, string> = {
@@ -29,13 +31,7 @@ const LEAN_STYLE: Record<AcceptanceLean, string> = {
 };
 
 function sortRoster(roster: FantasyPlayer[]): FantasyPlayer[] {
-  const order = ["QB", "RB", "WR", "TE", "K", "D/ST"];
-  return [...roster].sort((a, b) => {
-    const ai = order.indexOf(a.position);
-    const bi = order.indexOf(b.position);
-    if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    return b.projectedPoints - a.projectedPoints;
-  });
+  return sortByEspnRosterOrder(roster);
 }
 
 function PlayerPickRow({
@@ -225,11 +221,13 @@ function AnalysisCard({ analysis }: { analysis: TradeAnalysis }) {
 
       <details className="mt-4 group">
         <summary className="cursor-pointer type-eyebrow text-emerald-950/45 hover:text-emerald-950/70">
-          Facts vs judgment
+          Numbers & takeaway
         </summary>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <div>
-            <p className="type-eyebrow text-[10px] text-emerald-950/40">Facts</p>
+            <p className="type-eyebrow text-[10px] text-emerald-950/40">
+              The numbers
+            </p>
             <ul className="mt-1 space-y-1">
               {analysis.facts.map((f) => (
                 <li key={f} className="type-caption text-emerald-950/70">
@@ -240,7 +238,7 @@ function AnalysisCard({ analysis }: { analysis: TradeAnalysis }) {
           </div>
           <div>
             <p className="type-eyebrow text-[10px] text-emerald-950/40">
-              Judgment
+              Our take
             </p>
             <ul className="mt-1 space-y-1">
               {analysis.judgments.map((j) => (
@@ -259,6 +257,7 @@ function AnalysisCard({ analysis }: { analysis: TradeAnalysis }) {
 export function TradeAnalyzer({
   you,
   partners,
+  poolPlayers,
   trends,
   initialPartnerId,
   initialGiveIds = [],
@@ -267,12 +266,15 @@ export function TradeAnalyzer({
 }: {
   you: FantasyTeam;
   partners: FantasyTeam[];
+  /** Full league + FA pool for free player-vs-player compare mode. */
+  poolPlayers?: FantasyPlayer[];
   trends?: Map<number, PlayerTrendView>;
   initialPartnerId?: number;
   initialGiveIds?: string[];
   initialReceiveIds?: string[];
   isDemo?: boolean;
 }) {
+  const [mode, setMode] = useState<"team" | "free">("team");
   const [partnerId, setPartnerId] = useState<number>(
     initialPartnerId && partners.some((p) => p.id === initialPartnerId)
       ? initialPartnerId
@@ -286,32 +288,57 @@ export function TradeAnalyzer({
   );
 
   const partner = partners.find((p) => p.id === partnerId) ?? partners[0];
-
   const yourRoster = useMemo(() => sortRoster(you.roster), [you.roster]);
   const theirRoster = useMemo(
-    () => (partner ? sortRoster(partner.roster) : []),
+    () => sortRoster(partner?.roster ?? []),
     [partner],
   );
+  const freePool = useMemo(() => {
+    const raw = poolPlayers?.length
+      ? poolPlayers
+      : [...you.roster, ...partners.flatMap((t) => t.roster)];
+    const seen = new Set<string>();
+    const unique: FantasyPlayer[] = [];
+    for (const p of raw) {
+      if (seen.has(p.id)) continue;
+      seen.add(p.id);
+      unique.push(p);
+    }
+    return sortRoster(unique);
+  }, [poolPlayers, you.roster, partners]);
 
-  const give = useMemo(
-    () => yourRoster.filter((p) => giveIds.has(p.id)),
-    [yourRoster, giveIds],
-  );
-  const receive = useMemo(
-    () => theirRoster.filter((p) => receiveIds.has(p.id)),
-    [theirRoster, receiveIds],
-  );
+  const give = useMemo(() => {
+    const source = mode === "team" ? yourRoster : freePool;
+    return source.filter((p) => giveIds.has(p.id));
+  }, [mode, yourRoster, freePool, giveIds]);
+
+  const receive = useMemo(() => {
+    const source = mode === "team" ? theirRoster : freePool;
+    return source.filter((p) => receiveIds.has(p.id));
+  }, [mode, theirRoster, freePool, receiveIds]);
 
   const analysis = useMemo(() => {
+    if (mode === "free") {
+      return comparePlayerPackages(give, receive, trends);
+    }
     if (!partner) return null;
     return analyzeTrade(you, partner, give, receive, trends);
-  }, [you, partner, give, receive, trends]);
+  }, [mode, you, partner, give, receive, trends]);
 
   function toggleGive(id: string) {
     setGiveIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else {
+        next.add(id);
+        if (mode === "free") {
+          setReceiveIds((r) => {
+            const nr = new Set(r);
+            nr.delete(id);
+            return nr;
+          });
+        }
+      }
       return next;
     });
   }
@@ -320,7 +347,16 @@ export function TradeAnalyzer({
     setReceiveIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else {
+        next.add(id);
+        if (mode === "free") {
+          setGiveIds((g) => {
+            const ng = new Set(g);
+            ng.delete(id);
+            return ng;
+          });
+        }
+      }
       return next;
     });
   }
@@ -335,52 +371,112 @@ export function TradeAnalyzer({
     setReceiveIds(new Set());
   }
 
-  if (!partners.length || !partner) {
+  function switchMode(next: "team" | "free") {
+    setMode(next);
+    clearTrade();
+  }
+
+  if (mode === "team" && (!partners.length || !partner)) {
     return (
-      <p className="type-body text-emerald-950/55">
-        Need at least one other team in the league to analyze a trade.
-      </p>
+      <div className="space-y-4">
+        <p className="type-body text-emerald-950/55">
+          Need at least one other team in the league to analyze a team trade.
+        </p>
+        <Button type="button" variant="secondary" onClick={() => switchMode("free")}>
+          Open player vs player compare
+        </Button>
+      </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <label
-            htmlFor="trade-partner"
-            className="type-eyebrow text-emerald-950/45"
-          >
-            Trade partner
-          </label>
-          <select
-            id="trade-partner"
-            value={partnerId}
-            onChange={(e) => onPartnerChange(Number(e.target.value))}
-            className="mt-1 block w-full min-w-[14rem] rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-emerald-950 outline-none focus:border-orange-500 sm:w-auto"
-          >
-            {partners.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} ({t.wins}-{t.losses}
-                {t.ties ? `-${t.ties}` : ""})
-              </option>
-            ))}
-          </select>
+      <div
+        className="inline-flex rounded-xl border border-emerald-950/15 bg-[color-mix(in_srgb,var(--surface)_90%,white)] p-1"
+        role="tablist"
+        aria-label="Trade analyzer mode"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "team"}
+          onClick={() => switchMode("team")}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+            mode === "team"
+              ? "bg-emerald-950 text-white"
+              : "text-emerald-950/65 hover:text-emerald-950",
+          )}
+        >
+          Team trade
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "free"}
+          onClick={() => switchMode("free")}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+            mode === "free"
+              ? "bg-emerald-950 text-white"
+              : "text-emerald-950/65 hover:text-emerald-950",
+          )}
+        >
+          Player vs player
+        </button>
+      </div>
+
+      {mode === "team" ? (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <label
+              htmlFor="trade-partner"
+              className="type-eyebrow text-emerald-950/45"
+            >
+              Trade partner
+            </label>
+            <select
+              id="trade-partner"
+              value={partnerId}
+              onChange={(e) => onPartnerChange(Number(e.target.value))}
+              className="mt-1 block w-full min-w-[14rem] rounded-lg border border-emerald-950/15 bg-white px-3 py-2 text-emerald-950 outline-none focus:border-orange-500 sm:w-auto"
+            >
+              {partners.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.wins}-{t.losses}
+                  {t.ties ? `-${t.ties}` : ""})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {(give.length > 0 || receive.length > 0) && (
+              <Button type="button" variant="ghost" size="sm" onClick={clearTrade}>
+                Clear picks
+              </Button>
+            )}
+            <Link
+              href="/insights"
+              className="text-sm font-semibold text-orange-700 hover:text-orange-800"
+            >
+              Auto trade ideas →
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+      ) : (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <p className="type-body max-w-xl text-sm text-emerald-950/65">
+            Pick any players on each side (league-wide). We grade full-PPR chip
+            value, hard rejects (no naked quarterback for a skill star), and
+            whether a typical manager would reasonably accept.
+          </p>
           {(give.length > 0 || receive.length > 0) && (
             <Button type="button" variant="ghost" size="sm" onClick={clearTrade}>
               Clear picks
             </Button>
           )}
-          <Link
-            href="/insights"
-            className="text-sm font-semibold text-orange-700 hover:text-orange-800"
-          >
-            Auto trade ideas →
-          </Link>
         </div>
-      </div>
+      )}
 
       {isDemo && (
         <p className="type-eyebrow text-orange-700">
@@ -390,14 +486,18 @@ export function TradeAnalyzer({
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="animate-fade-up">
-          <h2 className="type-section text-emerald-950">You give</h2>
+          <h2 className="type-section text-emerald-950">
+            {mode === "team" ? "You give" : "Side A"}
+          </h2>
           <p className="type-body mt-1 text-sm text-emerald-950/55">
-            From {you.name} — select one or more players.
+            {mode === "team"
+              ? `From ${you.name} — select one or more players.`
+              : "Players leaving Side A — select one or more."}
           </p>
           <div className="mt-3 max-h-[28rem] overflow-y-auto border-t border-emerald-950/10">
-            {yourRoster.map((p) => (
+            {(mode === "team" ? yourRoster : freePool).map((p) => (
               <PlayerPickRow
-                key={p.id}
+                key={`a-${p.id}`}
                 player={p}
                 selected={giveIds.has(p.id)}
                 onToggle={() => toggleGive(p.id)}
@@ -408,14 +508,18 @@ export function TradeAnalyzer({
         </section>
 
         <section className="animate-fade-up-delay">
-          <h2 className="type-section text-emerald-950">You get</h2>
+          <h2 className="type-section text-emerald-950">
+            {mode === "team" ? "You get" : "Side B"}
+          </h2>
           <p className="type-body mt-1 text-sm text-emerald-950/55">
-            From {partner.name} — select one or more players.
+            {mode === "team"
+              ? `From ${partner!.name} — select one or more players.`
+              : "Players leaving Side B — select one or more."}
           </p>
           <div className="mt-3 max-h-[28rem] overflow-y-auto border-t border-emerald-950/10">
-            {theirRoster.map((p) => (
+            {(mode === "team" ? theirRoster : freePool).map((p) => (
               <PlayerPickRow
-                key={p.id}
+                key={`b-${p.id}`}
                 player={p}
                 selected={receiveIds.has(p.id)}
                 onToggle={() => toggleReceive(p.id)}
@@ -431,7 +535,10 @@ export function TradeAnalyzer({
         {!analysis ? (
           <p className="type-body text-emerald-950/55">
             Pick at least one player on each side to see a verdict, chip totals,
-            hard-reject checks, and need-fit (For you / For them).
+            hard-reject checks, and{" "}
+            {mode === "team"
+              ? "need-fit (For you / For them)."
+              : "whether a typical partner would accept."}
           </p>
         ) : (
           <AnalysisCard analysis={analysis} />

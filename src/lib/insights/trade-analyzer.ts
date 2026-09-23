@@ -253,11 +253,11 @@ export function analyzeTrade(
   ];
 
   const judgments = [
-    `Verdict: ${VERDICT_LABEL[verdict]}.`,
+    `Our call: ${VERDICT_LABEL[verdict]}.`,
     whyAcceptedOrNot,
     hardRejected
-      ? `Partner acceptance lean: none (blocked by hard reject).`
-      : `Partner acceptance lean: ${LEAN_LABEL[lean]} — heuristic need-fit band, not a calibrated probability.`,
+      ? `Would a typical manager accept? Unlikely — this deal hits a hard reject rule.`
+      : `Would a typical manager accept? ${LEAN_LABEL[lean]}.`,
   ];
 
   const summaryByVerdict: Record<TradeVerdict, string> = {
@@ -278,6 +278,121 @@ export function analyzeTrade(
     hardRejectReasons: rejects,
     forYou,
     forThem,
+    whyAcceptedOrNot,
+    acceptanceLean: lean,
+    acceptanceLeanLabel: LEAN_LABEL[lean],
+    facts,
+    judgments,
+  };
+}
+
+/**
+ * Grade a free player-vs-player package (any players, not tied to one roster).
+ * Side A = "you send / Side A"; Side B = "you get / Side B".
+ * Uses the same chip + hard-reject norms; acceptance lean is a typical-manager heuristic.
+ */
+export function comparePlayerPackages(
+  sideA: FantasyPlayer[],
+  sideB: FantasyPlayer[],
+  trends?: TrendLookup,
+): TradeAnalysis | null {
+  if (!sideA.length || !sideB.length) return null;
+
+  const giveValue = sideValue(sideA, trends);
+  const receiveValue = sideValue(sideB, trends);
+  const valueGap = receiveValue - giveValue;
+  const rejects = hardRejectReasons(sideA, sideB, trends);
+  const hardRejected = rejects.length > 0;
+  const fair = fairnessScore(sideA, sideB, trends);
+  const same = samePosBonus(sideA, sideB);
+  const trendBonus = trendFitBonus(sideA, sideB, trends);
+
+  // No roster context — need-fit is neutral; value + shape drive the grade.
+  const verdict = pickVerdict({
+    hardRejected,
+    fair,
+    fit: same > 0 ? 1.5 : 0.8,
+    same,
+    trendBonus,
+    valueGap,
+  });
+
+  let lean: AcceptanceLean = "low";
+  if (hardRejected) lean = "none";
+  else if (fair >= 0.5 && Math.abs(valueGap) <= 2) lean = "high";
+  else if (fair >= 0.4) lean = "medium";
+  else if (fair >= 0.3) lean = "low";
+  else lean = "low";
+
+  const forYou = [
+    `Side A (send): ${sideA.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+    `Side B (get): ${sideB.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+    valueGap >= 0.5
+      ? `Side B is ahead by about ${valueGap.toFixed(1)} chip points — Side A would usually want something else back.`
+      : valueGap <= -0.5
+        ? `Side A is ahead by about ${Math.abs(valueGap).toFixed(1)} chip points — Side B would usually push back.`
+        : `Chip values are close on a full-PPR scale.`,
+  ];
+  for (const p of [...sideA, ...sideB].slice(0, 4)) {
+    const tb = trendBlurb(p, trends);
+    if (tb) forYou.push(`${p.name}: ${tb}`);
+  }
+
+  const forThem = [
+    `A typical manager receiving Side A wants that side to fill a hole or match Side B’s value.`,
+    same > 0
+      ? `Same-position shape makes this easier for both sides to evaluate.`
+      : `Cross-position packages need a clear need story — value alone often is not enough.`,
+  ];
+
+  let whyAcceptedOrNot: string;
+  if (hardRejected) {
+    whyAcceptedOrNot = rejects[0];
+  } else if (verdict === "accept" || verdict === "lean_accept" || verdict === "fair") {
+    whyAcceptedOrNot =
+      fair >= 0.45
+        ? `Chip values and deal shape look fair for both sides on a standard 1QB full-PPR board.`
+        : `Close enough that a need-based manager could reasonably accept.`;
+  } else {
+    whyAcceptedOrNot =
+      Math.abs(valueGap) > 3
+        ? `One side is giving up too much value for a typical manager to accept without a clear roster need.`
+        : `The package does not clearly help both sides — rework the players or add a sweetener.`;
+  }
+
+  const facts = [
+    `Scoring assumed: full PPR, standard 1QB redraft.`,
+    `Side A chips: ${giveValue.toFixed(1)} (${names(sideA)}).`,
+    `Side B chips: ${receiveValue.toFixed(1)} (${names(sideB)}).`,
+    `Value gap (Side B − Side A): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
+  ];
+
+  const judgments = [
+    `Our call for Side A: ${VERDICT_LABEL[verdict]}.`,
+    whyAcceptedOrNot,
+    hardRejected
+      ? `Would a typical manager accept? Unlikely — this deal hits a hard reject rule.`
+      : `Would a typical manager accept? ${LEAN_LABEL[lean]}.`,
+  ];
+
+  const summaryByVerdict: Record<TradeVerdict, string> = {
+    accept: `Side A comes out ahead or even with a shape most managers would take.`,
+    lean_accept: `Slightly favors Side A or is close enough to shop.`,
+    fair: `Balanced chips — roster need decides who should take it.`,
+    lean_reject: `Uneven for Side A — only take it if you have a specific need Side B fills.`,
+    hard_reject: `Blocked by 1QB PPR norms (naked QB↔skill or outrageous value/tier gap).`,
+  };
+
+  return {
+    verdict,
+    verdictLabel: VERDICT_LABEL[verdict],
+    summary: summaryByVerdict[verdict],
+    giveValue,
+    receiveValue,
+    valueGap,
+    hardRejectReasons: rejects,
+    forYou: forYou.slice(0, 6),
+    forThem: forThem.slice(0, 4),
     whyAcceptedOrNot,
     acceptanceLean: lean,
     acceptanceLeanLabel: LEAN_LABEL[lean],

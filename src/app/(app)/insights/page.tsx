@@ -15,53 +15,107 @@ import {
   loadTrendMap,
   refreshProjectionTrends,
 } from "@/lib/insights/trends";
-import { TrendBadge, TrendPanel } from "@/components/trend-panel";
+import { TrendPanel } from "@/components/trend-panel";
+import {
+  InsightRichText,
+  PlayerChip,
+} from "@/components/insight-rich-text";
 import { cn, priorityColor } from "@/lib/utils";
-import type { InsightRecommendation, PlayerTrendView } from "@/lib/types";
+import type { InsightRecommendation, InsightType, PlayerTrendView } from "@/lib/types";
+
+const TYPE_LABEL: Record<InsightType, string> = {
+  start_sit: "Start / Sit",
+  trade: "Trade idea",
+  news: "News",
+  matchup_note: "Matchup note",
+  drop_add: "Drop / Add",
+  weak_position: "Roster gap",
+  mismatch: "Matchup edge",
+  streaming: "Stream",
+  waiver: "Waiver pickup",
+};
+
+function namesForInsight(
+  insight: InsightRecommendation,
+  nameById?: Map<string, string>,
+): string[] {
+  // Order matters: first name is the primary chip / entity.
+  const names: string[] = [];
+  for (const pid of insight.relatedPlayerIds ?? []) {
+    const n = nameById?.get(pid);
+    if (n) names.push(n);
+  }
+  for (const p of insight.trade?.give ?? []) names.push(p.name);
+  for (const p of insight.trade?.receive ?? []) names.push(p.name);
+  for (const p of insight.trade?.alternativeSendables ?? []) names.push(p.name);
+  return [...new Set(names)];
+}
 
 function InsightCard({
   insight,
-  trendsByPlayerId,
+  nameById,
 }: {
   insight: InsightRecommendation;
-  trendsByPlayerId?: Map<string, PlayerTrendView>;
+  nameById?: Map<string, string>;
 }) {
+  const names = namesForInsight(insight, nameById);
+  const why = insight.reasoning[0];
+  const extraReasons = insight.reasoning.slice(1, 3);
+
   return (
     <article
       className={cn(
-        "rounded-xl border border-emerald-950/8 border-l-4 py-3.5 pl-4 pr-3 shadow-sm",
+        "surface-card border-l-4 py-4 pl-4 pr-4",
         priorityColor(insight.priority),
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded bg-emerald-950/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/70">
-          {insight.type.replaceAll("_", " ")}
+          {TYPE_LABEL[insight.type] ?? insight.type.replaceAll("_", " ")}
         </span>
-        {insight.verdict && (
+        {insight.verdict ? (
           <span
             className={cn(
-              "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-              insight.verdict === "START"
-                ? "bg-emerald-700 text-white"
-                : "bg-orange-700 text-white",
+              "stamp animate-stamp text-xs",
+              insight.verdict === "START" ? "stamp-start" : "stamp-sit",
             )}
           >
-            {insight.verdict}
+            ★ {insight.verdict}
           </span>
-        )}
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-700">
-          {insight.priority}
-        </span>
-        {(insight.relatedPlayerIds ?? [])
-          .slice(0, 2)
-          .map((pid) => trendsByPlayerId?.get(pid))
-          .filter((t): t is PlayerTrendView => Boolean(t && t.trendLabel !== "thin" && t.trendLabel !== "Thin"))
-          .map((t) => (
-            <TrendBadge key={`${insight.id}-${t.espnId}`} label={t.trendLabel} />
-          ))}
+        ) : insight.priority === "high" ? (
+          <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-800">
+            Do this week
+          </span>
+        ) : null}
       </div>
-      <h3 className="mt-1 text-lg font-semibold text-emerald-950">{insight.title}</h3>
-      <p className="text-sm text-emerald-950/65">{insight.summary}</p>
+
+      {names.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {names.slice(0, 4).map((n, i) => (
+            <PlayerChip
+              key={n}
+              name={n}
+              tone={i === 0 ? "primary" : "secondary"}
+            />
+          ))}
+        </div>
+      )}
+
+      <h3 className="mt-2 text-lg font-semibold leading-snug text-emerald-950">
+        <InsightRichText text={insight.title} names={names} emphasize />
+      </h3>
+      <p className="mt-1.5 text-sm">
+        <InsightRichText text={insight.summary} names={names} />
+      </p>
+
+      {why && (
+        <div className="mt-3 rounded-lg border border-emerald-950/12 border-l-4 border-l-orange-600 bg-[color-mix(in_srgb,var(--kraft)_60%,white)] px-3 py-2.5">
+          <p className="type-eyebrow text-orange-700">Why we chose this</p>
+          <p className="mt-1.5">
+            <InsightRichText text={why} names={names} emphasize />
+          </p>
+        </div>
+      )}
 
       {insight.trade && (
         <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
@@ -69,11 +123,11 @@ function InsightCard({
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
               You give
             </p>
-            <ul className="mt-1 space-y-0.5">
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {insight.trade.give.map((p) => (
-                <li key={p.id}>
-                  {p.name}{" "}
-                  <span className="text-emerald-950/45">({p.position})</span>
+                <li key={p.id} className="flex items-center gap-1">
+                  <PlayerChip name={p.name} />
+                  <span className="text-xs text-emerald-950/45">{p.position}</span>
                 </li>
               ))}
             </ul>
@@ -84,7 +138,7 @@ function InsightCard({
               {insight.trade.whyYou.map((r) => (
                 <li key={r} className="flex gap-2 text-emerald-950/80">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-emerald-600" />
-                  <span>{r}</span>
+                  <InsightRichText text={r} names={names} />
                 </li>
               ))}
             </ul>
@@ -93,11 +147,11 @@ function InsightCard({
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
               You get from {insight.trade.partnerTeamName}
             </p>
-            <ul className="mt-1 space-y-0.5">
+            <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {insight.trade.receive.map((p) => (
-                <li key={p.id}>
-                  {p.name}{" "}
-                  <span className="text-emerald-950/45">({p.position})</span>
+                <li key={p.id} className="flex items-center gap-1">
+                  <PlayerChip name={p.name} tone="secondary" />
+                  <span className="text-xs text-emerald-950/45">{p.position}</span>
                 </li>
               ))}
             </ul>
@@ -108,7 +162,7 @@ function InsightCard({
               {insight.trade.whyThem.map((r) => (
                 <li key={r} className="flex gap-2 text-emerald-950/80">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orange-500" />
-                  <span>{r}</span>
+                  <InsightRichText text={r} names={names} />
                 </li>
               ))}
             </ul>
@@ -119,53 +173,34 @@ function InsightCard({
       {insight.trade?.alternativeSendables &&
         insight.trade.alternativeSendables.length > 0 && (
           <p className="mt-2 text-xs text-emerald-950/55">
-            Other sendables to float:{" "}
-            {insight.trade.alternativeSendables
-              .map((p) => `${p.name} (${p.position})`)
-              .join(", ")}
+            Other players you could offer instead:{" "}
+            {insight.trade.alternativeSendables.map((p, i) => (
+              <span key={p.id}>
+                {i > 0 ? ", " : ""}
+                <PlayerChip name={p.name} tone="secondary" className="mx-0.5" />
+              </span>
+            ))}
           </p>
         )}
 
-      {insight.trade?.trendNotes && insight.trade.trendNotes.length > 0 && (
-        <div className="mt-3 border-t border-emerald-950/10 pt-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
-            Trend / projection rationale
-          </p>
-          <ul className="mt-1.5 space-y-1.5">
-            {insight.trade.trendNotes.map((note) => (
+      {extraReasons.length > 0 && (
+        <details className="mt-3 border-t border-emerald-950/10 pt-2">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-emerald-950/45 hover:text-emerald-950/70">
+            More detail
+          </summary>
+          <ul className="mt-2 space-y-1.5">
+            {extraReasons.map((reason) => (
               <li
-                key={note}
-                className="flex gap-2 text-sm leading-relaxed text-emerald-950/80"
+                key={reason}
+                className="flex gap-2 text-sm leading-relaxed text-emerald-950/70"
               >
-                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-emerald-700" />
-                <span>{note}</span>
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orange-500" />
+                <InsightRichText text={reason} names={names} />
               </li>
             ))}
           </ul>
-          {(insight.relatedPlayerIds ?? []).slice(0, 2).map((pid) => {
-            const t = trendsByPlayerId?.get(pid);
-            if (!t || t.weeks.length < 2) return null;
-            return (
-              <div key={`spark-${pid}`} className="mt-2">
-                <p className="text-[11px] text-emerald-950/45">{t.playerName}</p>
-                <TrendPanel trend={t} compact />
-              </div>
-            );
-          })}
-        </div>
+        </details>
       )}
-
-      <ul className="mt-3 space-y-1.5">
-        {insight.reasoning.map((reason) => (
-          <li
-            key={reason}
-            className="flex gap-2 text-sm leading-relaxed text-emerald-950/80"
-          >
-            <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-orange-500" />
-            <span>{reason}</span>
-          </li>
-        ))}
-      </ul>
 
       {insight.newsUrl && (
         <a
@@ -174,7 +209,7 @@ function InsightCard({
           rel="noreferrer"
           className="mt-3 inline-flex text-sm font-semibold text-orange-700 hover:text-orange-800"
         >
-          {insight.source ?? "Source"} →
+          {insight.source ?? "Read source"} →
         </a>
       )}
     </article>
@@ -186,32 +221,42 @@ function Section({
   description,
   items,
   empty,
-  trendsByPlayerId,
+  nameById,
+  limit = 4,
 }: {
   title: string;
   description: string;
   items: InsightRecommendation[];
   empty: string;
-  trendsByPlayerId?: Map<string, PlayerTrendView>;
+  nameById?: Map<string, string>;
+  limit?: number;
 }) {
+  const shown = items.slice(0, limit);
   return (
     <section className="space-y-4">
-      <div>
-        <h2 className="type-section text-emerald-950">{title}</h2>
-        <p className="type-caption mt-1 text-emerald-950/55">{description}</p>
+      <div className="cork-board p-3 sm:p-4">
+        <div className="surface-card px-4 py-3 sm:px-5">
+          <h2 className="type-section text-emerald-950">{title}</h2>
+          <p className="type-caption mt-1 text-emerald-950/55">{description}</p>
+        </div>
       </div>
-      {items.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="rounded-xl border border-dashed border-emerald-950/10 bg-white/40 px-4 py-3 text-sm text-emerald-950/50">
           {empty}
         </p>
       ) : (
-        items.map((insight) => (
+        shown.map((insight) => (
           <InsightCard
             key={insight.id}
             insight={insight}
-            trendsByPlayerId={trendsByPlayerId}
+            nameById={nameById}
           />
         ))
+      )}
+      {items.length > limit && (
+        <p className="type-caption text-emerald-950/45">
+          Showing top {limit} of {items.length} — highest-priority calls first.
+        </p>
       )}
     </section>
   );
@@ -264,7 +309,9 @@ export default async function InsightsPage() {
   const averages = leaguePositionalAverages(league);
 
   const trendsByPlayerId = new Map<string, PlayerTrendView>();
+  const nameById = new Map<string, string>();
   for (const p of [...rosterPlayers, ...league.freeAgents]) {
+    nameById.set(p.id, p.name);
     const t = trendMap.get(p.espnId);
     if (t) trendsByPlayerId.set(p.id, t);
   }
@@ -280,11 +327,11 @@ export default async function InsightsPage() {
       <div className="animate-fade-up">
         <h1 className="type-page text-emerald-950">Insights</h1>
         <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Rule-based start/sit, waiver-wire shark, and league-aware PPR trades with
-          transparent reasons — projections, stored proj-vs-actual trends, recent
-          form, injury status, and how similar players fared against this week&apos;s
-          defense. News comes from ESPN public feeds (never invented). Build and
-          grade any package in the{" "}
+          Clear weekly calls — who to start, who to pick up, and which trades are
+          worth making — with a plain-English reason on every card. We use
+          projections, recent scoring, injuries, and how similar players did
+          against this week&apos;s defense. News comes from ESPN (never invented).
+          Build any package in the{" "}
           <Link href="/trades" className="font-semibold text-orange-700">
             Trade Analyzer
           </Link>
@@ -301,8 +348,7 @@ export default async function InsightsPage() {
         <div>
           <h2 className="type-section text-emerald-950">Trend analyst</h2>
           <p className="type-body mt-1 text-emerald-950/55">
-            Weekly projection vs actual snapshots accumulate on sync / Insights load
-            (Neon). Labels are derived from that history — not third-party ranks.
+            How your players have been scoring lately — plain English, not rankings jargon.
           </p>
         </div>
         {yourTrends.length === 0 ? (
@@ -317,8 +363,7 @@ export default async function InsightsPage() {
                 key={t.espnId}
                 className="surface-card border-b-0 p-4 pb-4"
               >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-semibold text-emerald-950">{t.playerName}</h3>
+                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                   <span className="type-caption text-emerald-950/45">
                     {t.position}
                   </span>
@@ -348,43 +393,41 @@ export default async function InsightsPage() {
 
       <Section
         title="Start / Sit"
-        description="Bench vs lineup calls with projection, stored trends, recent form, injury, and defense-history reasons."
+        description="Who belongs in your lineup this week — with a clear reason on every card."
         items={bundle.startSit}
         empty="No start/sit inefficiencies flagged this week."
-        trendsByPlayerId={trendsByPlayerId}
+        nameById={nameById}
+        limit={4}
       />
 
       <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="type-section text-emerald-950">Trade ideas</h2>
-            <p className="type-body mt-1 text-emerald-950/55">
-              Full-PPR mutual deals: same-pos / need-based packages, 2-for-1 when
-              uneven — with trend/projection rationale. Naked QB↔skill 1:1 is
-              blocked. Or{" "}
-              <Link href="/trades" className="font-semibold text-orange-700">
-                open the Trade Analyzer
-              </Link>{" "}
-              to grade any package yourself.
-            </p>
+        <div className="cork-board p-3 sm:p-4">
+          <div className="surface-card flex flex-wrap items-end justify-between gap-3 px-4 py-3 sm:px-5">
+            <div>
+              <h2 className="type-section text-emerald-950">Trade ideas</h2>
+              <p className="type-caption mt-1 text-emerald-950/55">
+                Fair full-PPR packages that help both sides — or open the Trade
+                Analyzer to grade any deal.
+              </p>
+            </div>
+            <Link
+              href="/trades"
+              className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800"
+            >
+              Trade Analyzer →
+            </Link>
           </div>
-          <Link
-            href="/trades"
-            className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800"
-          >
-            Trade Analyzer →
-          </Link>
         </div>
         {bundle.trades.length === 0 ? (
           <p className="type-body text-emerald-950/50">
             No balanced trade ideas found against current positional gaps.
           </p>
         ) : (
-          bundle.trades.map((insight) => (
+          bundle.trades.slice(0, 3).map((insight) => (
             <div key={insight.id} className="space-y-2">
               <InsightCard
                 insight={insight}
-                trendsByPlayerId={trendsByPlayerId}
+                nameById={nameById}
               />
               {insight.trade && (
                 <Link
@@ -401,9 +444,11 @@ export default async function InsightsPage() {
 
       <Section
         title="Waiver wire"
-        description="Injury → opportunity claims: only pickups available on your league waivers, with handcuff/next-man-up reasons (never invented injuries)."
+        description="Injury-driven pickups available on your league's free-agent list — with who to drop if your roster is full."
         items={bundle.waivers}
         empty="No injury-driven waiver opportunities among current free agents."
+        nameById={nameById}
+        limit={3}
       />
 
       <Section
@@ -411,20 +456,26 @@ export default async function InsightsPage() {
         description="Public ESPN headlines and roster injury flags. Links open the source."
         items={bundle.news}
         empty="No matching ESPN headlines right now. Roster injury flags appear when present."
+        nameById={nameById}
+        limit={3}
       />
 
       <Section
         title="Matchup notes"
-        description="Similar-player vs defense history — e.g. slot WRs shut down by CLE recently."
+        description="When similar players have struggled (or thrived) against this week's defense."
         items={bundle.matchupNotes}
         empty="No tough historical defense matchups flagged for your starters."
+        nameById={nameById}
+        limit={3}
       />
 
       <Section
         title="Also worth a look"
-        description="Weak positions, drop/add, weekly mismatch, and streaming K/D/ST."
+        description="Roster gaps, drop/adds, schedule mismatches, and streaming kickers or defenses."
         items={bundle.other}
         empty="Nothing else flagged this week."
+        nameById={nameById}
+        limit={3}
       />
 
       <section>
