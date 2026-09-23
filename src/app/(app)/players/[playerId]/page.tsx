@@ -156,8 +156,8 @@ export default async function PlayerDetailPage({
         </div>
         {insight.dataThin && (
           <p className="mt-2 text-xs text-emerald-950/55">
-            Early-season / thin sample — lean uses whatever projection, form, and
-            defense comps are available.
+            Early season — not many games on record yet, so this lean leans more
+            on this week&apos;s projection and the matchup.
           </p>
         )}
         <ul className="mt-3 space-y-1.5">
@@ -226,10 +226,10 @@ export default async function PlayerDetailPage({
       </section>
 
       <section>
-        <h2 className="type-section text-emerald-950">Projection vs actual</h2>
+        <h2 className="type-section text-emerald-950">Recent scoring</h2>
         <p className="type-body mt-1 text-emerald-950/55">
-          Stored weekly snapshots (Neon) compare projected PPR to what actually
-          scored — used for start/sit and trade chip nudges.
+          How projected points compare to what they actually scored — used to
+          spot heating up / cooling off for start/sit and trades.
         </p>
         <div className="mt-3">
           <TrendPanel trend={playerTrend} />

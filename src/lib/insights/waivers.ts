@@ -219,10 +219,6 @@ export function buildWaiverShark(
 
       const drop = dropCandidate(team, add.position);
       const role = roleLabel(hurt, add);
-      const uncertain =
-        confidence === "same_team_depth"
-          ? "Backup mapping is inferred from same-team waivers (not a confirmed depth chart)."
-          : "Backup mapping uses a curated handcuff/next-up list.";
 
       out.push({
         id: `waiver-${hurt.espnId}-${add.espnId}`,
@@ -234,17 +230,16 @@ export function buildWaiverShark(
             : hurt.injuryStatus === "DOUBTFUL"
               ? "medium"
               : "high",
-        title: `Wire: ${add.name} (with ${hurt.name} ${hurt.injuryStatus})`,
-        summary: `${hurt.name} ${hurt.injuryStatus.toLowerCase()} → ${add.name} is the ${role} and sits on waivers in your league.`,
+        title: `Add ${add.name} — ${hurt.name} is ${hurt.injuryStatus}`,
+        summary: `${hurt.name} is ${hurt.injuryStatus.toLowerCase()}. ${add.name} is the ${role} and still on your waiver wire.`,
         reasoning: [
-          `${hurt.name} (${hurt.nflTeam} ${hurt.position}) is unavailable — ${source}. Gridiron IQ does not invent injuries.`,
-          `${hurt.name} out → ${add.name} becomes the ${role}.`,
+          `Claim ${add.name} while ${hurt.name} is ${hurt.injuryStatus} — ${add.name} is the ${role} and available in your league.`,
+          `${hurt.name} (${hurt.nflTeam} ${hurt.position}) is unavailable — ${source}. We never invent injury news.`,
           note,
-          uncertain,
-          `${add.name} is available on your league waiver wire (${add.percentOwned.toFixed(0)}% rostered league-wide, ${add.projectedPoints.toFixed(1)} proj).`,
+          `${add.name} is on waivers (${add.percentOwned.toFixed(0)}% owned league-wide, ${add.projectedPoints.toFixed(1)} projected).`,
           drop
-            ? `If your roster is full, drop candidate: ${drop.name} (${drop.position}, ${drop.projectedPoints.toFixed(1)} proj${drop.injuryStatus !== "ACTIVE" ? `, ${drop.injuryStatus}` : ""}).`
-            : `You appear to have an open roster path — claim ${add.name} before the wire clears.`,
+            ? `If your roster is full, consider dropping ${drop.name} (${drop.position}, ${drop.projectedPoints.toFixed(1)} projected${drop.injuryStatus !== "ACTIVE" ? `, ${drop.injuryStatus}` : ""}).`
+            : `You appear to have roster space — claim ${add.name} before the wire clears.`,
         ],
         relatedPlayerIds: [hurt.id, add.id, ...(drop ? [drop.id] : [])],
         relatedPositions: [hurt.position, add.position],

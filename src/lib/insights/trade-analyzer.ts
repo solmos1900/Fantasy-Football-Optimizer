@@ -253,11 +253,11 @@ export function analyzeTrade(
   ];
 
   const judgments = [
-    `Verdict: ${VERDICT_LABEL[verdict]}.`,
+    `Our call: ${VERDICT_LABEL[verdict]}.`,
     whyAcceptedOrNot,
     hardRejected
-      ? `Partner acceptance lean: none (blocked by hard reject).`
-      : `Partner acceptance lean: ${LEAN_LABEL[lean]} — heuristic need-fit band, not a calibrated probability.`,
+      ? `Would a typical manager accept? Unlikely — this deal hits a hard reject rule.`
+      : `Would a typical manager accept? ${LEAN_LABEL[lean]}.`,
   ];
 
   const summaryByVerdict: Record<TradeVerdict, string> = {
@@ -368,11 +368,11 @@ export function comparePlayerPackages(
   ];
 
   const judgments = [
-    `Verdict for Side A taking this deal: ${VERDICT_LABEL[verdict]}.`,
+    `Our call for Side A: ${VERDICT_LABEL[verdict]}.`,
     whyAcceptedOrNot,
     hardRejected
-      ? `Typical acceptance: none (blocked by hard reject).`
-      : `Typical acceptance lean: ${LEAN_LABEL[lean]} — not a calibrated probability.`,
+      ? `Would a typical manager accept? Unlikely — this deal hits a hard reject rule.`
+      : `Would a typical manager accept? ${LEAN_LABEL[lean]}.`,
   ];
 
   const summaryByVerdict: Record<TradeVerdict, string> = {

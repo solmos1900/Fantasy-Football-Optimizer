@@ -330,7 +330,7 @@ export function acceptanceReason(
     });
   if (buyLow.length) {
     parts.push(
-      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} vs stored projections (usage/injury ranked above hot/cold).`,
+      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} — they have been cooling off or boom-or-bust lately.`,
     );
   }
 
