@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { PlayersDirectory } from "@/components/players-directory";
-import { PendingLink } from "@/components/pending-link";
+import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 
 export default async function PlayersPage() {
   const session = await auth();
@@ -11,16 +11,10 @@ export default async function PlayersPage() {
 
   if (!league) {
     return (
-      <div className="max-w-lg">
-        <h1 className="type-page text-emerald-950">Players</h1>
-        <p className="type-body mt-2 text-emerald-950/65">
-          Search the player pool with ownership and projections after connecting
-          a league.
-        </p>
-        <PendingLink href="/connect" className="mt-4 inline-flex text-sm font-semibold text-orange-700">
-          Connect league →
-        </PendingLink>
-      </div>
+      <EmptyLeagueConnect
+        title="Players"
+        message="Load a demo league or connect ESPN to search the player pool with ownership and projections."
+      />
     );
   }
 

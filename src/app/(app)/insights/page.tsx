@@ -20,6 +20,7 @@ import {
   PlayerChip,
 } from "@/components/insight-rich-text";
 import { PendingLink } from "@/components/pending-link";
+import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { cn, priorityColor } from "@/lib/utils";
 import type { InsightRecommendation, InsightType, PlayerTrendView } from "@/lib/types";
 
@@ -270,19 +271,10 @@ export default async function InsightsPage() {
 
   if (!rawLeague) {
     return (
-      <div className="max-w-lg">
-        <h1 className="type-page text-emerald-950">Insights</h1>
-        <p className="type-body mt-2 text-emerald-950/65">
-          Connect a league (or load the demo as a guest) to unlock start/sit,
-          trades, waivers, news, and defense matchup history.
-        </p>
-        <PendingLink
-          href="/connect"
-          className="mt-4 inline-flex text-sm font-semibold text-orange-700"
-        >
-          Connect league →
-        </PendingLink>
-      </div>
+      <EmptyLeagueConnect
+        title="Insights"
+        message="Load a demo league or connect ESPN to unlock start/sit, trades, waivers, news, and defense matchup history."
+      />
     );
   }
 

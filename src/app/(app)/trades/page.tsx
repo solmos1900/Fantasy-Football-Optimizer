@@ -6,7 +6,7 @@ import {
   loadTrendMap,
 } from "@/lib/insights/trends";
 import { TradeAnalyzer } from "@/components/trade-analyzer";
-import { PendingLink } from "@/components/pending-link";
+import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import type { PlayerTrendView } from "@/lib/types";
 
 export default async function TradesPage({
@@ -26,19 +26,10 @@ export default async function TradesPage({
 
   if (!rawLeague) {
     return (
-      <div className="max-w-lg">
-        <h1 className="type-page text-emerald-950">Trade Analyzer</h1>
-        <p className="type-body mt-2 text-emerald-950/65">
-          Connect a league (or load the demo league as a guest) to build and
-          grade trades with your 1QB full-PPR chip values and roster needs.
-        </p>
-        <PendingLink
-          href="/connect"
-          className="mt-4 inline-flex text-sm font-semibold text-orange-700"
-        >
-          Connect league →
-        </PendingLink>
-      </div>
+      <EmptyLeagueConnect
+        title="Trade Analyzer"
+        message="Load a demo league or connect ESPN to build and grade trades with your 1QB full-PPR chip values and roster needs."
+      />
     );
   }
 

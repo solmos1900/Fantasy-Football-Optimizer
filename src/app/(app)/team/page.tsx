@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { PlayerRow } from "@/components/player-row";
-import { PendingLink } from "@/components/pending-link";
+import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 
 export default async function TeamPage() {
@@ -12,7 +12,10 @@ export default async function TeamPage() {
 
   if (!league) {
     return (
-      <EmptyConnect message="Connect a league to view your roster, starters, and bench." />
+      <EmptyLeagueConnect
+        title="My Team"
+        message="Load a demo league or connect ESPN to view your roster, starters, and bench."
+      />
     );
   }
 
@@ -79,21 +82,6 @@ export default async function TeamPage() {
           </div>
         </div>
       </section>
-    </div>
-  );
-}
-
-function EmptyConnect({ message }: { message: string }) {
-  return (
-    <div className="max-w-lg">
-      <h1 className="type-page text-emerald-950">My Team</h1>
-      <p className="type-body mt-2 text-emerald-950/65">{message}</p>
-      <PendingLink
-        href="/connect"
-        className="mt-4 inline-flex text-sm font-semibold text-orange-700"
-      >
-        Connect league →
-      </PendingLink>
     </div>
   );
 }
