@@ -355,13 +355,23 @@ function stubRoster(seed: number): FantasyPlayer[] {
   );
 }
 
-export function createDemoLeague(userTeamId = 1): LeagueData {
+export function createDemoLeague(
+  userTeamId = 1,
+  options?: { ownerDisplayName?: string | null },
+): LeagueData {
+  const ownerDisplay = normalizeDemoOwnerName(options?.ownerDisplayName);
+  const userTeamName = ownerDisplay ?? "Sebastian's Squad";
+  const userOwnerName = ownerDisplay ?? "Sebastian";
+  const userAbbrev = ownerDisplay
+    ? abbrevFromDisplayName(ownerDisplay)
+    : "SEB";
+
   const teams: FantasyTeam[] = [
     buildTeam(
       1,
-      "Sebastian's Squad",
-      "SEB",
-      "Sebastian",
+      userTeamName,
+      userAbbrev,
+      userOwnerName,
       2,
       [4, 2, 0],
       742.4,
@@ -681,7 +691,7 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
   return {
     leagueId: "demo-league",
     season: defaultEspnSeason(),
-    name: "Sebastian's Demo League",
+    name: ownerDisplay ? `${ownerDisplay}'s Demo League` : "Sebastian's Demo League",
     currentWeek: 7,
     scoringPeriodId: 7,
     isDemo: true,
@@ -691,6 +701,51 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
     lastSyncedAt: new Date().toISOString(),
     userTeamId,
   };
+}
+
+/** Apply a guest/account display name onto the current user's demo team. */
+export function applyDemoOwnerDisplayName(
+  league: LeagueData,
+  displayName?: string | null,
+): LeagueData {
+  const ownerDisplay = normalizeDemoOwnerName(displayName);
+  if (!ownerDisplay || !league.isDemo) return league;
+
+  const teamId =
+    league.userTeamId ??
+    league.teams.find((t) => t.isCurrentUser)?.id ??
+    1;
+  const abbrev = abbrevFromDisplayName(ownerDisplay);
+
+  return {
+    ...league,
+    name: `${ownerDisplay}'s Demo League`,
+    teams: league.teams.map((t) =>
+      t.id === teamId || t.isCurrentUser
+        ? {
+            ...t,
+            name: ownerDisplay,
+            ownerName: ownerDisplay,
+            abbrev,
+            isCurrentUser: true,
+          }
+        : { ...t, isCurrentUser: false },
+    ),
+  };
+}
+
+function normalizeDemoOwnerName(name?: string | null): string | null {
+  const trimmed = typeof name === "string" ? name.trim().slice(0, 48) : "";
+  if (!trimmed) return null;
+  // Keep "Guest" as a real typed name if they entered it; empty falls through.
+  return trimmed;
+}
+
+function abbrevFromDisplayName(name: string): string {
+  const letters = name.replace(/[^a-zA-Z0-9]/g, "");
+  if (letters.length >= 3) return letters.slice(0, 3).toUpperCase();
+  if (letters.length > 0) return letters.toUpperCase().padEnd(3, "X");
+  return "GUE";
 }
 
 export function createDemoLiveStats(week = 7): LiveStatSnapshot {
