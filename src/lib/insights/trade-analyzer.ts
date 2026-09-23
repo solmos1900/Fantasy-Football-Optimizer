@@ -221,7 +221,7 @@ export function analyzeTrade(
     const gaps: string[] = [];
     if (fair < 0.35) {
       gaps.push(
-        `Chip values look uneven on the 1QB-PPR scale (${giveValue.toFixed(1)} vs ${receiveValue.toFixed(1)}).`,
+        `Values look uneven (${giveValue.toFixed(1)} you give vs ${receiveValue.toFixed(1)} you get).`,
       );
     }
     if (fit < 1.2) {
@@ -261,11 +261,11 @@ export function analyzeTrade(
   ];
 
   const summaryByVerdict: Record<TradeVerdict, string> = {
-    accept: `Strong mutual fit — chip values and roster needs line up for both sides.`,
-    lean_accept: `Looks workable — mild edge or need-fit lean in favor of doing the deal.`,
-    fair: `Balanced chips with no clear smash; roster fit decides whether to pull the trigger.`,
-    lean_reject: `Uneven or weak need-fit — proceed only if you have a specific playoff/schedule reason.`,
-    hard_reject: `Blocked by 1QB PPR norms (naked QB↔skill or outrageous value/tier gap).`,
+    accept: `Strong mutual fit — values and roster needs line up for both sides.`,
+    lean_accept: `Looks workable — a mild edge or roster need leans toward doing the deal.`,
+    fair: `Balanced values with no clear smash; roster fit decides whether to pull the trigger.`,
+    lean_reject: `Uneven or weak roster fit — proceed only if you have a specific playoff or schedule reason.`,
+    hard_reject: `This deal breaks common 1QB trade norms.`,
   };
 
   return {
@@ -378,9 +378,9 @@ export function comparePlayerPackages(
   const summaryByVerdict: Record<TradeVerdict, string> = {
     accept: `Side A comes out ahead or even with a shape most managers would take.`,
     lean_accept: `Slightly favors Side A or is close enough to shop.`,
-    fair: `Balanced chips — roster need decides who should take it.`,
+    fair: `Balanced values — roster need decides who should take it.`,
     lean_reject: `Uneven for Side A — only take it if you have a specific need Side B fills.`,
-    hard_reject: `Blocked by 1QB PPR norms (naked QB↔skill or outrageous value/tier gap).`,
+    hard_reject: `This deal breaks common 1QB trade norms.`,
   };
 
   return {
