@@ -283,7 +283,12 @@ export default async function InsightsPage() {
           Rule-based start/sit, waiver-wire shark, and league-aware PPR trades with
           transparent reasons — projections, stored proj-vs-actual trends, recent
           form, injury status, and how similar players fared against this week&apos;s
-          defense. News comes from ESPN public feeds (never invented).
+          defense. News comes from ESPN public feeds (never invented). Build and
+          grade any package in the{" "}
+          <Link href="/trades" className="font-semibold text-orange-700">
+            Trade Analyzer
+          </Link>
+          .
         </p>
         {league.isDemo && (
           <p className="type-eyebrow mt-3 text-orange-700">
@@ -349,13 +354,50 @@ export default async function InsightsPage() {
         trendsByPlayerId={trendsByPlayerId}
       />
 
-      <Section
-        title="Trade ideas"
-        description="Full-PPR mutual deals: same-pos / need-based packages, 2-for-1 when uneven — with trend/projection rationale. Naked QB↔skill 1:1 is blocked."
-        items={bundle.trades}
-        empty="No balanced trade ideas found against current positional gaps."
-        trendsByPlayerId={trendsByPlayerId}
-      />
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="type-section text-emerald-950">Trade ideas</h2>
+            <p className="type-body mt-1 text-emerald-950/55">
+              Full-PPR mutual deals: same-pos / need-based packages, 2-for-1 when
+              uneven — with trend/projection rationale. Naked QB↔skill 1:1 is
+              blocked. Or{" "}
+              <Link href="/trades" className="font-semibold text-orange-700">
+                open the Trade Analyzer
+              </Link>{" "}
+              to grade any package yourself.
+            </p>
+          </div>
+          <Link
+            href="/trades"
+            className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800"
+          >
+            Trade Analyzer →
+          </Link>
+        </div>
+        {bundle.trades.length === 0 ? (
+          <p className="type-body text-emerald-950/50">
+            No balanced trade ideas found against current positional gaps.
+          </p>
+        ) : (
+          bundle.trades.map((insight) => (
+            <div key={insight.id} className="space-y-2">
+              <InsightCard
+                insight={insight}
+                trendsByPlayerId={trendsByPlayerId}
+              />
+              {insight.trade && (
+                <Link
+                  href={`/trades?partner=${insight.trade.partnerTeamId}&give=${insight.trade.give.map((p) => p.id).join(",")}&get=${insight.trade.receive.map((p) => p.id).join(",")}`}
+                  className="inline-flex text-xs font-semibold text-orange-700 hover:text-orange-800"
+                >
+                  Analyze this trade →
+                </Link>
+              )}
+            </div>
+          ))
+        )}
+      </section>
 
       <Section
         title="Waiver wire"
