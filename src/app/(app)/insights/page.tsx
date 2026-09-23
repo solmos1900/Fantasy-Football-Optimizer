@@ -55,7 +55,7 @@ function InsightCard({
         {(insight.relatedPlayerIds ?? [])
           .slice(0, 2)
           .map((pid) => trendsByPlayerId?.get(pid))
-          .filter((t): t is PlayerTrendView => Boolean(t && t.trendLabel !== "thin"))
+          .filter((t): t is PlayerTrendView => Boolean(t && t.trendLabel !== "thin" && t.trendLabel !== "Thin"))
           .map((t) => (
             <TrendBadge key={`${insight.id}-${t.espnId}`} label={t.trendLabel} />
           ))}

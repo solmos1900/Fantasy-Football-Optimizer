@@ -36,7 +36,7 @@ import {
   analyzeDefenseMatchup,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
-import { trendLabelCopy } from "@/lib/insights/trend-labels";
+import { trendLabelCopy, normalizeTrendLabel } from "@/lib/insights/trend-labels";
 
 const SKILL: PlayerPosition[] = ["RB", "WR", "TE"];
 
@@ -100,7 +100,7 @@ function tierOf(p: FantasyPlayer): Tier {
 
 type TrendLookup = Map<number, PlayerTrendView> | undefined;
 
-/** Trade-chip value; full-PPR blended, QB heavily discounted in 1QB. */
+/** Trade-chip value; full-PPR blended. Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB). */
 function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
   const recent =
     p.recentWeeks && p.recentWeeks.length
@@ -108,10 +108,21 @@ function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
       : p.projectedPoints;
   let blended = p.projectedPoints * 0.65 + recent * 0.35;
   const trend = trends?.get(p.espnId);
+  // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
   if (trend) blended += trend.restOfSeasonAdj;
+  if (["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus)) blended *= 0.15;
+
   if (p.position === "QB") return blended * 0.45;
-  if (p.position === "TE") return blended * 1.05;
-  if (p.position === "RB") return blended * 1.1;
+  if (p.position === "TE") {
+    const elite = p.projectedPoints >= 12 || tierOf(p) === "elite";
+    return blended * (elite ? 1.2 : 1.05);
+  }
+  if (p.position === "RB") {
+    const locked = p.projectedPoints >= 14 || tierOf(p) === "elite" || tierOf(p) === "high";
+    return blended * (locked ? 1.15 : 1.05);
+  }
+  // WR — volume WR1 slightly above replacement WRs
+  if (tierOf(p) === "elite" || tierOf(p) === "high") return blended * 1.05;
   return blended;
 }
 
@@ -121,12 +132,14 @@ function sideValue(players: FantasyPlayer[], trends?: TrendLookup): number {
 
 function trendBlurb(p: FantasyPlayer, trends?: TrendLookup): string | null {
   const t = trends?.get(p.espnId);
-  if (!t || t.trendLabel === "thin") return null;
+  if (!t) return null;
+  const label = normalizeTrendLabel(t.trendLabel);
+  if (label === "Thin") return null;
   const delta =
     t.avgDelta != null
       ? ` avg ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs stored proj`
       : "";
-  return `${p.name}: ${trendLabelCopy(t.trendLabel).toLowerCase()}${delta} (${t.weeksSampled} wk sample).`;
+  return `${p.name}: ${trendLabelCopy(label).toLowerCase()}${delta} (${t.weeksSampled} wk sample).`;
 }
 
 function needsPos(team: FantasyTeam, pos: PlayerPosition): boolean {
@@ -200,19 +213,22 @@ function trendFitBonus(
 ): number {
   if (!trends?.size) return 0;
   let bonus = 0;
-  // Prefer buying players who are cold/bust (buy-low) when receiving
   for (const p of receive) {
     const t = trends.get(p.espnId);
     if (!t) continue;
-    if (t.trendLabel === "bust" || t.trendLabel === "cold") bonus += 0.35;
-    if (t.trendLabel === "rising" || t.trendLabel === "hot") bonus += 0.2;
+    const label = normalizeTrendLabel(t.trendLabel);
+    // Buy-low on fading / injury-cleared boom-bust — never chase InjuryRisk
+    if (label === "InjuryRisk") bonus -= 0.5;
+    if (label === "Fading" || label === "BoomBust") bonus += 0.3;
+    if (label === "Rising") bonus += 0.15;
   }
-  // Prefer selling hot/boom when giving (sell-high)
   for (const p of give) {
     const t = trends.get(p.espnId);
     if (!t) continue;
-    if (t.trendLabel === "boom" || t.trendLabel === "hot") bonus += 0.25;
-    if (t.trendLabel === "falling" || t.trendLabel === "cold") bonus -= 0.15;
+    const label = normalizeTrendLabel(t.trendLabel);
+    if (label === "Rising") bonus += 0.2; // sell-high
+    if (label === "Fading") bonus -= 0.15;
+    if (label === "InjuryRisk") bonus += 0.1; // moving a risk asset off
   }
   return bonus;
 }
@@ -296,10 +312,14 @@ function acceptanceReason(
 
   const buyLow = receive
     .map((p) => trends?.get(p.espnId))
-    .filter((t) => t && (t.trendLabel === "bust" || t.trendLabel === "cold"));
+    .filter((t) => {
+      if (!t) return false;
+      const label = normalizeTrendLabel(t.trendLabel);
+      return label === "Fading" || label === "BoomBust";
+    });
   if (buyLow.length) {
     parts.push(
-      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} vs stored projections.`,
+      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} vs stored projections (usage/injury ranked above hot/cold).`,
     );
   }
 
@@ -398,7 +418,7 @@ export function buildRealisticTrades(
     }
   }
 
-  // 3) 2-for-1: two surplus skill → one better skill
+  // 3) 2-for-1: two startable skill pieces → one better skill (≤10% premium)
   for (const them of others) {
     for (const starPos of SKILL) {
       if (!needsPos(you, starPos)) continue;
@@ -411,13 +431,20 @@ export function buildRealisticTrades(
         if (!hasSurplus(you, pos)) continue;
         if (!(needsPos(them, pos) || depth(them, pos) <= 2)) continue;
         const extra = surplusOf(you, pos)[0];
-        if (extra && extra.id !== star.id) pieces.push(extra);
+        // Both package pieces must be startable (research: both pieces start)
+        const floor = pos === "TE" ? 7 : 8;
+        if (extra && extra.id !== star.id && extra.projectedPoints >= floor) {
+          pieces.push(extra);
+        }
         if (pieces.length >= 2) break;
       }
       if (pieces.length < 2) continue;
       const pkg = pieces.slice(0, 2);
-      if (sideValue(pkg, trends) < chipValue(star, trends) * 0.75) continue;
-      if (sideValue(pkg, trends) > chipValue(star, trends) * 1.45) continue;
+      const starChip = chipValue(star, trends);
+      const pkgChip = sideValue(pkg, trends);
+      // ≈ star value with at most ~10% premium either way
+      if (pkgChip < starChip * 0.9) continue;
+      if (pkgChip > starChip * 1.1) continue;
       consider(candidates, you, them, pkg, [star], "2for1", trends);
     }
   }

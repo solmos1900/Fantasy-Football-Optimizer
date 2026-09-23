@@ -3,19 +3,30 @@ import type { PlayerTrendLabel, PlayerTrendView } from "@/lib/types";
 import { trendLabelCopy } from "@/lib/insights/trend-labels";
 
 function labelTone(label: PlayerTrendLabel): string {
-  switch (label) {
-    case "hot":
-    case "boom":
-    case "rising":
+  const n =
+    label === "Rising" || label === "rising" || label === "hot"
+      ? "Rising"
+      : label === "Fading" || label === "falling" || label === "cold"
+        ? "Fading"
+        : label === "BoomBust" || label === "boom" || label === "bust"
+          ? "BoomBust"
+          : label === "InjuryRisk"
+            ? "InjuryRisk"
+            : label === "Thin" || label === "thin"
+              ? "Thin"
+              : "Stable";
+  switch (n) {
+    case "Rising":
       return "bg-emerald-700 text-white";
-    case "cold":
-    case "bust":
-    case "falling":
+    case "Fading":
+    case "InjuryRisk":
       return "bg-orange-700 text-white";
-    case "steady":
-      return "bg-emerald-950/15 text-emerald-950";
-    default:
+    case "BoomBust":
+      return "bg-amber-700 text-white";
+    case "Thin":
       return "bg-emerald-950/10 text-emerald-950/60";
+    default:
+      return "bg-emerald-950/15 text-emerald-950";
   }
 }
 

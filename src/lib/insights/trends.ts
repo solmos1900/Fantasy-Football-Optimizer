@@ -1,24 +1,32 @@
 /**
- * Projection snapshots + trend metrics.
+ * Projection snapshots + trend metrics (research-aligned).
  *
- * Data sources (documented — do not invent FantasyPros/etc. labels in UI):
- * - ESPN Fantasy league player stats (projected appliedTotal + actual)
- * - Demo seed weekly scores (with optional projectedPoints)
- * - Heuristic fill: when a prior week has actual but no stored projection,
- *   we may set projected from a rolling recent average and mark source=heuristic
+ * Preferred models: Player, PlayerWeekStat, PlayerTrendSnapshot, DefenseWeekAllow.
  *
- * Refresh is on-demand: league sync and /api/trends/refresh (also callable from Insights).
+ * Sources (honest — never invent FantasyPros/etc.):
+ * - ESPN Fantasy league scoring (primary proj/actual on user sync)
+ * - Demo seed weekly scores
+ * - Heuristic fill when actual exists but prior proj was never stored
+ * - nflverse usage: optional future free feed (fields reserved; not scraped paid APIs)
+ *
+ * Trend judgment rank (never invert):
+ * 1) injury/role  2) usage/form trajectory  3) RZ (when present)
+ * 4) SOS/matchup  5) hot/cold vs projection only with usage/form context
+ *
+ * Refresh: league sync + Insights/player load + POST /api/trends/refresh
  */
 
 import { prisma } from "@/lib/db";
 import type {
   FantasyPlayer,
+  InjuryStatus,
   LeagueData,
   PlayerTrendLabel,
   PlayerTrendView,
   UsageTrend,
   WeeklyScore,
 } from "@/lib/types";
+import { normalizeTrendLabel } from "@/lib/insights/trend-labels";
 
 export type SnapshotSource = "espn" | "demo" | "heuristic";
 
@@ -38,9 +46,6 @@ function allPlayers(league: LeagueData): FantasyPlayer[] {
   return [...byEspn.values()];
 }
 
-/**
- * Build week rows to persist for a player from current proj/actual + recentWeeks.
- */
 export function weekRowsForPlayer(
   player: FantasyPlayer,
   currentWeek: number,
@@ -64,7 +69,6 @@ export function weekRowsForPlayer(
     });
   }
 
-  // Current scoring period from live roster mapping
   const existing = byWeek.get(currentWeek);
   byWeek.set(currentWeek, {
     projectedPpr:
@@ -108,6 +112,7 @@ export function deriveTrendFromWeeks(
     projectedPpr: number | null;
     actualPpr: number | null;
   }[],
+  injuryStatus: InjuryStatus = "ACTIVE",
 ): {
   weeksSampled: number;
   avgProjected: number | null;
@@ -118,30 +123,46 @@ export function deriveTrendFromWeeks(
   usageTrend: UsageTrend;
   restOfSeasonAdj: number;
   rationale: string;
+  evidenceSentence: string;
+  factJson: string;
+  judgmentJson: string;
 } {
   const withActual = weeks.filter((w) => w.actualPpr != null);
   const withBoth = weeks.filter(
-    (w) => w.actualPpr != null && w.projectedPpr != null && (w.projectedPpr ?? 0) > 0,
+    (w) =>
+      w.actualPpr != null &&
+      w.projectedPpr != null &&
+      (w.projectedPpr ?? 0) > 0,
   );
   const weeksSampled = withActual.length;
 
-  if (weeksSampled === 0) {
+  const injured = ["OUT", "IR", "DOUBTFUL"].includes(injuryStatus);
+
+  if (weeksSampled === 0 && !injured) {
+    const evidence = `${playerName}: no stored weekly actuals yet — trend will appear after syncs accumulate.`;
     return {
       weeksSampled: 0,
       avgProjected: null,
       avgActual: null,
       avgDelta: null,
       recentFormAvg: null,
-      trendLabel: "thin",
+      trendLabel: "Thin",
       usageTrend: "unknown",
       restOfSeasonAdj: 0,
-      rationale: `${playerName}: no stored weekly actuals yet — trend will appear after syncs accumulate.`,
+      rationale: evidence,
+      evidenceSentence: evidence,
+      factJson: JSON.stringify({ weeksSampled: 0, injuryStatus }),
+      judgmentJson: JSON.stringify({
+        rank: ["injury/role", "usage/form", "proj delta"],
+        judgments: ["Thin sample — wait for more syncs."],
+      }),
     };
   }
 
-  const avgActual =
-    withActual.reduce((a, w) => a + (w.actualPpr as number), 0) /
-    withActual.length;
+  const avgActual = withActual.length
+    ? withActual.reduce((a, w) => a + (w.actualPpr as number), 0) /
+      withActual.length
+    : null;
   const avgProjected = withBoth.length
     ? withBoth.reduce((a, w) => a + (w.projectedPpr as number), 0) /
       withBoth.length
@@ -157,9 +178,12 @@ export function deriveTrendFromWeeks(
     .sort((a, b) => b.week - a.week)
     .slice(0, 3)
     .reverse();
-  const recentFormAvg =
-    recent.reduce((a, w) => a + (w.actualPpr as number), 0) / recent.length;
-  const recentSlope = slope(recent.map((w) => w.actualPpr as number));
+  const recentFormAvg = recent.length
+    ? recent.reduce((a, w) => a + (w.actualPpr as number), 0) / recent.length
+    : null;
+  const recentSlope = recent.length
+    ? slope(recent.map((w) => w.actualPpr as number))
+    : null;
 
   let usageTrend: UsageTrend = "unknown";
   if (recentSlope != null) {
@@ -168,50 +192,82 @@ export function deriveTrendFromWeeks(
     else usageTrend = "steady";
   }
 
-  let trendLabel: PlayerTrendLabel = "steady";
-  if (weeksSampled < 2 && withBoth.length < 1) {
-    trendLabel = "thin";
-  } else if (avgDelta != null && avgDelta >= 3) {
-    trendLabel = "boom";
-  } else if (avgDelta != null && avgDelta <= -3) {
-    trendLabel = "bust";
-  } else if (usageTrend === "rising" && recentFormAvg >= avgActual + 1.5) {
-    trendLabel = "hot";
-  } else if (usageTrend === "falling" && recentFormAvg <= avgActual - 1.5) {
-    trendLabel = "cold";
+  // Ranked judgments: (1) injury (2) usage/form slope (3) proj delta last
+  const judgments: string[] = [];
+  let trendLabel: PlayerTrendLabel = "Stable";
+
+  if (injured) {
+    trendLabel = "InjuryRisk";
+    judgments.push(
+      `Injury/role first: roster status ${injuryStatus} — deprioritize start/trade chip until cleared.`,
+    );
+  } else if (weeksSampled < 2 && withBoth.length < 1) {
+    trendLabel = "Thin";
+    judgments.push("Thin sample — prefer projection + role over hot/cold.");
   } else if (usageTrend === "rising") {
-    trendLabel = "rising";
+    trendLabel = "Rising";
+    judgments.push(
+      "Usage/form trajectory (recent actuals) rising vs prior weeks.",
+    );
   } else if (usageTrend === "falling") {
-    trendLabel = "falling";
-  }
-
-  // Conservative ROS chip adj from delta + form (PPR points, capped)
-  let restOfSeasonAdj = 0;
-  if (avgDelta != null) restOfSeasonAdj += Math.max(-2.5, Math.min(2.5, avgDelta * 0.35));
-  if (usageTrend === "rising") restOfSeasonAdj += 0.6;
-  if (usageTrend === "falling") restOfSeasonAdj -= 0.6;
-  if (trendLabel === "hot" || trendLabel === "boom") restOfSeasonAdj += 0.4;
-  if (trendLabel === "cold" || trendLabel === "bust") restOfSeasonAdj -= 0.4;
-  restOfSeasonAdj = Math.round(restOfSeasonAdj * 10) / 10;
-
-  const parts: string[] = [];
-  if (avgDelta != null && withBoth.length) {
-    parts.push(
-      `Across ${withBoth.length} week(s) with both proj + actual, avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} vs ESPN/demo projection.`,
+    trendLabel = "Fading";
+    judgments.push(
+      "Usage/form trajectory (recent actuals) fading vs prior weeks.",
+    );
+  } else if (
+    avgDelta != null &&
+    Math.abs(avgDelta) >= 3 &&
+    withBoth.length >= 2
+  ) {
+    trendLabel = "BoomBust";
+    judgments.push(
+      `Proj-vs-actual swing avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} — boom/bust vs stored projections (ranked below injury/usage).`,
     );
   } else {
-    parts.push(
-      `${weeksSampled} scored week(s) stored; projection history still thin — comparing form only.`,
+    trendLabel = "Stable";
+    judgments.push("Stable vs recent form and stored projections.");
+  }
+
+  if (
+    !injured &&
+    avgDelta != null &&
+    trendLabel !== "BoomBust" &&
+    Math.abs(avgDelta) >= 2
+  ) {
+    judgments.push(
+      `Secondary: avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)} vs stored proj (does not outrank injury/usage).`,
     );
   }
-  parts.push(
-    `Recent form avg ${recentFormAvg.toFixed(1)} PPR (last ${recent.length}). Trend label: ${trendLabel}.`,
-  );
-  if (restOfSeasonAdj !== 0) {
-    parts.push(
-      `Trade chip nudge ${restOfSeasonAdj >= 0 ? "+" : ""}${restOfSeasonAdj.toFixed(1)} from stored trends (not a third-party ranking).`,
-    );
+
+  let restOfSeasonAdj = 0;
+  if (injured) restOfSeasonAdj = -4;
+  else {
+    if (usageTrend === "rising") restOfSeasonAdj += 0.8;
+    if (usageTrend === "falling") restOfSeasonAdj -= 0.8;
+    if (avgDelta != null)
+      restOfSeasonAdj += Math.max(-1.5, Math.min(1.5, avgDelta * 0.25));
+    if (trendLabel === "BoomBust") restOfSeasonAdj *= 0.5;
   }
+  restOfSeasonAdj = Math.round(restOfSeasonAdj * 10) / 10;
+
+  const evidenceSentence =
+    injured
+      ? `${playerName}: listed ${injuryStatus} — treat as Injury risk until status flips.`
+      : avgDelta != null && withBoth.length
+        ? `${playerName}: ${withBoth.length} wk proj+actual (avg ${avgDelta >= 0 ? "+" : ""}${avgDelta.toFixed(1)}), recent form ${recentFormAvg?.toFixed(1) ?? "—"} — ${trendLabel}.`
+        : `${playerName}: ${weeksSampled} scored week(s); projection history thin — ${trendLabel}.`;
+
+  const facts = {
+    weeksSampled,
+    avgProjected,
+    avgActual,
+    avgDelta,
+    recentFormAvg,
+    usageTrend,
+    injuryStatus,
+    sourceNote:
+      "ESPN Fantasy / demo / heuristic snapshots — not a paid ranking site",
+  };
 
   return {
     weeksSampled,
@@ -222,13 +278,33 @@ export function deriveTrendFromWeeks(
     trendLabel,
     usageTrend,
     restOfSeasonAdj,
-    rationale: `${playerName}: ${parts.join(" ")}`,
+    rationale: `${evidenceSentence} Chip nudge ${restOfSeasonAdj >= 0 ? "+" : ""}${restOfSeasonAdj.toFixed(1)}.`,
+    evidenceSentence,
+    factJson: JSON.stringify(facts),
+    judgmentJson: JSON.stringify({
+      rank: ["injury/role", "usage/form", "RZ", "SOS", "proj delta"],
+      judgments,
+    }),
   };
 }
 
-/**
- * Upsert weekly snapshots + recompute trend metrics for every player in the league.
- */
+async function upsertPlayer(player: FantasyPlayer) {
+  return prisma.player.upsert({
+    where: { espnId: player.espnId },
+    create: {
+      espnId: player.espnId,
+      name: player.name,
+      position: player.position,
+      nflTeam: player.nflTeam,
+    },
+    update: {
+      name: player.name,
+      position: player.position,
+      nflTeam: player.nflTeam,
+    },
+  });
+}
+
 export async function refreshProjectionTrends(
   league: LeagueData,
 ): Promise<{ snapshots: number; trends: number }> {
@@ -238,9 +314,9 @@ export async function refreshProjectionTrends(
   let snapshots = 0;
 
   for (const player of players) {
+    const dbPlayer = await upsertPlayer(player);
     const rows = weekRowsForPlayer(player, league.scoringPeriodId);
 
-    // Heuristic: fill missing projections for past weeks from player's recent actual avg
     const actuals = rows
       .filter((r) => r.actualPpr != null)
       .map((r) => r.actualPpr as number);
@@ -261,10 +337,14 @@ export async function refreshProjectionTrends(
         projected = Math.round(heuristicProj * 10) / 10;
         rowSource = "heuristic";
       }
-
       if (projected == null && row.actualPpr == null) continue;
 
-      await prisma.playerProjectionSnapshot.upsert({
+      const projectionDelta =
+        projected != null && row.actualPpr != null
+          ? row.actualPpr - projected
+          : null;
+
+      await prisma.playerWeekStat.upsert({
         where: {
           espnId_season_week_leagueId: {
             espnId: player.espnId,
@@ -274,6 +354,7 @@ export async function refreshProjectionTrends(
           },
         },
         create: {
+          playerId: dbPlayer.id,
           espnId: player.espnId,
           playerName: player.name,
           position: player.position,
@@ -282,16 +363,19 @@ export async function refreshProjectionTrends(
           week: row.week,
           projectedPpr: projected,
           actualPpr: row.actualPpr,
+          projectionDelta,
           source: rowSource,
           leagueId: lid,
           opponent: row.opponent ?? null,
         },
         update: {
+          playerId: dbPlayer.id,
           playerName: player.name,
           position: player.position,
           nflTeam: player.nflTeam,
           projectedPpr: projected,
           actualPpr: row.actualPpr,
+          projectionDelta,
           source: rowSource,
           opponent: row.opponent ?? null,
         },
@@ -299,7 +383,7 @@ export async function refreshProjectionTrends(
       snapshots += 1;
     }
 
-    const stored = await prisma.playerProjectionSnapshot.findMany({
+    const stored = await prisma.playerWeekStat.findMany({
       where: {
         espnId: player.espnId,
         season: league.season,
@@ -315,9 +399,10 @@ export async function refreshProjectionTrends(
         projectedPpr: s.projectedPpr,
         actualPpr: s.actualPpr,
       })),
+      player.injuryStatus,
     );
 
-    await prisma.playerTrendMetric.upsert({
+    await prisma.playerTrendSnapshot.upsert({
       where: {
         espnId_season_leagueId: {
           espnId: player.espnId,
@@ -326,36 +411,118 @@ export async function refreshProjectionTrends(
         },
       },
       create: {
+        playerId: dbPlayer.id,
         espnId: player.espnId,
         playerName: player.name,
         position: player.position,
         season: league.season,
         leagueId: lid,
-        ...derived,
+        weeksSampled: derived.weeksSampled,
+        avgProjected: derived.avgProjected,
+        avgActual: derived.avgActual,
+        avgDelta: derived.avgDelta,
+        recentFormAvg: derived.recentFormAvg,
+        trendLabel: derived.trendLabel,
+        usageTrend: derived.usageTrend,
+        restOfSeasonAdj: derived.restOfSeasonAdj,
+        evidenceSentence: derived.evidenceSentence,
+        factJson: derived.factJson,
+        judgmentJson: derived.judgmentJson,
       },
       update: {
+        playerId: dbPlayer.id,
         playerName: player.name,
         position: player.position,
-        ...derived,
+        weeksSampled: derived.weeksSampled,
+        avgProjected: derived.avgProjected,
+        avgActual: derived.avgActual,
+        avgDelta: derived.avgDelta,
+        recentFormAvg: derived.recentFormAvg,
+        trendLabel: derived.trendLabel,
+        usageTrend: derived.usageTrend,
+        restOfSeasonAdj: derived.restOfSeasonAdj,
+        evidenceSentence: derived.evidenceSentence,
+        factJson: derived.factJson,
+        judgmentJson: derived.judgmentJson,
       },
     });
   }
 
-  const trends = await prisma.playerTrendMetric.count({
+  const trends = await prisma.playerTrendSnapshot.count({
     where: { season: league.season, leagueId: lid },
   });
 
   return { snapshots, trends };
 }
 
+function toTrendView(
+  m: {
+    espnId: number;
+    playerName: string;
+    position: string;
+    trendLabel: string;
+    usageTrend: string;
+    weeksSampled: number;
+    avgProjected: number | null;
+    avgActual: number | null;
+    avgDelta: number | null;
+    recentFormAvg: number | null;
+    restOfSeasonAdj: number;
+    evidenceSentence: string | null;
+    factJson: string | null;
+    judgmentJson: string | null;
+  },
+  weeks: PlayerTrendView["weeks"],
+): PlayerTrendView {
+  let facts: Record<string, unknown> | undefined;
+  let judgments: string[] | undefined;
+  try {
+    if (m.factJson) facts = JSON.parse(m.factJson) as Record<string, unknown>;
+  } catch {
+    facts = undefined;
+  }
+  try {
+    if (m.judgmentJson) {
+      const j = JSON.parse(m.judgmentJson) as { judgments?: string[] };
+      judgments = j.judgments;
+    }
+  } catch {
+    judgments = undefined;
+  }
+
+  const label = normalizeTrendLabel(m.trendLabel);
+  const rationale =
+    m.evidenceSentence ??
+    `${m.playerName}: ${label} (${m.weeksSampled} wk sample).`;
+
+  return {
+    espnId: m.espnId,
+    playerName: m.playerName,
+    position: m.position,
+    trendLabel: label,
+    usageTrend: m.usageTrend as UsageTrend,
+    weeksSampled: m.weeksSampled,
+    avgProjected: m.avgProjected,
+    avgActual: m.avgActual,
+    avgDelta: m.avgDelta,
+    recentFormAvg: m.recentFormAvg,
+    restOfSeasonAdj: m.restOfSeasonAdj,
+    rationale,
+    evidenceSentence: m.evidenceSentence ?? undefined,
+    facts,
+    judgments,
+    weeks,
+  };
+}
+
 export async function loadTrendMap(
   league: LeagueData,
 ): Promise<Map<number, PlayerTrendView>> {
   const lid = leagueKey(league.leagueId);
-  const metrics = await prisma.playerTrendMetric.findMany({
+  const metrics = await prisma.playerTrendSnapshot.findMany({
     where: { season: league.season, leagueId: lid },
   });
-  const snaps = await prisma.playerProjectionSnapshot.findMany({
+  const snaps = await prisma.playerWeekStat.findMany({
     where: { season: league.season, leagueId: lid },
     orderBy: { week: "asc" },
   });
@@ -375,26 +542,11 @@ export async function loadTrendMap(
       actual: s.actualPpr,
       opponent: s.opponent,
     }));
-    map.set(m.espnId, {
-      espnId: m.espnId,
-      playerName: m.playerName,
-      position: m.position,
-      trendLabel: m.trendLabel as PlayerTrendLabel,
-      usageTrend: m.usageTrend as UsageTrend,
-      weeksSampled: m.weeksSampled,
-      avgProjected: m.avgProjected,
-      avgActual: m.avgActual,
-      avgDelta: m.avgDelta,
-      recentFormAvg: m.recentFormAvg,
-      restOfSeasonAdj: m.restOfSeasonAdj,
-      rationale: m.rationale ?? `${m.playerName}: trend sample thin.`,
-      weeks,
-    });
+    map.set(m.espnId, toTrendView(m, weeks));
   }
   return map;
 }
 
-/** In-memory trends from league payload only (no DB) — used as fallback. */
 export function computeTrendsFromLeague(
   league: LeagueData,
 ): Map<number, PlayerTrendView> {
@@ -408,19 +560,35 @@ export function computeTrendsFromLeague(
         projectedPpr: r.projectedPpr,
         actualPpr: r.actualPpr,
       })),
+      player.injuryStatus,
     );
-    map.set(player.espnId, {
-      espnId: player.espnId,
-      playerName: player.name,
-      position: player.position,
-      ...derived,
-      weeks: rows.map((r) => ({
-        week: r.week,
-        projected: r.projectedPpr,
-        actual: r.actualPpr,
-        opponent: r.opponent,
-      })),
-    });
+    map.set(
+      player.espnId,
+      toTrendView(
+        {
+          espnId: player.espnId,
+          playerName: player.name,
+          position: player.position,
+          trendLabel: derived.trendLabel,
+          usageTrend: derived.usageTrend,
+          weeksSampled: derived.weeksSampled,
+          avgProjected: derived.avgProjected,
+          avgActual: derived.avgActual,
+          avgDelta: derived.avgDelta,
+          recentFormAvg: derived.recentFormAvg,
+          restOfSeasonAdj: derived.restOfSeasonAdj,
+          evidenceSentence: derived.evidenceSentence,
+          factJson: derived.factJson,
+          judgmentJson: derived.judgmentJson,
+        },
+        rows.map((r) => ({
+          week: r.week,
+          projected: r.projectedPpr,
+          actual: r.actualPpr,
+          opponent: r.opponent,
+        })),
+      ),
+    );
   }
   return map;
 }
@@ -442,7 +610,6 @@ export function enrichPlayersWithSnapshots(
           (snap?.projected != null ? snap.projected : undefined),
       };
     });
-    // Ensure weeks from DB that aren't on the player yet still show in UI via recentWeeks
     for (const w of view.weeks) {
       if (w.week >= league.scoringPeriodId) continue;
       if (recentWeeks.some((r) => r.week === w.week)) continue;

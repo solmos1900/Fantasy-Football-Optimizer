@@ -31,8 +31,15 @@ export interface WeeklyScore {
   opponent?: string;
 }
 
-/** Persisted / computed trend analyst labels (never invented accuracy claims). */
+/** Persisted / computed trend analyst labels (research brief). */
 export type PlayerTrendLabel =
+  | "Rising"
+  | "Stable"
+  | "Fading"
+  | "BoomBust"
+  | "InjuryRisk"
+  | "Thin"
+  // legacy aliases still accepted when reading older rows
   | "hot"
   | "cold"
   | "boom"
@@ -57,6 +64,9 @@ export interface PlayerTrendView {
   recentFormAvg: number | null;
   restOfSeasonAdj: number;
   rationale: string;
+  evidenceSentence?: string;
+  facts?: Record<string, unknown>;
+  judgments?: string[];
   /** Recent weeks with proj vs actual for spark/table UI */
   weeks: {
     week: number;

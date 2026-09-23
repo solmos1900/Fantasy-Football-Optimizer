@@ -425,10 +425,15 @@ export function buildInsightsBundle(
       for (const pid of insight.relatedPlayerIds ?? []) {
         const player = rosterPool(league).find((p) => p.id === pid);
         const t = player ? trends.get(player.espnId) : undefined;
-        if (t && t.trendLabel !== "thin") {
+        if (t && t.trendLabel !== "thin" && t.trendLabel !== "Thin") {
           insight.reasoning.push(
             `Trend (${trendLabelCopy(t.trendLabel)}): ${t.rationale}`,
           );
+          if (t.judgments?.length) {
+            insight.reasoning.push(
+              `Judgment (injury/usage > hot-cold): ${t.judgments.join(" ")}`,
+            );
+          }
         }
       }
     }

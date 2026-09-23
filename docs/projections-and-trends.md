@@ -1,74 +1,68 @@
 # Projection snapshots & PPR trend analyst
 
-Gridiron IQ stores weekly **projected vs actual PPR** history in Neon Postgres so trade / start-sit advice can cite real accumulated samples — not invented third-party accuracy claims.
+Aligned to the **PPR Fantasy Intelligence** research brief. Gridiron IQ stores weekly **projected vs actual PPR** in Neon so trade / start-sit advice cites accumulated samples — not invented third-party accuracy claims.
 
-## Schema
+## Schema (preferred)
 
-### `PlayerProjectionSnapshot`
+| Model | Role |
+|-------|------|
+| `Player` | Canonical ESPN-id player identity |
+| `PlayerWeekStat` | Weekly `projectedPpr`, `actualPpr`, `projectionDelta`, optional usage (`targets`, shares, snaps, airYards, RZ) |
+| `PlayerTrendSnapshot` | `Rising` \| `Stable` \| `Fading` \| `BoomBust` \| `InjuryRisk` \| `Thin` + `evidenceSentence`, `factJson`, `judgmentJson` |
+| `DefenseWeekAllow` | Defense fantasy points allowed by week/position (matchup SOS) |
+| `LeagueConnection` | ESPN/demo connection + cached payload (kept; not the only truth) |
 
-One row per `(espnId, season, week, leagueId)`:
+Migration: `prisma/migrations/20260923020000_research_player_week_trend/` (replaces the earlier snapshot/metric table names).
 
-| Field | Meaning |
-|-------|---------|
-| `projectedPpr` | Projected fantasy points for that week (ESPN `statSourceId=1`, demo seed, or **heuristic** fill) |
-| `actualPpr` | Actual league scoring / PPR when available (ESPN `statSourceId=0` or demo) |
-| `targets` / `carries` / `targetShare` | Optional usage proxies (often null until ESPN stats expose them) |
-| `source` | `espn` \| `demo` \| `heuristic` |
-| `leagueId` | League scope (`demo-league` for demo; ESPN league id for live) |
+## Sources (honest)
 
-### `PlayerTrendMetric`
+| Source | Use |
+|--------|-----|
+| **ESPN Fantasy** (user-auth sync) | Primary projected + actual PPR |
+| **Demo seed** | Guest/demo `recentWeeks` |
+| **Heuristic** | Fill missing past projections; marked `source=heuristic` |
+| **nflverse** | Reserved usage fields — free feed when wired |
+| **FantasyPros / SportsDataIO** | Paid commercial only — **not** integrated; never scrape or fake labels |
+| **Sleeper** | Free non-commercial — do not ship commercial Sleeper use without a license |
 
-Rolling derived metrics per `(espnId, season, leagueId)`:
+## Trend judgment rank (do not invert)
 
-- `avgProjected`, `avgActual`, `avgDelta` (actual − projected)
-- `recentFormAvg`, `trendLabel` (`hot` / `cold` / `boom` / `bust` / `rising` / `falling` / `steady` / `thin`)
-- `usageTrend` (slope of recent actuals)
-- `restOfSeasonAdj` — small additive full-PPR chip nudge for trade valuing
-- `rationale` — plain-language explanation shown in UI
+1. Injury / role  
+2. Target / rush / snap trajectory (3-game vs season) — fall back to actual-PPR slope when usage null  
+3. Red-zone (when present)  
+4. SOS / matchup (`DefenseWeekAllow` + in-memory defense comps)  
+5. Hot/cold vs projection — **only with** usage/form context; never outranks #1–2  
 
-Migration: `prisma/migrations/20260923010000_player_projection_trends/`.
+`factJson` = measurable evidence. `judgmentJson` = ordered conclusions for the UI.
 
-## How trends update (Vercel-friendly)
+## Trade rules (full PPR, 1QB)
 
-No fragile long cron. Refresh happens:
+- Surplus → need; improve **starters**, not spreadsheet win%.  
+- Reject naked QB ↔ skill 1:1 (especially QB ↔ WR1).  
+- 2-for-1 ≈ star with **≤10% premium**, and **both package pieces startable**.  
+- Scarcity chips: elite TE ≈ locked RB1 > volume WR1 > QB.  
+- Mutually beneficial copy: For you / For them / Why accepted.  
+- Half-PPR: only matters when it flips TE / pass-catching RB leans (ESPN `appliedTotal` already reflects league settings when synced).
 
-1. **On league sync / connect** (`src/lib/league/service.ts`) — after ESPN or demo payload is cached.
-2. **On Insights / player detail load** — best-effort `refreshProjectionTrends(league)`.
-3. **On-demand API** — `POST /api/trends/refresh` (authenticated). `GET` returns the current trend map.
+## How trends update
 
-Practical flow for managers:
-
-1. Sync league → this week’s projections are stored.
-2. After the week scores → next sync fills `actualPpr` and past-week ESPN projected totals when present.
-3. Open Insights → Trend analyst section + trade cards cite the stored history.
-
-## Projection sources (honest labeling)
-
-| Source | When used |
-|--------|-----------|
-| **ESPN Fantasy league API** | Live leagues: weekly `appliedTotal` for projected (`statSourceId=1`) and actual (`statSourceId=0`) |
-| **Demo seed** | Guest/demo: `recentWeeks` with optional `projectedPoints` |
-| **Heuristic** | Past week has actual but no stored projection — fill with rolling recent average and mark `source=heuristic` |
-
-**Never** label UI as FantasyPros / CBS / etc. unless that feed is actually integrated.
-
-Scoring assumption: **full PPR** chip blend in trades (`65%` this-week projection + `35%` recent actual), with QBs heavily discounted in 1QB leagues. Half-PPR leagues still work if ESPN’s `appliedTotal` already reflects league settings.
+1. League sync/connect  
+2. Insights / player detail load (best-effort)  
+3. `POST /api/trends/refresh`
 
 ## How managers should read recommendations
 
-- **Trend labels** describe *your stored sample*, not a guaranteed ROS rank.
-- **Beating / under proj** (`boom` / `bust`) needs weeks with *both* projected and actual.
-- **Hot / cold / rising / falling** lean on recent actual slope + form vs season average.
-- **Trade cards** prefer same-position / need-based packages, block naked QB↔skill 1:1, and may nudge value with `restOfSeasonAdj` when samples exist.
-- **Thin sample** means wait for more syncs — don’t overfit early weeks.
+- Verdict + bullets: **facts first**, then judgment.  
+- No fake win%. Labels describe **your stored sample**.  
+- Thin / Injury risk means wait or sit — don’t overfit one game.  
+- Waivers only recommend in-league available FAs.
 
 ## Code map
 
 | Path | Role |
 |------|------|
-| `src/lib/insights/trends.ts` | Snapshot upsert + trend derivation |
-| `src/lib/insights/trades.ts` | Full-PPR trade engine + trend blurbs |
-| `src/lib/insights/engine.ts` | Insights bundle (passes trend map) |
-| `src/components/trend-panel.tsx` | Spark + proj/actual table |
-| `src/app/api/trends/refresh/route.ts` | On-demand refresh API |
-| `docs/projections-and-trends.md` | This document |
+| `src/lib/insights/trends.ts` | Week stat upsert + trend derivation |
+| `src/lib/insights/trades.ts` | Full-PPR trade engine (research norms) |
+| `src/lib/insights/engine.ts` | Insights bundle |
+| `src/components/trend-panel.tsx` | Spark + table |
+| `src/app/api/trends/refresh/route.ts` | On-demand refresh |

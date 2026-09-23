@@ -173,10 +173,13 @@ export function buildPlayerDetailInsight(
     `This week projection: ${player.projectedPoints.toFixed(1)} PPR (${venue.label}).`,
   );
 
-  if (trend && trend.trendLabel !== "thin") {
+  if (trend && trend.trendLabel !== "thin" && trend.trendLabel !== "Thin") {
     reasons.push(
-      `Stored trend: ${trendLabelCopy(trend.trendLabel)} — ${trend.rationale}`,
+      `Stored trend: ${trendLabelCopy(trend.trendLabel)} — ${trend.evidenceSentence ?? trend.rationale}`,
     );
+    if (trend.judgments?.length) {
+      reasons.push(`Judgment order: ${trend.judgments.join(" ")}`);
+    }
   }
 
   if (recentAvg != null) {
