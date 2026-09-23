@@ -234,7 +234,7 @@ export function InstallAppExperience() {
           className={cn(
             "fixed inset-x-0 z-50 px-3 pt-2",
             aboveTabBar
-              ? "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))] pb-2"
+              ? "bottom-[calc(3.625rem+max(0.5rem,env(safe-area-inset-bottom,0px)))] pb-2"
               : "bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
           )}
           role="region"

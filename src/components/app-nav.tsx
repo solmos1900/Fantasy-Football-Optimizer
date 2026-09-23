@@ -56,7 +56,7 @@ export function AppNav() {
     <>
       {/* Slim top chrome — brand + utilities (not primary section tabs) */}
       <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_92%,white)]/95 shadow-[0_1px_0_rgba(253,249,240,0.8)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-2.5 py-2.5 sm:gap-3 sm:px-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-2.5 sm:gap-4 sm:px-4">
           <PendingLink
             href="/dashboard"
             className="group relative min-w-0 shrink overflow-hidden"
@@ -69,43 +69,51 @@ export function AppNav() {
             />
           </PendingLink>
 
-          <div className="flex shrink-0 items-center gap-0.5 sm:gap-2.5">
-            <InstallHowToLink className="px-0.5 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
-              Install
-            </InstallHowToLink>
-            <PendingLink
-              href="/connect"
-              className="relative px-0.5 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
-              contentClassName="gap-0"
-              pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
-            >
-              Connect
-            </PendingLink>
-            {data?.user?.isGuest ? (
-              <span className="rounded-md bg-orange-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
-                Guest
-              </span>
-            ) : (
-              <span className="hidden max-w-[10rem] truncate text-sm text-emerald-950/60 md:inline">
-                {data?.user?.name ?? data?.user?.email}
-              </span>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              loading={signingOut}
-              disabled={signingOut}
-              aria-label={signingOut ? "Signing out" : "Sign out"}
-              onClick={() =>
-                startSignOut(() => {
-                  void signOut({ callbackUrl: "/" });
-                })
-              }
-              className="!h-9 !min-h-9 !shrink-0 !gap-1 !px-1.5 !text-xs !font-semibold whitespace-nowrap sm:!px-3 sm:!text-sm"
-            >
-              {signingOut ? "Signing out…" : "Sign out"}
-            </Button>
+          {/*
+            Group utilities with real gaps: links | session.
+            Prefer wrap over crushing controls on ~390px.
+          */}
+          <div className="flex max-w-[min(100%,14.5rem)] flex-wrap items-center justify-end gap-x-2.5 gap-y-1.5 sm:max-w-none sm:gap-x-3">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <InstallHowToLink className="px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
+                Install
+              </InstallHowToLink>
+              <PendingLink
+                href="/connect"
+                className="relative px-1 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
+                contentClassName="gap-0"
+                pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
+              >
+                Connect
+              </PendingLink>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              {data?.user?.isGuest ? (
+                <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
+                  Guest
+                </span>
+              ) : (
+                <span className="hidden max-w-[10rem] truncate text-sm text-emerald-950/60 md:inline">
+                  {data?.user?.name ?? data?.user?.email}
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                loading={signingOut}
+                disabled={signingOut}
+                aria-label={signingOut ? "Signing out" : "Sign out"}
+                onClick={() =>
+                  startSignOut(() => {
+                    void signOut({ callbackUrl: "/" });
+                  })
+                }
+                className="!h-9 !min-h-9 !shrink-0 !gap-1 !px-2.5 !text-xs !font-semibold whitespace-nowrap sm:!px-3 sm:!text-sm"
+              >
+                {signingOut ? "Signing out…" : "Sign out"}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -113,9 +121,9 @@ export function AppNav() {
       {/* Primary destinations — fixed bottom tab bar (all breakpoints) */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)]"
+        className="fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
       >
-        <div className="mx-auto grid max-w-6xl grid-cols-6 px-1 pt-1 sm:px-2">
+        <div className="mx-auto grid max-w-6xl grid-cols-6 px-1 pb-1 pt-1.5 sm:px-2 sm:pb-1.5">
           {PRIMARY_TABS.map((tab) => {
             const active = isTabActive(pathname, tab.href);
             const Icon = tab.icon;
@@ -127,7 +135,7 @@ export function AppNav() {
                 aria-label={tab.label}
                 title={tab.label}
                 className={cn(
-                  "flex min-h-11 items-stretch justify-center rounded-lg px-0.5 py-1 transition-colors sm:min-h-12 sm:px-1",
+                  "flex min-h-12 items-stretch justify-center rounded-lg px-0.5 py-1 transition-colors sm:min-h-[3.25rem] sm:px-1",
                   active
                     ? "text-emerald-950"
                     : "text-emerald-950/45 hover:text-emerald-950/75",
@@ -147,9 +155,13 @@ export function AppNav() {
                     aria-hidden
                   />
                 </span>
+                {/*
+                  leading-tight (not leading-none) + no overflow:hidden so
+                  descenders on "League" / "Insights" are not clipped.
+                */}
                 <span
                   className={cn(
-                    "max-w-full truncate text-[10px] font-semibold leading-none tracking-tight sm:text-[11px]",
+                    "max-w-full text-center text-[10px] font-semibold leading-tight tracking-tight sm:text-[11px]",
                     active ? "text-emerald-950" : "text-emerald-950/55",
                   )}
                 >

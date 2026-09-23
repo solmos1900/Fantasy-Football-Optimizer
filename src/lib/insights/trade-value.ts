@@ -92,13 +92,21 @@ export function tierOf(p: FantasyPlayer): TradeTier {
  * Trade-chip value; full-PPR. ROS/form ~70%, this-week proj ~30%.
  * Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB).
  */
+function trendFor(
+  trends: TrendLookup,
+  espnId: number,
+): PlayerTrendView | undefined {
+  if (!trends || typeof trends.get !== "function") return undefined;
+  return trends.get(espnId);
+}
+
 export function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
   const recent =
     p.recentWeeks && p.recentWeeks.length
       ? p.recentWeeks.reduce((a, w) => a + w.points, 0) / p.recentWeeks.length
       : p.projectedPoints;
   let blended = p.projectedPoints * 0.3 + recent * 0.7;
-  const trend = trends?.get(p.espnId);
+  const trend = trendFor(trends, p.espnId);
   // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
   if (trend) blended += trend.restOfSeasonAdj;
   if (["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus)) blended *= 0.15;
@@ -130,7 +138,7 @@ export function trendBlurb(
   p: FantasyPlayer,
   trends?: TrendLookup,
 ): string | null {
-  const t = trends?.get(p.espnId);
+  const t = trendFor(trends, p.espnId);
   if (!t) return null;
   const label = normalizeTrendLabel(t.trendLabel);
   if (label === "Thin") return null;
@@ -218,10 +226,10 @@ export function trendFitBonus(
   receive: FantasyPlayer[],
   trends?: TrendLookup,
 ): number {
-  if (!trends?.size) return 0;
+  if (!trends?.size || typeof trends.get !== "function") return 0;
   let bonus = 0;
   for (const p of receive) {
-    const t = trends.get(p.espnId);
+    const t = trendFor(trends, p.espnId);
     if (!t) continue;
     const label = normalizeTrendLabel(t.trendLabel);
     if (label === "InjuryRisk") bonus -= 0.5;
@@ -229,7 +237,7 @@ export function trendFitBonus(
     if (label === "Rising") bonus += 0.15;
   }
   for (const p of give) {
-    const t = trends.get(p.espnId);
+    const t = trendFor(trends, p.espnId);
     if (!t) continue;
     const label = normalizeTrendLabel(t.trendLabel);
     if (label === "Rising") bonus += 0.2;
@@ -322,7 +330,7 @@ export function acceptanceReason(
   }
 
   const buyLow = receive
-    .map((p) => trends?.get(p.espnId))
+    .map((p) => trendFor(trends, p.espnId))
     .filter((t) => {
       if (!t) return false;
       const label = normalizeTrendLabel(t.trendLabel);
