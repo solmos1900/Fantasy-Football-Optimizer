@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDemoLeague, connectEspnLeague } from "@/lib/league/service";
+import { defaultEspnSeason } from "@/lib/season";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     const leagueId = String(body.leagueId ?? "").trim();
-    const season = Number(body.season ?? process.env.DEFAULT_ESPN_SEASON ?? 2025);
+    const season = Number(body.season ?? defaultEspnSeason());
     if (!leagueId) {
       return NextResponse.json({ error: "leagueId is required" }, { status: 400 });
     }

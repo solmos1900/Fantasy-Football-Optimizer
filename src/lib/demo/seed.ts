@@ -6,6 +6,7 @@ import type {
   LiveStatSnapshot,
   PlayerRole,
 } from "@/lib/types";
+import { defaultEspnSeason } from "@/lib/season";
 
 function p(
   partial: Omit<FantasyPlayer, "id"> & { id?: string },
@@ -679,7 +680,7 @@ export function createDemoLeague(userTeamId = 1): LeagueData {
 
   return {
     leagueId: "demo-league",
-    season: Number(process.env.DEFAULT_ESPN_SEASON ?? 2025),
+    season: defaultEspnSeason(),
     name: "Sebastian's Demo League",
     currentWeek: 7,
     scoringPeriodId: 7,

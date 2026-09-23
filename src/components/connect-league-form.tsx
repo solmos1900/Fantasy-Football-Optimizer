@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { SyncButton } from "@/components/sync-button";
 import { Button } from "@/components/ui/button";
+import { scrollToTopNow } from "@/components/scroll-to-top";
+import { defaultEspnSeasonClient } from "@/lib/season";
 
 export type ConnectedLeagueSummary = {
   leagueId: string;
@@ -26,9 +28,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
   const [showReconnect, setShowReconnect] = useState(!connection);
   const [form, setForm] = useState({
     leagueId: connection && !connection.isDemo ? connection.leagueId : "",
-    season: String(
-      connection?.season ?? process.env.NEXT_PUBLIC_DEFAULT_SEASON ?? "2025",
-    ),
+    season: String(connection?.season ?? defaultEspnSeasonClient()),
     teamId: connection?.teamId != null ? String(connection.teamId) : "",
     swid: "",
     espnS2: "",
@@ -47,6 +47,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
         setError(data.error ?? "Demo connect failed");
         return;
       }
+      scrollToTopNow();
       router.push("/dashboard");
       router.refresh();
     });
@@ -73,6 +74,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
         setError(data.error ?? "ESPN connect failed");
         return;
       }
+      scrollToTopNow();
       router.push("/dashboard");
       router.refresh();
     });
