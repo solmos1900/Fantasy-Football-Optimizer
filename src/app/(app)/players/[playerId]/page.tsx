@@ -7,6 +7,13 @@ import {
   buildPlayerDetailInsight,
   findPlayerInLeague,
 } from "@/lib/insights/player-detail";
+import {
+  computeTrendsFromLeague,
+  enrichPlayersWithSnapshots,
+  loadTrendMap,
+  refreshProjectionTrends,
+} from "@/lib/insights/trends";
+import { TrendPanel } from "@/components/trend-panel";
 import { cn, statusColor } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +25,11 @@ export default async function PlayerDetailPage({
 }) {
   const { playerId } = await params;
   const session = await auth();
-  const league = session?.user?.id
+  const rawLeague = session?.user?.id
     ? await getLeagueDataForUser(session.user.id)
     : null;
 
-  if (!league) {
+  if (!rawLeague) {
     return (
       <div className="max-w-lg">
         <h1 className="type-page text-emerald-950">
@@ -42,11 +49,23 @@ export default async function PlayerDetailPage({
     );
   }
 
+  try {
+    await refreshProjectionTrends(rawLeague);
+  } catch {
+    // best-effort
+  }
+  let trendMap = await loadTrendMap(rawLeague);
+  if (trendMap.size === 0) {
+    trendMap = computeTrendsFromLeague(rawLeague);
+  }
+  const league = enrichPlayersWithSnapshots(rawLeague, trendMap);
+
   const found = findPlayerInLeague(league, decodeURIComponent(playerId));
   if (!found) notFound();
 
   const { player, teamName } = found;
-  const insight = buildPlayerDetailInsight(league, player);
+  const playerTrend = trendMap.get(player.espnId) ?? null;
+  const insight = buildPlayerDetailInsight(league, player, playerTrend);
   const live = await getLiveStats(league);
   const recent = [...(player.recentWeeks ?? [])]
     .sort((a, b) => b.week - a.week)
@@ -204,9 +223,18 @@ export default async function PlayerDetailPage({
       </section>
 
       <section>
-        <h2 className="type-section text-emerald-950">
-          Recent weeks
-        </h2>
+        <h2 className="type-section text-emerald-950">Projection vs actual</h2>
+        <p className="type-body mt-1 text-emerald-950/55">
+          Stored weekly snapshots (Neon) compare projected PPR to what actually
+          scored — used for start/sit and trade chip nudges.
+        </p>
+        <div className="mt-3">
+          <TrendPanel trend={playerTrend} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="type-section text-emerald-950">Recent weeks</h2>
         {recent.length === 0 ? (
           <p className="mt-2 text-sm text-emerald-950/50">
             No prior-week PPR totals stored yet for this player.
@@ -218,6 +246,7 @@ export default async function PlayerDetailPage({
                 <tr className="border-b border-emerald-950/10 text-xs uppercase tracking-wider text-emerald-950/45">
                   <th className="py-2 pr-2 font-semibold">Week</th>
                   <th className="py-2 pr-2 font-semibold">Opp</th>
+                  <th className="py-2 pr-2 font-semibold">Proj</th>
                   <th className="py-2 font-semibold">PPR</th>
                 </tr>
               </thead>
@@ -229,6 +258,11 @@ export default async function PlayerDetailPage({
                     </td>
                     <td className="py-2 pr-2 text-emerald-950/70">
                       {w.opponent ?? "—"}
+                    </td>
+                    <td className="py-2 pr-2 text-emerald-950/70">
+                      {w.projectedPoints != null
+                        ? w.projectedPoints.toFixed(1)
+                        : "—"}
                     </td>
                     <td className="py-2 font-semibold text-emerald-950">
                       {w.points.toFixed(1)}

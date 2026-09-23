@@ -30,11 +30,13 @@ import type {
   InsightRecommendation,
   LeagueData,
   PlayerPosition,
+  PlayerTrendView,
 } from "@/lib/types";
 import {
   analyzeDefenseMatchup,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
+import { trendLabelCopy } from "@/lib/insights/trend-labels";
 
 const SKILL: PlayerPosition[] = ["RB", "WR", "TE"];
 
@@ -96,21 +98,35 @@ function tierOf(p: FantasyPlayer): Tier {
   return "streamer";
 }
 
-/** Trade-chip value; QB heavily discounted in 1QB PPR. */
-function chipValue(p: FantasyPlayer): number {
+type TrendLookup = Map<number, PlayerTrendView> | undefined;
+
+/** Trade-chip value; full-PPR blended, QB heavily discounted in 1QB. */
+function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
   const recent =
     p.recentWeeks && p.recentWeeks.length
       ? p.recentWeeks.reduce((a, w) => a + w.points, 0) / p.recentWeeks.length
       : p.projectedPoints;
-  const blended = p.projectedPoints * 0.65 + recent * 0.35;
+  let blended = p.projectedPoints * 0.65 + recent * 0.35;
+  const trend = trends?.get(p.espnId);
+  if (trend) blended += trend.restOfSeasonAdj;
   if (p.position === "QB") return blended * 0.45;
   if (p.position === "TE") return blended * 1.05;
   if (p.position === "RB") return blended * 1.1;
   return blended;
 }
 
-function sideValue(players: FantasyPlayer[]): number {
-  return players.reduce((a, p) => a + chipValue(p), 0);
+function sideValue(players: FantasyPlayer[], trends?: TrendLookup): number {
+  return players.reduce((a, p) => a + chipValue(p, trends), 0);
+}
+
+function trendBlurb(p: FantasyPlayer, trends?: TrendLookup): string | null {
+  const t = trends?.get(p.espnId);
+  if (!t || t.trendLabel === "thin") return null;
+  const delta =
+    t.avgDelta != null
+      ? ` avg ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs stored proj`
+      : "";
+  return `${p.name}: ${trendLabelCopy(t.trendLabel).toLowerCase()}${delta} (${t.weeksSampled} wk sample).`;
 }
 
 function needsPos(team: FantasyTeam, pos: PlayerPosition): boolean {
@@ -151,9 +167,10 @@ function isForbiddenOneForOne(
 function isOutrageousValue(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
+  trends?: TrendLookup,
 ): boolean {
-  const gv = sideValue(give);
-  const rv = sideValue(receive);
+  const gv = sideValue(give, trends);
+  const rv = sideValue(receive, trends);
   const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
   if (ratio > 1.55) return true;
 
@@ -164,11 +181,39 @@ function isOutrageousValue(
   return false;
 }
 
-function fairnessScore(give: FantasyPlayer[], receive: FantasyPlayer[]): number {
-  const gv = sideValue(give);
-  const rv = sideValue(receive);
+function fairnessScore(
+  give: FantasyPlayer[],
+  receive: FantasyPlayer[],
+  trends?: TrendLookup,
+): number {
+  const gv = sideValue(give, trends);
+  const rv = sideValue(receive, trends);
   const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
   return Math.max(0, 1.4 - ratio);
+}
+
+function trendFitBonus(
+  give: FantasyPlayer[],
+  receive: FantasyPlayer[],
+  trends?: TrendLookup,
+): number {
+  if (!trends?.size) return 0;
+  let bonus = 0;
+  // Prefer buying players who are cold/bust (buy-low) when receiving
+  for (const p of receive) {
+    const t = trends.get(p.espnId);
+    if (!t) continue;
+    if (t.trendLabel === "bust" || t.trendLabel === "cold") bonus += 0.35;
+    if (t.trendLabel === "rising" || t.trendLabel === "hot") bonus += 0.2;
+  }
+  // Prefer selling hot/boom when giving (sell-high)
+  for (const p of give) {
+    const t = trends.get(p.espnId);
+    if (!t) continue;
+    if (t.trendLabel === "boom" || t.trendLabel === "hot") bonus += 0.25;
+    if (t.trendLabel === "falling" || t.trendLabel === "cold") bonus -= 0.15;
+  }
+  return bonus;
 }
 
 function needFitScore(
@@ -206,6 +251,7 @@ function acceptanceReason(
   them: FantasyTeam,
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
+  trends?: TrendLookup,
 ): string {
   const parts: string[] = [];
 
@@ -231,7 +277,7 @@ function acceptanceReason(
   }
 
   parts.push(
-    `Chip values close on a 1QB-PPR scale with QBs discounted (${sideValue(give).toFixed(1)} vs ${sideValue(receive).toFixed(1)}).`,
+    `Chip values close on a full-PPR 1QB scale with QBs discounted (${sideValue(give, trends).toFixed(1)} vs ${sideValue(receive, trends).toFixed(1)}).`,
   );
 
   const theirNeed = give.filter((p) => needsPos(them, p.position));
@@ -244,6 +290,15 @@ function acceptanceReason(
   if (yourNeed.length) {
     parts.push(
       `You have a ${[...new Set(yourNeed.map((p) => p.position))].join("/")} hole this fills.`,
+    );
+  }
+
+  const buyLow = receive
+    .map((p) => trends?.get(p.espnId))
+    .filter((t) => t && (t.trendLabel === "bust" || t.trendLabel === "cold"));
+  if (buyLow.length) {
+    parts.push(
+      `Includes a buy-low on ${buyLow.map((t) => t!.playerName).join(", ")} vs stored projections.`,
     );
   }
 
@@ -265,22 +320,24 @@ function consider(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   kind: Candidate["kind"],
+  trends?: TrendLookup,
 ) {
   if (!give.length || !receive.length) return;
   if (isForbiddenOneForOne(give, receive)) return;
-  if (isOutrageousValue(give, receive)) return;
+  if (isOutrageousValue(give, receive, trends)) return;
 
   const fit = needFitScore(you, them, give, receive);
-  const fair = fairnessScore(give, receive);
+  const fair = fairnessScore(give, receive, trends);
   const same = samePosBonus(give, receive);
-  if (fit + same < 1.2) return;
+  const trendBonus = trendFitBonus(give, receive, trends);
+  if (fit + same + Math.max(0, trendBonus) < 1.2) return;
   if (fair < 0.35) return;
 
   list.push({
     them,
     give,
     receive,
-    score: fit * 1.4 + fair * 2 + same,
+    score: fit * 1.4 + fair * 2 + same + trendBonus,
     kind,
   });
 }
@@ -288,6 +345,7 @@ function consider(
 export function buildRealisticTrades(
   league: LeagueData,
   you: FantasyTeam,
+  trends?: TrendLookup,
 ): InsightRecommendation[] {
   const others = league.teams.filter((t) => t.id !== you.id);
   const candidates: Candidate[] = [];
@@ -314,7 +372,7 @@ export function buildRealisticTrades(
         ) {
           continue;
         }
-        consider(candidates, you, them, [give], [receive], "1for1");
+        consider(candidates, you, them, [give], [receive], "1for1", trends);
       }
     }
   }
@@ -330,7 +388,7 @@ export function buildRealisticTrades(
         const give = surplusOf(you, givePos)[0];
         const receive = surplusOf(them, getPos)[0] ?? atPos(them, getPos)[1];
         if (!give || !receive) continue;
-        consider(candidates, you, them, [give], [receive], "1for1");
+        consider(candidates, you, them, [give], [receive], "1for1", trends);
       }
     }
   }
@@ -353,9 +411,9 @@ export function buildRealisticTrades(
       }
       if (pieces.length < 2) continue;
       const pkg = pieces.slice(0, 2);
-      if (sideValue(pkg) < chipValue(star) * 0.75) continue;
-      if (sideValue(pkg) > chipValue(star) * 1.45) continue;
-      consider(candidates, you, them, pkg, [star], "2for1");
+      if (sideValue(pkg, trends) < chipValue(star, trends) * 0.75) continue;
+      if (sideValue(pkg, trends) > chipValue(star, trends) * 1.45) continue;
+      consider(candidates, you, them, pkg, [star], "2for1", trends);
     }
   }
 
@@ -376,7 +434,7 @@ export function buildRealisticTrades(
         if (recv.length >= 2) break;
       }
       if (recv.length < 2) continue;
-      consider(candidates, you, them, [stud], recv.slice(0, 2), "1for2");
+      consider(candidates, you, them, [stud], recv.slice(0, 2), "1for2", trends);
     }
   }
 
@@ -402,6 +460,7 @@ export function buildRealisticTrades(
               [qb, skillGive],
               [elite],
               "qb_package",
+              trends,
             );
           }
         }
@@ -440,6 +499,8 @@ export function buildRealisticTrades(
       if (form) whyYou.push(form);
       const def = analyzeDefenseMatchup(p, allPlayers);
       if (def) whyYou.push(`This week: ${def.summary}`);
+      const tb = trendBlurb(p, trends);
+      if (tb) whyYou.push(`Trend: ${tb}`);
     }
 
     const whyThem = [
@@ -452,8 +513,16 @@ export function buildRealisticTrades(
             `${c.them.name} needs ${p.position} help (depth ${depth(c.them, p.position)}).`,
         ),
     ];
+    for (const p of c.give) {
+      const tb = trendBlurb(p, trends);
+      if (tb) whyThem.push(`Trend on asset you send: ${tb}`);
+    }
 
-    const accept = acceptanceReason(you, c.them, c.give, c.receive);
+    const trendNotes = [...c.give, ...c.receive]
+      .map((p) => trendBlurb(p, trends))
+      .filter((x): x is string => Boolean(x));
+
+    const accept = acceptanceReason(you, c.them, c.give, c.receive, trends);
 
     out.push({
       id: `trade-${c.kind}-${key}`,
@@ -468,7 +537,8 @@ export function buildRealisticTrades(
         ...whyYou.map((r) => `For you: ${r}`),
         ...whyThem.map((r) => `For them: ${r}`),
         `Why this gets accepted: ${accept}`,
-        `Rule check: blocked naked QB↔skill 1:1; value within 1QB PPR norms (QB chips discounted).`,
+        `Scoring: full PPR chip blend (65% this-week proj + 35% recent actual) with 1QB QB discount; stored boom/bust nudges when snapshots exist.`,
+        `Rule check: blocked naked QB↔skill 1:1; value within 1QB PPR norms.`,
       ],
       relatedPlayerIds: [...c.give, ...c.receive].map((p) => p.id),
       relatedPositions: [
@@ -489,6 +559,7 @@ export function buildRealisticTrades(
         })),
         whyYou,
         whyThem,
+        trendNotes: trendNotes.length ? trendNotes : undefined,
       },
     });
 

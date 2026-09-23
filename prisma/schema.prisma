@@ -77,3 +77,64 @@ model LeagueConnection {
   @@unique([userId, leagueId, season])
   @@index([userId])
 }
+
+/// Weekly projected vs actual PPR (and optional usage) for trend analysis.
+/// Populated on league sync / insights refresh from ESPN league scoring or demo seed.
+/// Source is never a paid feed unless one is wired — see docs/projections-and-trends.md.
+model PlayerProjectionSnapshot {
+  id           String   @id @default(cuid())
+  espnId       Int
+  playerName   String
+  position     String
+  nflTeam      String?
+  season       Int
+  week         Int
+  /// ESPN (or demo) projected PPR for that week; null if unknown at capture time
+  projectedPpr Float?
+  /// Actual league-scoring / PPR points when the week is complete (or in progress)
+  actualPpr    Float?
+  /// Optional usage proxies when ESPN stats expose them (may stay null)
+  targets      Float?
+  carries      Float?
+  targetShare  Float?
+  /// espn | demo | heuristic — never invent third-party brand labels
+  source       String   @default("espn")
+  /// League scope so multi-league users keep separate histories ("" = global/demo fallback)
+  leagueId     String   @default("")
+  opponent     String?
+  capturedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([espnId, season, week, leagueId])
+  @@index([espnId, season])
+  @@index([leagueId, season, week])
+}
+
+/// Rolling trend metrics derived from PlayerProjectionSnapshot rows.
+model PlayerTrendMetric {
+  id              String   @id @default(cuid())
+  espnId          Int
+  playerName      String
+  position        String
+  season          Int
+  leagueId        String   @default("")
+  weeksSampled    Int      @default(0)
+  avgProjected    Float?
+  avgActual       Float?
+  /// Mean (actual − projected) over weeks with both values
+  avgDelta        Float?
+  recentFormAvg   Float?
+  /// hot | cold | boom | bust | rising | falling | steady | thin
+  trendLabel      String   @default("thin")
+  /// rising | falling | steady | unknown — based on recent actuals slope when available
+  usageTrend      String   @default("unknown")
+  /// Additive PPR chip adjustment for trade valuing (can be negative)
+  restOfSeasonAdj Float    @default(0)
+  rationale       String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([espnId, season, leagueId])
+  @@index([espnId, season])
+  @@index([leagueId, season, trendLabel])
+}

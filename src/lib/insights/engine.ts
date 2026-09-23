@@ -15,6 +15,8 @@ import {
 } from "@/lib/insights/defense-matchups";
 import { buildRealisticTrades } from "@/lib/insights/trades";
 import { buildWaiverShark } from "@/lib/insights/waivers";
+import type { PlayerTrendView } from "@/lib/types";
+import { trendLabelCopy } from "@/lib/insights/trend-labels";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -402,6 +404,7 @@ function newsToInsights(items: PlayerNewsItem[]): InsightRecommendation[] {
 export function buildInsightsBundle(
   league: LeagueData,
   newsItems: PlayerNewsItem[] = [],
+  trends?: Map<number, PlayerTrendView>,
 ): InsightsBundle {
   const team = currentTeam(league);
   if (!team) {
@@ -415,9 +418,25 @@ export function buildInsightsBundle(
     };
   }
 
+  const startSit = buildStartSit(league, team);
+  // Fold trend notes into start/sit reasoning when available
+  if (trends?.size) {
+    for (const insight of startSit) {
+      for (const pid of insight.relatedPlayerIds ?? []) {
+        const player = rosterPool(league).find((p) => p.id === pid);
+        const t = player ? trends.get(player.espnId) : undefined;
+        if (t && t.trendLabel !== "thin") {
+          insight.reasoning.push(
+            `Trend (${trendLabelCopy(t.trendLabel)}): ${t.rationale}`,
+          );
+        }
+      }
+    }
+  }
+
   return {
-    startSit: buildStartSit(league, team),
-    trades: buildRealisticTrades(league, team),
+    startSit,
+    trades: buildRealisticTrades(league, team, trends),
     waivers: buildWaiverShark(league, team, newsItems),
     news: newsToInsights(newsItems),
     matchupNotes: buildMatchupNotes(league, team),

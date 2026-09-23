@@ -23,9 +23,47 @@ export type PlayerRole =
 
 export interface WeeklyScore {
   week: number;
+  /** Actual PPR (or league scoring) for the week */
   points: number;
+  /** Projected PPR for that week when ESPN/demo/snapshot provides it */
+  projectedPoints?: number;
   /** Opponent abbreviation when known, e.g. CLE or @CLE */
   opponent?: string;
+}
+
+/** Persisted / computed trend analyst labels (never invented accuracy claims). */
+export type PlayerTrendLabel =
+  | "hot"
+  | "cold"
+  | "boom"
+  | "bust"
+  | "rising"
+  | "falling"
+  | "steady"
+  | "thin";
+
+export type UsageTrend = "rising" | "falling" | "steady" | "unknown";
+
+export interface PlayerTrendView {
+  espnId: number;
+  playerName: string;
+  position: string;
+  trendLabel: PlayerTrendLabel;
+  usageTrend: UsageTrend;
+  weeksSampled: number;
+  avgProjected: number | null;
+  avgActual: number | null;
+  avgDelta: number | null;
+  recentFormAvg: number | null;
+  restOfSeasonAdj: number;
+  rationale: string;
+  /** Recent weeks with proj vs actual for spark/table UI */
+  weeks: {
+    week: number;
+    projected: number | null;
+    actual: number | null;
+    opponent?: string | null;
+  }[];
 }
 
 export interface FantasyPlayer {
@@ -110,6 +148,8 @@ export interface TradeProposal {
   receive: { id: string; name: string; position: PlayerPosition }[];
   whyYou: string[];
   whyThem: string[];
+  /** Plain-language trend/projection rationale for the deal */
+  trendNotes?: string[];
 }
 
 export interface InsightRecommendation {
