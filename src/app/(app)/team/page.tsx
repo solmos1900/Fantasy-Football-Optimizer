@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { PlayerRow } from "@/components/player-row";
+import { sortByEspnRosterOrder } from "@/lib/roster-order";
 
 export default async function TeamPage() {
   const session = await auth();
@@ -24,8 +25,9 @@ export default async function TeamPage() {
     return <p className="text-sm text-emerald-950/60">No team found in league data.</p>;
   }
 
-  const starters = team.roster.filter((p) => p.isStarter);
-  const bench = team.roster.filter((p) => !p.isStarter);
+  const ordered = sortByEspnRosterOrder(team.roster);
+  const starters = ordered.filter((p) => p.isStarter);
+  const bench = ordered.filter((p) => !p.isStarter);
   const starterProj = starters.reduce((a, p) => a + p.projectedPoints, 0);
   const starterAct = starters.reduce((a, p) => a + p.actualPoints, 0);
 

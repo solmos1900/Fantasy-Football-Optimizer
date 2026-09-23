@@ -80,16 +80,20 @@ export default async function TradesPage({
       <div className="animate-fade-up">
         <h1 className="type-page text-emerald-950">Trade Analyzer</h1>
         <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Build a package with any league mate, then get an instant plain-language
-          grade — chip totals, hard rejects (no naked QB↔skill), For you / For
-          them, and a partner acceptance lean band. Same 1QB full-PPR norms as
-          Insights suggestions — not a fake win probability.
+          Two modes: roster-aware <span className="font-semibold">Team trade</span>{" "}
+          with a league mate, or free{" "}
+          <span className="font-semibold">Player vs player</span> compare for any
+          package. Same 1QB full-PPR chip norms — not a fake win probability.
         </p>
       </div>
 
       <TradeAnalyzer
         you={you}
         partners={partners}
+        poolPlayers={[
+          ...league.teams.flatMap((t) => t.roster),
+          ...league.freeAgents,
+        ]}
         trends={trendsByEspnId}
         initialPartnerId={
           partnerId != null && !Number.isNaN(partnerId) ? partnerId : undefined

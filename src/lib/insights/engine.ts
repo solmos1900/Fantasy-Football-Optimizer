@@ -112,9 +112,9 @@ function buildStartSit(
     if (!shouldStart && !sitDespiteProj) continue;
 
     const reasoning: string[] = [
-      `${b.name} (${b.position}, ${b.nflTeam}) is on your bench projecting ${b.projectedPoints.toFixed(1)} PPR.`,
-      `${weakest.name} is slotted at ${weakest.slot} projecting ${weakest.projectedPoints.toFixed(1)} PPR.`,
-      `Projection delta: ${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} (1.5-pt threshold).`,
+      `${b.name} is on your bench and is projected for ${b.projectedPoints.toFixed(1)} points (full PPR — a point per reception).`,
+      `${weakest.name} is in your starting lineup (${weakest.slot} slot) at only ${weakest.projectedPoints.toFixed(1)} projected points.`,
+      `That is a ${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} point edge for ${b.name} (we flag moves of about 1.5+ points).`,
     ];
     const formB = recentFormSummary(b);
     const formW = recentFormSummary(weakest);
@@ -122,21 +122,19 @@ function buildStartSit(
     if (formW) reasoning.push(`${weakest.name} — ${formW}`);
     if (formDelta != null) {
       reasoning.push(
-        `Recent-form delta: ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} PPR.`,
+        `Over recent weeks, ${b.name} has scored about ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} more points per game than ${weakest.name}.`,
       );
     }
-    if (defense) reasoning.push(`Matchup history for ${b.name}: ${defense.summary}`);
+    if (defense) reasoning.push(`Against this week's defense: ${defense.summary}`);
     if (sitDefense) {
-      reasoning.push(`Matchup history for ${weakest.name}: ${sitDefense.summary}`);
+      reasoning.push(`For ${weakest.name}'s matchup: ${sitDefense.summary}`);
     }
     if (weakest.injuryStatus !== "ACTIVE") {
-      reasoning.push(`${weakest.name} injury flag: ${weakest.injuryStatus}.`);
+      reasoning.push(`${weakest.name} injury status: ${weakest.injuryStatus}.`);
     }
     if (b.injuryStatus !== "ACTIVE") {
-      reasoning.push(`${b.name} injury flag: ${b.injuryStatus}.`);
+      reasoning.push(`${b.name} injury status: ${b.injuryStatus}.`);
     }
-    reasoning.push(`Role comparison uses ${inferPlayerRole(b)} vs similar players.`);
-
     if (sitDespiteProj && defense) {
       out.push({
         id: `start-sit-caution-${b.id}-${weakest.id}`,

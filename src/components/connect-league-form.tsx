@@ -21,9 +21,12 @@ type Props = {
   isGuest: boolean;
 };
 
+type ConnectAction = "demo" | "espn" | null;
+
 export function ConnectLeagueForm({ connection, isGuest }: Props) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const [action, setAction] = useState<ConnectAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [showReconnect, setShowReconnect] = useState(!connection);
   const [form, setForm] = useState({
@@ -34,49 +37,67 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
     espnS2: "",
   });
 
+  const demoLoading = action === "demo";
+  const espnLoading = action === "espn";
+  const busy = action != null;
+
   function connectDemo() {
     setError(null);
+    setAction("demo");
     startTransition(async () => {
-      const res = await fetch("/api/league/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "demo" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Demo connect failed");
-        return;
+      try {
+        const res = await fetch("/api/league/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "demo" }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Demo connect failed");
+          setAction(null);
+          return;
+        }
+        scrollToTopNow();
+        router.push("/dashboard");
+        router.refresh();
+      } catch {
+        setError("Demo connect failed");
+        setAction(null);
       }
-      scrollToTopNow();
-      router.push("/dashboard");
-      router.refresh();
     });
   }
 
   function connectEspn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setAction("espn");
     startTransition(async () => {
-      const res = await fetch("/api/league/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "espn",
-          leagueId: form.leagueId,
-          season: Number(form.season),
-          teamId: form.teamId ? Number(form.teamId) : undefined,
-          swid: form.swid || undefined,
-          espnS2: form.espnS2 || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "ESPN connect failed");
-        return;
+      try {
+        const res = await fetch("/api/league/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "espn",
+            leagueId: form.leagueId,
+            season: Number(form.season),
+            teamId: form.teamId ? Number(form.teamId) : undefined,
+            swid: form.swid || undefined,
+            espnS2: form.espnS2 || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "ESPN connect failed");
+          setAction(null);
+          return;
+        }
+        scrollToTopNow();
+        router.push("/dashboard");
+        router.refresh();
+      } catch {
+        setError("ESPN connect failed");
+        setAction(null);
       }
-      scrollToTopNow();
-      router.push("/dashboard");
-      router.refresh();
     });
   }
 
@@ -144,10 +165,10 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
               variant="primary"
               className="mt-5"
               onClick={connectDemo}
-              disabled={pending}
-              loading={pending}
+              disabled={busy}
+              loading={demoLoading}
             >
-              {pending ? "Loading…" : "Load demo league"}
+              {demoLoading ? "Loading…" : "Load demo league"}
             </Button>
           </div>
 
@@ -177,6 +198,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
                 onChange={(e) => setForm({ ...form, leagueId: e.target.value })}
                 className="field-input"
                 placeholder="e.g. 123456789"
+                disabled={busy}
               />
             </label>
 
@@ -191,6 +213,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
                   value={form.season}
                   onChange={(e) => setForm({ ...form, season: e.target.value })}
                   className="field-input"
+                  disabled={busy}
                 />
               </label>
               <label className="block text-sm">
@@ -203,6 +226,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
                   onChange={(e) => setForm({ ...form, teamId: e.target.value })}
                   className="field-input"
                   placeholder="Optional"
+                  disabled={busy}
                 />
               </label>
             </div>
@@ -216,6 +240,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
                 onChange={(e) => setForm({ ...form, swid: e.target.value })}
                 className="field-input font-mono text-base"
                 placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
+                disabled={busy}
               />
             </label>
 
@@ -229,6 +254,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
                 rows={3}
                 className="field-input font-mono text-base"
                 placeholder="Long cookie value — keep URL encoding"
+                disabled={busy}
               />
             </label>
 
@@ -241,10 +267,10 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
             <Button
               type="submit"
               variant="secondary"
-              disabled={pending}
-              loading={pending}
+              disabled={busy}
+              loading={espnLoading}
             >
-              {pending ? "Saving…" : "Connect & save"}
+              {espnLoading ? "Saving…" : "Connect & save"}
             </Button>
           </form>
         </div>
