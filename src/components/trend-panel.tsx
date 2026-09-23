@@ -157,7 +157,7 @@ export function TrendPanel({
                       : null;
                   return (
                     <tr key={w.week} className="border-b border-emerald-950/5">
-                      <td className="py-1.5 pr-2 font-[family-name:var(--font-display)] text-lg">
+                      <td className="type-stat py-1.5 pr-2 text-lg">
                         {w.week}
                       </td>
                       <td className="py-1.5 pr-2 text-emerald-950/70">
