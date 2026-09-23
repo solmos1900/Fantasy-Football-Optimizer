@@ -8,8 +8,43 @@ export function formatRecord(wins: number, losses: number, ties: number) {
   return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 }
 
+/** Always-uppercase roster/injury codes for badges and slot labels (e.g. IR, OUT). */
+export function formatStatusCode(status: string): string {
+  return status.trim().toUpperCase();
+}
+
+/**
+ * Copula + injury for sentences like "Player ___."
+ * IR → "is on the IR" (never "is IR" / "is ir").
+ * Other statuses: "is OUT" (code) or "is out" (prose).
+ */
+export function injuryIsPhrase(
+  status: string,
+  style: "code" | "prose" = "code",
+): string {
+  const code = formatStatusCode(status);
+  if (code === "IR") return "is on the IR";
+  if (style === "prose") return `is ${code.toLowerCase()}`;
+  return `is ${code}`;
+}
+
+/**
+ * Standalone injury phrasing for headlines / evidence.
+ * IR → "on the IR"; others stay uppercase codes (or lowercase prose).
+ */
+export function injuryStatusPhrase(
+  status: string,
+  style: "code" | "prose" | "listed" = "code",
+): string {
+  const code = formatStatusCode(status);
+  if (code === "IR") return "on the IR";
+  if (style === "prose") return code.toLowerCase();
+  if (style === "listed") return `listed ${code}`;
+  return code;
+}
+
 export function statusColor(status: string) {
-  switch (status) {
+  switch (formatStatusCode(status)) {
     case "QUESTIONABLE":
       return "text-amber-700 bg-amber-100";
     case "DOUBTFUL":

@@ -14,7 +14,7 @@ import {
   refreshProjectionTrends,
 } from "@/lib/insights/trends";
 import { TrendPanel } from "@/components/trend-panel";
-import { cn, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +109,7 @@ export default async function PlayerDetailPage({
                     statusColor(player.injuryStatus),
                   )}
                 >
-                  {player.injuryStatus}
+                  {formatStatusCode(player.injuryStatus)}
                 </span>
               )}
               <span>
@@ -197,7 +197,9 @@ export default async function PlayerDetailPage({
               Injury
             </dt>
             <dd className="mt-0.5 font-medium text-emerald-950">
-              {player.injuryStatus}
+              {formatStatusCode(player.injuryStatus) === "IR"
+                ? "On the IR"
+                : formatStatusCode(player.injuryStatus)}
             </dd>
           </div>
           <div>

@@ -364,3 +364,19 @@ body::before {
 .animate-stamp {
   animation: stamp-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
 }
+
+@keyframes nav-progress {
+  0% {
+    transform: scaleX(0.08);
+  }
+  40% {
+    transform: scaleX(0.55);
+  }
+  100% {
+    transform: scaleX(0.9);
+  }
+}
+
+.animate-nav-progress {
+  animation: nav-progress 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}

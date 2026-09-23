@@ -23,6 +23,7 @@ import type {
   PlayerNewsItem,
   PlayerPosition,
 } from "@/lib/types";
+import { formatStatusCode, injuryIsPhrase } from "@/lib/utils";
 
 const ACTIONABLE: InjuryStatus[] = ["OUT", "DOUBTFUL", "IR"];
 
@@ -80,7 +81,11 @@ function collectInjured(
     seen.add(p.espnId);
     out.push({
       player: p,
-      source: `roster injury status ${p.injuryStatus}`,
+      source: `roster injury status ${
+        formatStatusCode(p.injuryStatus) === "IR"
+          ? "on the IR"
+          : formatStatusCode(p.injuryStatus)
+      }`,
     });
   }
 
@@ -230,15 +235,23 @@ export function buildWaiverShark(
             : hurt.injuryStatus === "DOUBTFUL"
               ? "medium"
               : "high",
-        title: `Add ${add.name} — ${hurt.name} is ${hurt.injuryStatus}`,
-        summary: `${hurt.name} is ${hurt.injuryStatus.toLowerCase()}. ${add.name} is the ${role} and still on your waiver wire.`,
+        title: `Add ${add.name} — ${hurt.name} ${injuryIsPhrase(hurt.injuryStatus)}`,
+        summary: `${hurt.name} ${injuryIsPhrase(hurt.injuryStatus, "prose")}. ${add.name} is the ${role} and still on your waiver wire.`,
         reasoning: [
-          `Claim ${add.name} while ${hurt.name} is ${hurt.injuryStatus} — ${add.name} is the ${role} and available in your league.`,
+          `Claim ${add.name} while ${hurt.name} ${injuryIsPhrase(hurt.injuryStatus)} — ${add.name} is the ${role} and available in your league.`,
           `${hurt.name} (${hurt.nflTeam} ${hurt.position}) is unavailable — ${source}. We never invent injury news.`,
           note,
           `${add.name} is on waivers (${add.percentOwned.toFixed(0)}% owned league-wide, ${add.projectedPoints.toFixed(1)} projected).`,
           drop
-            ? `If your roster is full, consider dropping ${drop.name} (${drop.position}, ${drop.projectedPoints.toFixed(1)} projected${drop.injuryStatus !== "ACTIVE" ? `, ${drop.injuryStatus}` : ""}).`
+            ? `If your roster is full, consider dropping ${drop.name} (${drop.position}, ${drop.projectedPoints.toFixed(1)} projected${
+                drop.injuryStatus !== "ACTIVE"
+                  ? `, ${
+                      formatStatusCode(drop.injuryStatus) === "IR"
+                        ? "on the IR"
+                        : formatStatusCode(drop.injuryStatus)
+                    }`
+                  : ""
+              }).`
             : `You appear to have roster space — claim ${add.name} before the wire clears.`,
         ],
         relatedPlayerIds: [hurt.id, add.id, ...(drop ? [drop.id] : [])],

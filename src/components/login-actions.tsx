@@ -1,10 +1,10 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { PendingLink } from "@/components/pending-link";
 import { cn } from "@/lib/utils";
 import { scrollToTopNow } from "@/components/scroll-to-top";
 
@@ -143,12 +143,12 @@ export function LoginActions({
 
         <p className="type-caption text-center text-emerald-950/50">
           Already have an account?{" "}
-          <Link
+          <PendingLink
             href="/login?mode=account"
             className="font-semibold text-emerald-900 underline-offset-2 hover:underline"
           >
             Sign in
-          </Link>
+          </PendingLink>
         </p>
       </div>
     );
@@ -309,12 +309,12 @@ export function LoginActions({
 
       <p className="type-caption text-center text-emerald-950/50">
         Just browsing?{" "}
-        <Link
+        <PendingLink
           href="/login?mode=guest"
           className="font-semibold text-emerald-900 underline-offset-2 hover:underline"
         >
           Try as Guest
-        </Link>
+        </PendingLink>
       </p>
     </div>
   );

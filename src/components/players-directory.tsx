@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { FantasyPlayer, LeagueData } from "@/lib/types";
-import { cn, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 
 export function PlayersDirectory({ league }: { league: LeagueData }) {
   const [query, setQuery] = useState("");
@@ -121,7 +121,7 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
                         statusColor(p.injuryStatus),
                       )}
                     >
-                      {p.injuryStatus}
+                      {formatStatusCode(p.injuryStatus)}
                     </span>
                   )}
                 </td>

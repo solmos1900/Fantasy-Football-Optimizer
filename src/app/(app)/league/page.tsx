@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { formatRecord } from "@/lib/utils";
 import { PlayerRow } from "@/components/player-row";
 import { SyncButton } from "@/components/sync-button";
+import { PendingLink } from "@/components/pending-link";
 
 export default async function LeaguePage() {
   const session = await auth();
@@ -18,9 +18,9 @@ export default async function LeaguePage() {
         <p className="type-body mt-2 text-emerald-950/65">
           Connect a league to see standings, matchups, and every roster.
         </p>
-        <Link href="/connect" className="mt-4 inline-flex text-sm font-semibold text-orange-700">
+        <PendingLink href="/connect" className="mt-4 inline-flex text-sm font-semibold text-orange-700">
           Connect league →
-        </Link>
+        </PendingLink>
       </div>
     );
   }
@@ -41,9 +41,9 @@ export default async function LeaguePage() {
           <p className="type-caption mt-1.5 text-emerald-950/55">
             Saved on your account · Last sync{" "}
             {new Date(league.lastSyncedAt).toLocaleString()} ·{" "}
-            <Link href="/connect" className="font-semibold text-orange-700 hover:text-orange-600">
+            <PendingLink href="/connect" className="font-semibold text-orange-700 hover:text-orange-600">
               Manage connection
-            </Link>
+            </PendingLink>
           </p>
         </div>
         <SyncButton />

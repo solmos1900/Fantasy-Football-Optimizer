@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/brand";
 import { InstallHeroCta, InstallHowToLink } from "@/components/install-app";
+import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 
 export default async function HomePage() {
@@ -38,18 +38,18 @@ export default async function HomePage() {
         <InstallHeroCta />
 
         <div className="animate-fade-up-delay-2 mt-6 flex flex-wrap items-center gap-3">
-          <Link
+          <PendingLink
             href="/login?mode=account"
             className={buttonVariants({ variant: "primary", size: "lg" })}
           >
             Get started
-          </Link>
-          <Link
+          </PendingLink>
+          <PendingLink
             href="/login?mode=guest"
             className={buttonVariants({ variant: "ghost", size: "lg" })}
           >
             Continue as Guest
-          </Link>
+          </PendingLink>
           <InstallHowToLink className="px-2 text-sm font-semibold text-emerald-950/70 underline-offset-2 hover:text-orange-700 hover:underline" />
         </div>
       </div>

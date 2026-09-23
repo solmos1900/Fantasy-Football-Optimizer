@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { BrandWordmark } from "@/components/brand";
 import { InstallHowToLink } from "@/components/install-app";
+import { PendingLink } from "@/components/pending-link";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
@@ -20,23 +21,24 @@ const LINKS = [
 export function AppNav() {
   const pathname = usePathname();
   const { data } = useSession();
+  const [signingOut, startSignOut] = useTransition();
 
   return (
     <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_92%,white)]/95 shadow-[0_1px_0_rgba(253,249,240,0.8)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/dashboard" className="group">
+        <PendingLink href="/dashboard" className="group">
           <BrandWordmark
             markSize={32}
             className="transition-opacity group-hover:opacity-90 sm:[&_.type-brand]:text-2xl [&_.type-brand]:text-lg"
           />
-        </Link>
+        </PendingLink>
 
         <nav className="hidden items-center gap-1 md:flex">
           {LINKS.map((link) => {
             const active =
               pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
-              <Link
+              <PendingLink
                 key={link.href}
                 href={link.href}
                 className={cn(
@@ -47,19 +49,19 @@ export function AppNav() {
                 )}
               >
                 {link.label}
-              </Link>
+              </PendingLink>
             );
           })}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <InstallHowToLink className="hidden text-sm font-medium text-emerald-950/55 hover:text-orange-700 sm:inline" />
-          <Link
+          <PendingLink
             href="/connect"
             className="hidden text-sm font-semibold text-orange-700 hover:text-orange-800 sm:inline"
           >
             Connect
-          </Link>
+          </PendingLink>
           {data?.user?.isGuest && (
             <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
               Guest
@@ -72,10 +74,16 @@ export function AppNav() {
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            loading={signingOut}
+            disabled={signingOut}
+            onClick={() =>
+              startSignOut(() => {
+                void signOut({ callbackUrl: "/" });
+              })
+            }
             className="min-h-9 px-3 text-xs"
           >
-            Sign out
+            {signingOut ? "Signing out…" : "Sign out"}
           </Button>
         </div>
       </div>
@@ -84,7 +92,7 @@ export function AppNav() {
         {LINKS.map((link) => {
           const active = pathname === link.href;
           return (
-            <Link
+            <PendingLink
               key={link.href}
               href={link.href}
               className={cn(
@@ -95,10 +103,16 @@ export function AppNav() {
               )}
             >
               {link.label}
-            </Link>
+            </PendingLink>
           );
         })}
         <InstallHowToLink className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-orange-700" />
+        <PendingLink
+          href="/connect"
+          className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-orange-700"
+        >
+          Connect
+        </PendingLink>
       </nav>
     </header>
   );

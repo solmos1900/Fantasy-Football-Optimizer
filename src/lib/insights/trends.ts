@@ -28,6 +28,7 @@ import type {
 } from "@/lib/types";
 import { humanTrendSentence, normalizeTrendLabel, trendLabelCopy } from "@/lib/insights/trend-labels";
 import { seededDefenseAllowRows } from "@/lib/insights/defense-matchups";
+import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
 
 export type SnapshotSource = "espn" | "demo" | "heuristic";
 
@@ -226,7 +227,9 @@ export function deriveTrendFromWeeks(
   if (injured) {
     trendLabel = "InjuryRisk";
     judgments.push(
-      `On the injury report (${injuryStatus}) — sit or have a backup ready until cleared.`,
+      formatStatusCode(injuryStatus) === "IR"
+        ? "On the IR — sit or have a backup ready until cleared."
+        : `On the injury report (${formatStatusCode(injuryStatus)}) — sit or have a backup ready until cleared.`,
     );
   } else if (weeksSampled < 2 && withBoth.length < 1) {
     trendLabel = "Thin";
@@ -278,7 +281,9 @@ export function deriveTrendFromWeeks(
   restOfSeasonAdj = Math.round(restOfSeasonAdj * 10) / 10;
 
   const evidenceSentence = injured
-    ? `${playerName} is listed ${injuryStatus} — sit or have a backup ready until that clears.`
+    ? formatStatusCode(injuryStatus) === "IR"
+      ? `${playerName} is on the IR — sit or have a backup ready until that clears.`
+      : `${playerName} is ${injuryStatusPhrase(injuryStatus, "listed")} — sit or have a backup ready until that clears.`
     : avgDelta != null && withBoth.length && recentFormAvg != null
       ? `${playerName} is averaging about ${recentFormAvg.toFixed(1)} points lately (${trendLabelCopy(trendLabel).toLowerCase()}).`
       : weeksSampled > 0 && recentFormAvg != null

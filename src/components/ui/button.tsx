@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from "react";
+import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -60,9 +61,19 @@ export function Button({
     <button
       type={type}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={buttonVariants({ variant, size, className })}
       {...props}
     >
+      {loading && (
+        <LoaderCircle
+          aria-hidden
+          className={cn(
+            "shrink-0 animate-spin",
+            size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4",
+          )}
+        />
+      )}
       {children}
     </button>
   );
