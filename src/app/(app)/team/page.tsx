@@ -1,6 +1,7 @@
+import type { ReactNode } from "react";
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
-import { PlayerRow } from "@/components/player-row";
+import { EmptyRosterSlot, PlayerRow } from "@/components/player-row";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 
@@ -30,17 +31,26 @@ export default async function TeamPage() {
 
   const ordered = sortByEspnRosterOrder(team.roster);
   const starters = ordered.filter((p) => p.isStarter);
-  const bench = ordered.filter((p) => !p.isStarter);
+  const injuredReserve = ordered.filter((p) => (p.slot ?? "") === "IR");
+  const bench = ordered.filter(
+    (p) => !p.isStarter && (p.slot ?? "") !== "IR",
+  );
   const starterProj = starters.reduce((a, p) => a + p.projectedPoints, 0);
   const starterAct = starters.reduce((a, p) => a + p.actualPoints, 0);
+  const weekLabel = `WK${league.currentWeek}`;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="animate-fade-up">
-        <p className="type-eyebrow text-orange-700">
-          Week {league.currentWeek} roster
-        </p>
-        <h1 className="type-page text-emerald-950">{team.name}</h1>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="type-eyebrow text-orange-700">My Team</p>
+            <h1 className="type-page text-emerald-950">{team.name}</h1>
+          </div>
+          <p className="type-eyebrow text-emerald-950/55">
+            Week {league.currentWeek}
+          </p>
+        </div>
         <p className="mt-2 text-sm text-emerald-950/60">
           Starters{" "}
           <span className="type-stat text-2xl text-emerald-950">
@@ -55,33 +65,62 @@ export default async function TeamPage() {
         </p>
       </div>
 
-      <section className="animate-fade-up-delay cork-board p-3 sm:p-4">
-        <div className="surface-card p-4 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <h2 className="type-section text-emerald-950">Starters</h2>
-            <span className="stamp stamp-start">★ Start</span>
-          </div>
-          <div>
-            {starters.map((p) => (
-              <PlayerRow key={p.id} player={p} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <RosterSection
+        title="Starters"
+        stamp={<span className="stamp stamp-start">★ Start</span>}
+        delayClass="animate-fade-up-delay"
+      >
+        {starters.map((p) => (
+          <PlayerRow key={p.id} player={p} weekLabel={weekLabel} />
+        ))}
+      </RosterSection>
 
-      <section className="animate-fade-up-delay-2 cork-board p-3 sm:p-4">
-        <div className="surface-card p-4 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <h2 className="type-section text-emerald-950">Bench</h2>
-            <span className="stamp stamp-sit">Sit</span>
-          </div>
-          <div>
-            {bench.map((p) => (
-              <PlayerRow key={p.id} player={p} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <RosterSection
+        title="Bench"
+        stamp={<span className="stamp stamp-sit">Sit</span>}
+        delayClass="animate-fade-up-delay-2"
+      >
+        {bench.map((p) => (
+          <PlayerRow key={p.id} player={p} weekLabel={weekLabel} />
+        ))}
+      </RosterSection>
+
+      <RosterSection
+        title="Injured Reserve"
+        delayClass="animate-fade-up-delay-2"
+      >
+        {injuredReserve.length > 0 ? (
+          injuredReserve.map((p) => (
+            <PlayerRow key={p.id} player={p} weekLabel={weekLabel} />
+          ))
+        ) : (
+          <EmptyRosterSlot slot="IR" label="Empty" />
+        )}
+      </RosterSection>
     </div>
+  );
+}
+
+function RosterSection({
+  title,
+  stamp,
+  delayClass,
+  children,
+}: {
+  title: string;
+  stamp?: ReactNode;
+  delayClass: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className={delayClass}>
+      <div className="mb-2 flex flex-wrap items-center gap-2 px-0.5">
+        <h2 className="type-section text-emerald-950">{title}</h2>
+        {stamp}
+      </div>
+      <div className="surface-card divide-y divide-emerald-950/10 px-1.5 py-1 sm:px-2">
+        {children}
+      </div>
+    </section>
   );
 }
