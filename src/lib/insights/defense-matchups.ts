@@ -1,5 +1,6 @@
 import type {
   FantasyPlayer,
+  LeagueData,
   PlayerPosition,
   PlayerRole,
   WeeklyScore,
@@ -7,17 +8,28 @@ import type {
 
 /**
  * Defense matchup history — how similar-role players fared vs a given defense.
- * Demo/seed tables cover common matchups; live leagues also use league-wide
- * recentWeeks when players faced that opponent.
+ *
+ * Sources (live leagues): completed-week fantasy scores on league rosters /
+ * free agents, with opponents from ESPN's public NFL scoreboard. Never invent
+ * named-player week/point comps. Demo leagues may use labeled demo weeks only.
  */
 
 export interface DefenseSample {
   week: number;
+  /** Season year for this sample (required so prior-year lines can show the year). */
+  season: number;
   playerName: string;
   position: PlayerPosition;
   role: PlayerRole;
   points: number;
   nflTeam: string;
+}
+
+export interface DefenseMatchupContext {
+  /** Current scoring period / week — only weeks strictly before this are allowed. */
+  currentWeek: number;
+  season: number;
+  isDemo?: boolean;
 }
 
 export interface DefenseMatchupResult {
@@ -28,227 +40,8 @@ export interface DefenseMatchupResult {
   /** true when recent similar players were held well below typical fantasy floors */
   toughMatchup: boolean;
   summary: string;
+  emptyReason: string | null;
 }
-
-/** Seeded recent outcomes used for demo + as fallback when ESPN history is thin. */
-const SEEDED_DEFENSE_HISTORY: Record<string, DefenseSample[]> = {
-  CLE: [
-    {
-      week: 4,
-      playerName: "Courtland Sutton",
-      position: "WR",
-      role: "wr_slot",
-      points: 3.2,
-      nflTeam: "DEN",
-    },
-    {
-      week: 5,
-      playerName: "Rome Odunze",
-      position: "WR",
-      role: "wr_slot",
-      points: 4.1,
-      nflTeam: "CHI",
-    },
-    {
-      week: 6,
-      playerName: "DK Metcalf",
-      position: "WR",
-      role: "wr_outside",
-      points: 11.8,
-      nflTeam: "SEA",
-    },
-    {
-      week: 5,
-      playerName: "James Conner",
-      position: "RB",
-      role: "rb1",
-      points: 8.4,
-      nflTeam: "ARI",
-    },
-    {
-      week: 6,
-      playerName: "Bo Nix",
-      position: "QB",
-      role: "qb",
-      points: 12.1,
-      nflTeam: "DEN",
-    },
-  ],
-  DEN: [
-    {
-      week: 3,
-      playerName: "Davante Adams",
-      position: "WR",
-      role: "wr_outside",
-      points: 5.0,
-      nflTeam: "NYJ",
-    },
-    {
-      week: 4,
-      playerName: "Jayden Reed",
-      position: "WR",
-      role: "wr_slot",
-      points: 6.2,
-      nflTeam: "GB",
-    },
-    {
-      week: 5,
-      playerName: "Rachaad White",
-      position: "RB",
-      role: "rb1",
-      points: 7.1,
-      nflTeam: "TB",
-    },
-    {
-      week: 6,
-      playerName: "Baker Mayfield",
-      position: "QB",
-      role: "qb",
-      points: 9.4,
-      nflTeam: "TB",
-    },
-  ],
-  SF: [
-    {
-      week: 4,
-      playerName: "Breece Hall",
-      position: "RB",
-      role: "rb1",
-      points: 6.8,
-      nflTeam: "NYJ",
-    },
-    {
-      week: 5,
-      playerName: "Trey Benson",
-      position: "RB",
-      role: "rb2",
-      points: 3.4,
-      nflTeam: "ARI",
-    },
-    {
-      week: 6,
-      playerName: "Amon-Ra St. Brown",
-      position: "WR",
-      role: "wr_slot",
-      points: 8.9,
-      nflTeam: "DET",
-    },
-    {
-      week: 5,
-      playerName: "Tyler Higbee",
-      position: "TE",
-      role: "te",
-      points: 4.2,
-      nflTeam: "LAR",
-    },
-  ],
-  BAL: [
-    {
-      week: 4,
-      playerName: "Tua Tagovailoa",
-      position: "QB",
-      role: "qb",
-      points: 10.2,
-      nflTeam: "MIA",
-    },
-    {
-      week: 5,
-      playerName: "Tyreek Hill",
-      position: "WR",
-      role: "wr_outside",
-      points: 7.5,
-      nflTeam: "MIA",
-    },
-    {
-      week: 6,
-      playerName: "Saquon Barkley",
-      position: "RB",
-      role: "rb1",
-      points: 9.0,
-      nflTeam: "PHI",
-    },
-  ],
-  GB: [
-    {
-      week: 5,
-      playerName: "Jayden Reed",
-      position: "WR",
-      role: "wr_slot",
-      points: 14.2,
-      nflTeam: "GB",
-    },
-    {
-      week: 6,
-      playerName: "Jahmyr Gibbs",
-      position: "RB",
-      role: "rb1",
-      points: 18.6,
-      nflTeam: "DET",
-    },
-  ],
-  SEA: [
-    {
-      week: 4,
-      playerName: "Puka Nacua",
-      position: "WR",
-      role: "wr_outside",
-      points: 9.1,
-      nflTeam: "LAR",
-    },
-    {
-      week: 5,
-      playerName: "Jalen Tolbert",
-      position: "WR",
-      role: "wr_slot",
-      points: 7.4,
-      nflTeam: "DAL",
-    },
-    {
-      week: 6,
-      playerName: "Travis Kelce",
-      position: "TE",
-      role: "te",
-      points: 5.8,
-      nflTeam: "KC",
-    },
-  ],
-  MIA: [
-    {
-      week: 5,
-      playerName: "Josh Allen",
-      position: "QB",
-      role: "qb",
-      points: 24.1,
-      nflTeam: "BUF",
-    },
-    {
-      week: 6,
-      playerName: "CeeDee Lamb",
-      position: "WR",
-      role: "wr_outside",
-      points: 16.4,
-      nflTeam: "DAL",
-    },
-  ],
-  NE: [
-    {
-      week: 5,
-      playerName: "Breece Hall",
-      position: "RB",
-      role: "rb1",
-      points: 15.2,
-      nflTeam: "NYJ",
-    },
-    {
-      week: 6,
-      playerName: "Rome Odunze",
-      position: "WR",
-      role: "wr_slot",
-      points: 11.0,
-      nflTeam: "CHI",
-    },
-  ],
-};
 
 const ROLE_FLOOR: Partial<Record<PlayerRole, number>> = {
   qb: 14,
@@ -258,6 +51,16 @@ const ROLE_FLOOR: Partial<Record<PlayerRole, number>> = {
   wr_outside: 10,
   te: 8,
 };
+
+export function matchupContextFromLeague(
+  league: Pick<LeagueData, "scoringPeriodId" | "currentWeek" | "season" | "isDemo">,
+): DefenseMatchupContext {
+  return {
+    currentWeek: league.scoringPeriodId || league.currentWeek,
+    season: league.season,
+    isDemo: Boolean(league.isDemo),
+  };
+}
 
 export function normalizeOpponentAbbrev(opponent?: string): string | null {
   if (!opponent) return null;
@@ -315,12 +118,57 @@ function roleLabel(role: PlayerRole): string {
   }
 }
 
+function positionNoun(position: PlayerPosition): string {
+  switch (position) {
+    case "QB":
+      return "QBs";
+    case "RB":
+      return "RBs";
+    case "WR":
+      return "WRs";
+    case "TE":
+      return "TEs";
+    case "K":
+      return "kickers";
+    case "D/ST":
+      return "D/STs";
+    default:
+      return "players";
+  }
+}
+
+/** True only for completed weeks strictly before the current scoring period. */
+export function isCompletedWeek(week: number, currentWeek: number): boolean {
+  return Number.isFinite(week) && week >= 1 && week < currentWeek;
+}
+
+export function emptyDefenseMatchupMessage(
+  position: PlayerPosition,
+  defenseAbbrev: string | null,
+  currentWeek: number,
+): string {
+  const def = defenseAbbrev ?? "this defense";
+  if (currentWeek <= 1) {
+    return `Not enough completed games of similar ${positionNoun(position)} vs ${def} yet this season — Week 1 has not finished.`;
+  }
+  return `Not enough completed games of similar ${positionNoun(position)} vs ${def} yet this season.`;
+}
+
+function weekPhrase(sample: DefenseSample, contextSeason: number): string {
+  if (sample.season !== contextSeason) {
+    return `${sample.season} week ${sample.week}`;
+  }
+  return `week ${sample.week}`;
+}
+
 /**
- * Collect similar-role outcomes vs an opponent from league recentWeeks + seed table.
+ * Collect similar-role outcomes vs an opponent from real completed-week scores
+ * on the league roster / free-agent pool. No fabricated seed comps.
  */
 export function analyzeDefenseMatchup(
   player: FantasyPlayer,
   allPlayers: FantasyPlayer[],
+  context: DefenseMatchupContext,
 ): DefenseMatchupResult | null {
   const opponent = normalizeOpponentAbbrev(player.opponent);
   if (!opponent) return null;
@@ -330,35 +178,50 @@ export function analyzeDefenseMatchup(
 
   for (const other of allPlayers) {
     if (other.id === player.id) continue;
-    if (inferPlayerRole(other) !== role && other.position !== player.position) continue;
+    if (inferPlayerRole(other) !== role && other.position !== player.position) {
+      continue;
+    }
     const weeks = other.recentWeeks ?? [];
     for (const w of weeks) {
+      if (!isCompletedWeek(w.week, context.currentWeek)) continue;
+      // Require a real opponent label — never invent one from the defense alone.
       const weekOpp = normalizeOpponentAbbrev(w.opponent);
-      if (weekOpp === opponent) {
-        samples.push({
-          week: w.week,
-          playerName: other.name,
-          position: other.position,
-          role: inferPlayerRole(other),
-          points: w.points,
-          nflTeam: other.nflTeam,
-        });
-      }
-    }
-  }
+      if (weekOpp !== opponent) continue;
+      if (typeof w.points !== "number" || !Number.isFinite(w.points)) continue;
 
-  const seeded = (SEEDED_DEFENSE_HISTORY[opponent] ?? []).filter(
-    (s) => s.role === role || s.position === player.position,
-  );
-  for (const s of seeded) {
-    if (!samples.some((x) => x.week === s.week && x.playerName === s.playerName)) {
-      samples.push(s);
+      samples.push({
+        week: w.week,
+        season: context.season,
+        playerName: other.name,
+        position: other.position,
+        role: inferPlayerRole(other),
+        points: w.points,
+        nflTeam: other.nflTeam,
+      });
     }
   }
 
   const roleSamples = samples.filter((s) => s.role === role);
   const useSamples = roleSamples.length >= 1 ? roleSamples : samples;
-  if (!useSamples.length) return null;
+  if (!useSamples.length) {
+    return {
+      opponent,
+      role,
+      samples: [],
+      avgPoints: 0,
+      toughMatchup: false,
+      summary: emptyDefenseMatchupMessage(
+        player.position,
+        opponent,
+        context.currentWeek,
+      ),
+      emptyReason: emptyDefenseMatchupMessage(
+        player.position,
+        opponent,
+        context.currentWeek,
+      ),
+    };
+  }
 
   const avgPoints =
     useSamples.reduce((a, s) => a + s.points, 0) / useSamples.length;
@@ -369,13 +232,14 @@ export function analyzeDefenseMatchup(
     .slice(0, 3)
     .map(
       (s) =>
-        `${s.playerName} (${roleLabel(s.role)}) scored ${s.points.toFixed(1)} in week ${s.week}`,
+        `${s.playerName} (${roleLabel(s.role)}) scored ${s.points.toFixed(1)} in ${weekPhrase(s, context.season)}`,
     )
     .join("; ");
 
+  const demoNote = context.isDemo ? " Demo league history only." : "";
   const summary = toughMatchup
-    ? `Tough matchup: similar ${roleLabel(role)}s averaged only ${avgPoints.toFixed(1)} points vs ${opponent} lately (${concrete}).`
-    : `Matchup look: similar ${roleLabel(role)}s averaged ${avgPoints.toFixed(1)} points vs ${opponent} lately (${concrete}).`;
+    ? `Tough matchup: similar ${roleLabel(role)}s averaged only ${avgPoints.toFixed(1)} points vs ${opponent} in completed weeks (${concrete}).${demoNote}`
+    : `Matchup look: similar ${roleLabel(role)}s averaged ${avgPoints.toFixed(1)} points vs ${opponent} in completed weeks (${concrete}).${demoNote}`;
 
   return {
     opponent,
@@ -384,6 +248,7 @@ export function analyzeDefenseMatchup(
     avgPoints,
     toughMatchup,
     summary,
+    emptyReason: null,
   };
 }
 
@@ -393,7 +258,7 @@ export function recentFormSummary(player: FantasyPlayer): string | null {
   const sorted = [...weeks].sort((a, b) => b.week - a.week).slice(0, 3);
   const avg = sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
   const detail = sorted.map((w) => w.points.toFixed(1)).join(", ");
-  return `${player.name} scored ${detail} over the last ${sorted.length === 1 ? "1 game" : `${sorted.length} games`} — about ${avg.toFixed(1)} points per game.`;
+  return `${player.name} scored ${detail} over the last ${sorted.length} games — about ${avg.toFixed(1)} points per game.`;
 }
 
 export function averageRecentPoints(weeks?: WeeklyScore[], n = 3): number | null {
@@ -403,8 +268,11 @@ export function averageRecentPoints(weeks?: WeeklyScore[], n = 3): number | null
   return sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
 }
 
-/** Flatten seeded defense comps for Neon DefenseWeekAllow rows. */
-export function seededDefenseAllowRows(season: number): {
+/**
+ * Persist only real completed-week comps observed on this league (ESPN sync or
+ * labeled demo). Never fabricates rows.
+ */
+export function defenseAllowRowsFromLeague(league: LeagueData): {
   defenseAbbrev: string;
   nflTeam: string;
   season: number;
@@ -415,8 +283,14 @@ export function seededDefenseAllowRows(season: number): {
   pointsAllowed: number;
   pointsAllowedPpr: number;
   samplePlayer: string;
-  source: string;
+  source: "espn" | "demo";
 }[] {
+  const context = matchupContextFromLeague(league);
+  const source = league.isDemo ? "demo" : "espn";
+  const players = [
+    ...league.teams.flatMap((t) => t.roster),
+    ...league.freeAgents,
+  ];
   const rows: {
     defenseAbbrev: string;
     nflTeam: string;
@@ -428,22 +302,32 @@ export function seededDefenseAllowRows(season: number): {
     pointsAllowed: number;
     pointsAllowedPpr: number;
     samplePlayer: string;
-    source: string;
+    source: "espn" | "demo";
   }[] = [];
-  for (const [abbr, samples] of Object.entries(SEEDED_DEFENSE_HISTORY)) {
-    for (const s of samples) {
+  const seen = new Set<string>();
+
+  for (const player of players) {
+    for (const w of player.recentWeeks ?? []) {
+      if (!isCompletedWeek(w.week, context.currentWeek)) continue;
+      const defenseAbbrev = normalizeOpponentAbbrev(w.opponent);
+      if (!defenseAbbrev) continue;
+      if (typeof w.points !== "number" || !Number.isFinite(w.points)) continue;
+      const role = inferPlayerRole(player);
+      const key = `${defenseAbbrev}|${context.season}|${w.week}|${player.position}|${role}|${player.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       rows.push({
-        defenseAbbrev: abbr,
-        nflTeam: abbr,
-        season,
-        week: s.week,
-        position: s.position,
-        vsPosition: s.position,
-        role: s.role,
-        pointsAllowed: s.points,
-        pointsAllowedPpr: s.points,
-        samplePlayer: s.playerName,
-        source: "seed",
+        defenseAbbrev,
+        nflTeam: defenseAbbrev,
+        season: context.season,
+        week: w.week,
+        position: player.position,
+        vsPosition: player.position,
+        role,
+        pointsAllowed: w.points,
+        pointsAllowedPpr: w.points,
+        samplePlayer: player.name,
+        source,
       });
     }
   }

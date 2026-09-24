@@ -21,7 +21,9 @@ import type {
 import { nflTeamFromEspn } from "@/lib/espn/pro-teams";
 import {
   enrichLeagueOpponents,
+  enrichRecentWeekOpponents,
   parseEspnScoreboard,
+  type NflScheduleEntry,
   type ScoreboardEvent,
 } from "@/lib/espn/scoreboard";
 import { defaultEspnSeason } from "@/lib/season";
@@ -279,7 +281,7 @@ export async function fetchEspnLeague(creds: EspnCredentials): Promise<LeagueDat
     freeAgents = [];
   }
 
-  const league: LeagueData = {
+  let league: LeagueData = {
     leagueId: String(creds.leagueId),
     season: creds.season,
     name: String(settings.name ?? `League ${creds.leagueId}`),
@@ -300,11 +302,70 @@ export async function fetchEspnLeague(creds: EspnCredentials): Promise<LeagueDat
       scoringPeriodId,
       creds.season,
     )) as { events?: ScoreboardEvent[] };
-    return enrichLeagueOpponents(league, parseEspnScoreboard(board));
+    league = enrichLeagueOpponents(league, parseEspnScoreboard(board));
   } catch (err) {
     console.error("[espn] scoreboard opponent enrichment failed", err);
+  }
+
+  // Attach real opponents onto completed-week PPR scores (for defense comps).
+  // Uses the same public scoreboard — no keys, no fabricated matchups.
+  try {
+    return await enrichLeagueWithCompletedWeekOpponents(league);
+  } catch (err) {
+    console.error("[espn] completed-week opponent enrichment failed", err);
     return league;
   }
+}
+
+/**
+ * For every completed week present on roster/FA recentWeeks, fetch ESPN's
+ * public scoreboard and stamp real opponent labels. Filters out current/future weeks.
+ */
+export async function enrichLeagueWithCompletedWeekOpponents(
+  league: LeagueData,
+): Promise<LeagueData> {
+  const currentWeek = league.scoringPeriodId || league.currentWeek;
+  const weeksNeeded = new Set<number>();
+  for (const team of league.teams) {
+    for (const p of team.roster) {
+      for (const w of p.recentWeeks ?? []) {
+        if (w.week >= 1 && w.week < currentWeek && !w.opponent) {
+          weeksNeeded.add(w.week);
+        }
+      }
+    }
+  }
+  for (const p of league.freeAgents) {
+    for (const w of p.recentWeeks ?? []) {
+      if (w.week >= 1 && w.week < currentWeek && !w.opponent) {
+        weeksNeeded.add(w.week);
+      }
+    }
+  }
+
+  // Always drop incomplete weeks even when every row already has an opponent.
+  if (weeksNeeded.size === 0) {
+    return enrichRecentWeekOpponents(league, new Map());
+  }
+
+  const weekSchedules = new Map<number, Map<string, NflScheduleEntry>>();
+  await Promise.all(
+    [...weeksNeeded].map(async (week) => {
+      try {
+        const board = (await fetchEspnScoreboard(week, league.season)) as {
+          events?: ScoreboardEvent[];
+        };
+        const parsed = parseEspnScoreboard(board);
+        if (parsed.eventCount > 0) {
+          weekSchedules.set(week, parsed.byTeam);
+        }
+      } catch (err) {
+        console.error(`[espn] scoreboard week ${week} failed`, err);
+      }
+    }),
+  );
+
+  return enrichRecentWeekOpponents(league, weekSchedules);
 }
 
 export async function fetchEspnFreeAgents(

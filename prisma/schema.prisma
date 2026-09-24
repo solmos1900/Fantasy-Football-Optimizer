@@ -203,7 +203,7 @@ model DefenseWeekAllow {
   pointsAllowedPpr Float?
   rankVsPos       Int?
   samplePlayer    String?
-  source          String   @default("seed")
+  source          String   @default("espn")
   createdAt       DateTime @default(now())
 
   @@unique([defenseAbbrev, season, week, position, role])

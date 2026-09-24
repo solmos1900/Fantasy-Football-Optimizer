@@ -10,6 +10,7 @@ import type {
 import {
   analyzeDefenseMatchup,
   averageRecentPoints,
+  matchupContextFromLeague,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { buildRealisticTrades } from "@/lib/insights/trades";
@@ -86,6 +87,7 @@ function buildStartSit(
   const starters = startersOf(team);
   const bench = benchOf(team);
   const pool = rosterPool(league);
+  const matchupCtx = matchupContextFromLeague(league);
 
   for (const b of bench) {
     if (b.injuryStatus === "OUT" || b.injuryStatus === "IR") continue;
@@ -106,10 +108,14 @@ function buildStartSit(
     const formDelta =
       recentB != null && recentW != null ? recentB - recentW : null;
 
-    const defense = analyzeDefenseMatchup(b, pool);
-    const sitDefense = analyzeDefenseMatchup(weakest, pool);
-    const toughForBench = defense?.toughMatchup ?? false;
-    const toughForStarter = sitDefense?.toughMatchup ?? false;
+    const defense = analyzeDefenseMatchup(b, pool, matchupCtx);
+    const sitDefense = analyzeDefenseMatchup(weakest, pool, matchupCtx);
+    const toughForBench = Boolean(
+      defense && defense.samples.length > 0 && defense.toughMatchup,
+    );
+    const toughForStarter = Boolean(
+      sitDefense && sitDefense.samples.length > 0 && sitDefense.toughMatchup,
+    );
 
     const shouldStart =
       (projDelta >= 1.5 || (formDelta != null && formDelta >= 2)) &&
@@ -133,8 +139,8 @@ function buildStartSit(
         `Over recent weeks, ${b.name} has scored about ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} more points per game than ${weakest.name}.`,
       );
     }
-    if (defense) reasoning.push(defense.summary);
-    if (sitDefense) {
+    if (defense && defense.samples.length > 0) reasoning.push(defense.summary);
+    if (sitDefense && sitDefense.samples.length > 0) {
       reasoning.push(`For ${weakest.name}: ${sitDefense.summary}`);
     }
     if (weakest.injuryStatus !== "ACTIVE") {
@@ -198,8 +204,12 @@ function buildStartSit(
     const form = recentFormSummary(replacement ?? s);
     if (form) reasoning.push(form);
     if (replacement) {
-      const def = analyzeDefenseMatchup(replacement, pool);
-      if (def) reasoning.push(def.summary);
+      const def = analyzeDefenseMatchup(
+        replacement,
+        pool,
+        matchupContextFromLeague(league),
+      );
+      if (def && def.samples.length > 0) reasoning.push(def.summary);
     }
 
     out.push({
@@ -225,13 +235,14 @@ function buildMatchupNotes(
 ): InsightRecommendation[] {
   const out: InsightRecommendation[] = [];
   const pool = rosterPool(league);
+  const matchupCtx = matchupContextFromLeague(league);
 
   for (const s of startersOf(team)) {
     if (!SKILL_POSITIONS.includes(s.position)) continue;
     if (["OUT", "DOUBTFUL", "IR"].includes(s.injuryStatus)) continue;
 
-    const def = analyzeDefenseMatchup(s, pool);
-    if (!def?.toughMatchup) continue;
+    const def = analyzeDefenseMatchup(s, pool, matchupCtx);
+    if (!def || def.samples.length === 0 || !def.toughMatchup) continue;
 
     const formAvg = averageRecentPoints(s.recentWeeks);
     const punch =

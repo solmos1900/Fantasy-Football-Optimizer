@@ -164,3 +164,51 @@ export function enrichLeagueOpponents(
     freeAgents: league.freeAgents.map((p) => applyOpponent(p, schedule)),
   };
 }
+
+/**
+ * Attach real NFL opponents onto prior-week scores using per-week scoreboard
+ * schedules. Never invents opponents; leaves opponent unset when unknown.
+ * Drops any week >= current scoring period (incomplete / future).
+ */
+export function enrichRecentWeekOpponents(
+  league: LeagueData,
+  weekSchedules: Map<number, Map<string, NflScheduleEntry>>,
+): LeagueData {
+  const currentWeek = league.scoringPeriodId || league.currentWeek;
+
+  const enrichPlayer = (player: FantasyPlayer): FantasyPlayer => {
+    const weeks = player.recentWeeks;
+    if (!weeks?.length) return player;
+
+    const next = weeks
+      .filter((w) => w.week >= 1 && w.week < currentWeek)
+      .map((w) => {
+        if (w.opponent) return w;
+        const schedule = weekSchedules.get(w.week);
+        if (!schedule) return w;
+        const label = formatOpponentLabel(player.nflTeam, schedule);
+        return label ? { ...w, opponent: label } : w;
+      });
+
+    const unchanged =
+      next.length === weeks.length &&
+      next.every(
+        (w, i) =>
+          w.week === weeks[i].week &&
+          w.points === weeks[i].points &&
+          w.opponent === weeks[i].opponent &&
+          w.projectedPoints === weeks[i].projectedPoints,
+      );
+    if (unchanged) return player;
+    return { ...player, recentWeeks: next.length ? next : undefined };
+  };
+
+  return {
+    ...league,
+    teams: league.teams.map((team) => ({
+      ...team,
+      roster: team.roster.map(enrichPlayer),
+    })),
+    freeAgents: league.freeAgents.map(enrichPlayer),
+  };
+}

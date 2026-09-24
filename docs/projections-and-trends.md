@@ -22,7 +22,8 @@ Migrations: `20260923020000_research_player_week_trend`, `20260923030000_researc
 | Source | Use |
 |--------|-----|
 | **ESPN Fantasy** (user-auth sync) | Primary projected + actual PPR |
-| **Demo seed** | Guest/demo `recentWeeks` |
+| **ESPN public scoreboard** | Completed-week opponent labels for defense comps (no API key) |
+| **Demo seed** | Guest/demo `recentWeeks` only (labeled Demo; never used for live ESPN leagues) |
 | **Heuristic** | Fill missing past projections; marked `source=heuristic` |
 | **nflverse** | Reserved usage fields — free feed when wired |
 | **FantasyPros / SportsDataIO** | Paid commercial only — **not** integrated; never scrape or fake labels |

@@ -1,3 +1,9 @@
+/**
+ * Stats provider — prefers free ESPN public scoreboard for live leagues.
+ * Demo leagues get clearly labeled demo live stats. Live ESPN leagues never
+ * fall back to demo top-performer names/points.
+ */
+
 import type { LeagueData, LiveStatSnapshot } from "@/lib/types";
 import { createDemoLiveStats } from "@/lib/demo/seed";
 import { fetchEspnScoreboard } from "@/lib/espn/client";
@@ -6,14 +12,10 @@ import {
   type ScoreboardEvent,
 } from "@/lib/espn/scoreboard";
 
-/**
- * Stats provider — prefers free ESPN public scoreboard; falls back to demo.
- * No API key required for the public scoreboard endpoint.
- */
 export async function getLiveStats(
   league: LeagueData | null,
 ): Promise<LiveStatSnapshot> {
-  const week = league?.currentWeek ?? 7;
+  const week = league?.currentWeek ?? 3;
   const season = league?.season;
 
   if (!league || league.isDemo) {
@@ -26,7 +28,7 @@ export async function getLiveStats(
     };
     const { games } = parseEspnScoreboard(raw);
 
-    // Derive top performers from league roster actuals for the week
+    // Derive top performers from league roster actuals for the week — real only.
     const performers = (league.teams ?? [])
       .flatMap((t) => t.roster)
       .filter((p) => p.actualPoints > 0)
@@ -43,11 +45,14 @@ export async function getLiveStats(
       week,
       updatedAt: new Date().toISOString(),
       games: games.slice(0, 12),
-      topPerformers: performers.length
-        ? performers
-        : createDemoLiveStats(week).topPerformers,
+      topPerformers: performers,
     };
   } catch {
-    return createDemoLiveStats(week);
+    return {
+      week,
+      updatedAt: new Date().toISOString(),
+      games: [],
+      topPerformers: [],
+    };
   }
 }
