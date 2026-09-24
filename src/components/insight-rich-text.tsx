@@ -162,7 +162,7 @@ export function InsightRichText({
         return (
           <span
             key={i}
-            className="inline-flex rounded px-1.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide text-white bg-orange-700"
+            className="inline-flex rounded px-1.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide text-white bg-orange-500"
           >
             {t.value}
           </span>

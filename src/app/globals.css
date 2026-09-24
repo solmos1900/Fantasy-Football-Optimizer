@@ -34,8 +34,8 @@
   /*
     Emerald scale inverted for dark UI:
     - text-emerald-950 → light primary ink
-    - bg-emerald-950 → light filled chips / secondary CTAs
-    - emerald-50 → darkest wash (hovers on dark)
+    - bg-emerald-950 → light filled chips (pair with text-emerald-50, NEVER text-white)
+    - emerald-50 → darkest wash (hovers / ink on light chips)
   */
   --color-emerald-50: #232323;
   --color-emerald-100: #2a2a2a;

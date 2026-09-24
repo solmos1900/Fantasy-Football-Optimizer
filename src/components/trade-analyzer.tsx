@@ -39,10 +39,10 @@ const STEPS: { id: TradeStep; label: string }[] = [
 ];
 
 const VERDICT_STYLE: Record<TradeVerdict, string> = {
-  accept: "bg-emerald-700 text-white",
-  lean_accept: "bg-emerald-600 text-white",
-  fair: "bg-stone-700 text-white",
-  lean_reject: "bg-orange-700 text-white",
+  accept: "bg-[#2f4a35] text-[#ececec]",
+  lean_accept: "bg-[#3d5c42] text-[#ececec]",
+  fair: "bg-[#3a3a3a] text-[#ececec]",
+  lean_reject: "bg-orange-500 text-white",
   hard_reject: "bg-red-800 text-white",
 };
 
@@ -398,7 +398,7 @@ function StepRail({
                 className={cn(
                   "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition",
                   isCurrent
-                    ? "bg-emerald-950 text-white"
+                    ? "bg-emerald-950 text-emerald-50"
                     : isDone
                       ? "bg-emerald-950/10 text-emerald-950 hover:bg-emerald-950/15"
                       : "bg-emerald-950/[0.04] text-emerald-950/40",
@@ -410,9 +410,9 @@ function StepRail({
                   className={cn(
                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold",
                     isCurrent
-                      ? "bg-white/15 text-white"
+                      ? "bg-emerald-50/15 text-emerald-50"
                       : isDone
-                        ? "bg-emerald-950 text-white"
+                        ? "bg-emerald-950 text-emerald-50"
                         : "bg-emerald-950/10 text-emerald-950/50",
                   )}
                 >
@@ -827,8 +827,8 @@ export function TradeAnalyzer({
             className={cn(
               "rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
               mode === "team"
-                ? "bg-emerald-950 text-white"
-                : "text-emerald-950/65 hover:text-emerald-950",
+                ? "bg-emerald-950 text-emerald-50"
+                : "text-emerald-950/65 hover:bg-emerald-950/10 hover:text-emerald-950",
             )}
           >
             Team trade
@@ -841,8 +841,8 @@ export function TradeAnalyzer({
             className={cn(
               "rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
               mode === "free"
-                ? "bg-emerald-950 text-white"
-                : "text-emerald-950/65 hover:text-emerald-950",
+                ? "bg-emerald-950 text-emerald-50"
+                : "text-emerald-950/65 hover:bg-emerald-950/10 hover:text-emerald-950",
             )}
           >
             Player vs player
