@@ -27,7 +27,7 @@ import type {
   WeeklyScore,
 } from "@/lib/types";
 import { humanTrendSentence, normalizeTrendLabel, trendLabelCopy } from "@/lib/insights/trend-labels";
-import { seededDefenseAllowRows } from "@/lib/insights/defense-matchups";
+import { defenseAllowRowsFromLeague } from "@/lib/insights/defense-matchups";
 import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
 
 export type SnapshotSource = "espn" | "demo" | "heuristic";
@@ -576,9 +576,11 @@ export async function refreshProjectionTrends(
     where: { season: league.season, leagueId: lid },
   });
 
-  // Best-effort seed of DefenseWeekAllow from in-memory comps (SOS #4)
+  // Persist only real completed-week comps from this league (espn or demo).
+  // Delete any legacy fabricated source:"seed" rows so UI never reads them.
   try {
-    for (const row of seededDefenseAllowRows(league.season)) {
+    await prisma.defenseWeekAllow.deleteMany({ where: { source: "seed" } });
+    for (const row of defenseAllowRowsFromLeague(league)) {
       await prisma.defenseWeekAllow.upsert({
         where: {
           defenseAbbrev_season_week_position_role: {
@@ -596,11 +598,12 @@ export async function refreshProjectionTrends(
           samplePlayer: row.samplePlayer,
           nflTeam: row.nflTeam,
           vsPosition: row.vsPosition,
+          source: row.source,
         },
       });
     }
   } catch (err) {
-    console.error("[trends] DefenseWeekAllow seed failed", err);
+    console.error("[trends] DefenseWeekAllow sync failed", err);
   }
 
   return { snapshots, trends };

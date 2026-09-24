@@ -33,9 +33,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "qb",
     recentWeeks: [
-      { week: 4, points: 28.4, projectedPoints: 26.1, opponent: "@ BAL" },
-      { week: 5, points: 19.2, projectedPoints: 17.7, opponent: "vs HOU" },
-      { week: 6, points: 24.1, projectedPoints: 22.2, opponent: "@ NYJ" },
+      { week: 1, points: 28.4, projectedPoints: 26.1, opponent: "@ BAL" },
+      { week: 2, points: 19.2, projectedPoints: 17.7, opponent: "vs HOU" },
     ],
   }),
   p({
@@ -53,9 +52,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "rb1",
     recentWeeks: [
-      { week: 4, points: 11.2, projectedPoints: 10.3, opponent: "vs DEN" },
-      { week: 5, points: 16.8, projectedPoints: 15.5, opponent: "@ MIN" },
-      { week: 6, points: 8.4, projectedPoints: 9.1, opponent: "vs BUF" },
+      { week: 1, points: 11.2, projectedPoints: 10.3, opponent: "vs DEN" },
+      { week: 2, points: 16.8, projectedPoints: 15.5, opponent: "@ MIN" },
     ],
   }),
   p({
@@ -73,9 +71,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "rb1",
     recentWeeks: [
-      { week: 4, points: 22.6, projectedPoints: 20.8, opponent: "vs SEA" },
-      { week: 5, points: 14.1, projectedPoints: 13.0, opponent: "@ DAL" },
-      { week: 6, points: 18.9, projectedPoints: 17.4, opponent: "vs CIN" },
+      { week: 1, points: 22.6, projectedPoints: 20.8, opponent: "vs SEA" },
+      { week: 2, points: 14.1, projectedPoints: 13.0, opponent: "@ DAL" },
     ],
   }),
   p({
@@ -93,9 +90,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "wr_outside",
     recentWeeks: [
-      { week: 4, points: 9.8, projectedPoints: 10.6, opponent: "@ NYG" },
-      { week: 5, points: 17.4, projectedPoints: 16.0, opponent: "vs PIT" },
-      { week: 6, points: 11.2, projectedPoints: 10.3, opponent: "vs DET" },
+      { week: 1, points: 9.8, projectedPoints: 10.6, opponent: "@ NYG" },
+      { week: 2, points: 17.4, projectedPoints: 16.0, opponent: "vs PIT" },
     ],
   }),
   p({
@@ -113,9 +109,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "wr_slot",
     recentWeeks: [
-      { week: 4, points: 15.2, projectedPoints: 14.0, opponent: "vs SEA" },
-      { week: 5, points: 8.1, projectedPoints: 8.7, opponent: "@ DAL" },
-      { week: 6, points: 19.6, projectedPoints: 18.0, opponent: "vs CIN" },
+      { week: 1, points: 15.2, projectedPoints: 14.0, opponent: "vs SEA" },
+      { week: 2, points: 8.1, projectedPoints: 8.7, opponent: "@ DAL" },
     ],
   }),
   p({
@@ -133,9 +128,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "te",
     recentWeeks: [
-      { week: 4, points: 7.2, projectedPoints: 7.8, opponent: "@ LAC" },
-      { week: 5, points: 12.8, projectedPoints: 11.8, opponent: "vs NO" },
-      { week: 6, points: 6.4, projectedPoints: 6.9, opponent: "@ SF" },
+      { week: 1, points: 7.2, projectedPoints: 7.8, opponent: "@ LAC" },
+      { week: 2, points: 12.8, projectedPoints: 11.8, opponent: "vs NO" },
     ],
   }),
   p({
@@ -153,9 +147,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: true,
     role: "wr_outside",
     recentWeeks: [
-      { week: 4, points: 14.6, projectedPoints: 13.4, opponent: "vs CHI" },
-      { week: 5, points: 10.2, projectedPoints: 9.4, opponent: "@ SF" },
-      { week: 6, points: 18.1, projectedPoints: 16.7, opponent: "vs ARI" },
+      { week: 1, points: 14.6, projectedPoints: 13.4, opponent: "vs CHI" },
+      { week: 2, points: 10.2, projectedPoints: 9.4, opponent: "@ SF" },
     ],
   }),
   p({
@@ -203,9 +196,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "wr_slot",
     recentWeeks: [
-      { week: 4, points: 12.4, projectedPoints: 11.4, opponent: "vs MIN" },
-      { week: 5, points: 4.1, projectedPoints: 4.4, opponent: "@ CLE" },
-      { week: 6, opponent: "vs ARI", points: 11.8, projectedPoints: 10.9 },
+      { week: 1, points: 12.4, projectedPoints: 11.4, opponent: "vs MIN" },
+      { week: 2, points: 4.1, projectedPoints: 4.4, opponent: "@ CLE" },
     ],
   }),
   p({
@@ -238,9 +230,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "wr_outside",
     recentWeeks: [
-      { week: 4, points: 8.6, projectedPoints: 9.3, opponent: "@ LAR" },
-      { week: 5, points: 13.2, projectedPoints: 12.1, opponent: "vs CAR" },
-      { week: 6, points: 3.4, projectedPoints: 3.7, opponent: "@ CLE" },
+      { week: 1, points: 8.6, projectedPoints: 9.3, opponent: "@ LAR" },
+      { week: 2, points: 13.2, projectedPoints: 12.1, opponent: "vs CAR" },
     ],
   }),
   p({
@@ -258,9 +249,8 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "qb",
     recentWeeks: [
-      { week: 4, points: 21.2, projectedPoints: 19.5, opponent: "vs PHI" },
-      { week: 5, points: 16.8, projectedPoints: 15.5, opponent: "@ SEA" },
-      { week: 6, points: 19.4, projectedPoints: 17.8, opponent: "vs NO" },
+      { week: 1, points: 21.2, projectedPoints: 19.5, opponent: "vs PHI" },
+      { week: 2, points: 16.8, projectedPoints: 15.5, opponent: "@ SEA" },
     ],
   }),
   p({
@@ -278,8 +268,7 @@ const DEMO_ROSTER_SEBASTIAN: FantasyPlayer[] = [
     isStarter: false,
     role: "rb2",
     recentWeeks: [
-      { week: 5, points: 4.2, projectedPoints: 4.5, opponent: "@ SF" },
-      { week: 6, points: 7.8, projectedPoints: 8.4, opponent: "vs GB" },
+      { week: 2, points: 4.2, projectedPoints: 4.5, opponent: "@ SF" },
     ],
   }),
 ];
@@ -404,9 +393,8 @@ export function createDemoLeague(
           projectedPoints: weakProj,
           percentStarted: 18,
           recentWeeks: [
-            { week: 4, points: 4.1, projectedPoints: 8.0, opponent: "vs CLE" },
-            { week: 5, points: 6.2, projectedPoints: 7.5, opponent: "@ DEN" },
-            { week: 6, points: 3.8, projectedPoints: 7.8, opponent: "vs SF" },
+            { week: 1, points: 4.1, projectedPoints: 8.0, opponent: "vs CLE" },
+            { week: 2, points: 6.2, projectedPoints: 7.5, opponent: "@ DEN" },
           ],
         };
       }
@@ -419,9 +407,8 @@ export function createDemoLeague(
             : Math.max(pl.projectedPoints, 13.8),
           percentOwned: isBench ? 68 : pl.percentOwned,
           recentWeeks: [
-            { week: 4, points: 10.2, projectedPoints: 12.5, opponent: "@ SEA" },
-            { week: 5, points: 14.8, projectedPoints: 12.0, opponent: "vs DEN" },
-            { week: 6, points: 9.6, projectedPoints: 12.8, opponent: "@ LAR" },
+            { week: 1, points: 10.2, projectedPoints: 12.5, opponent: "@ SEA" },
+            { week: 2, points: 14.8, projectedPoints: 12.0, opponent: "vs DEN" },
           ],
         };
       }
@@ -481,7 +468,7 @@ export function createDemoLeague(
   const matchups: Matchup[] = [
     {
       id: 1,
-      week: 7,
+      week: 3,
       homeTeamId: 1,
       awayTeamId: 4,
       homeScore: 98.4,
@@ -492,7 +479,7 @@ export function createDemoLeague(
     },
     {
       id: 2,
-      week: 7,
+      week: 3,
       homeTeamId: 2,
       awayTeamId: 5,
       homeScore: 105.1,
@@ -503,7 +490,7 @@ export function createDemoLeague(
     },
     {
       id: 3,
-      week: 7,
+      week: 3,
       homeTeamId: 3,
       awayTeamId: 6,
       homeScore: 76.3,
@@ -514,7 +501,7 @@ export function createDemoLeague(
     },
     {
       id: 4,
-      week: 7,
+      week: 3,
       homeTeamId: 7,
       awayTeamId: 8,
       homeScore: 64.0,
@@ -692,8 +679,8 @@ export function createDemoLeague(
     leagueId: "demo-league",
     season: defaultEspnSeason(),
     name: ownerDisplay ? `${ownerDisplay}'s Demo League` : "Sebastian's Demo League",
-    currentWeek: 7,
-    scoringPeriodId: 7,
+    currentWeek: 3,
+    scoringPeriodId: 3,
     isDemo: true,
     teams,
     matchups,
@@ -748,7 +735,7 @@ function abbrevFromDisplayName(name: string): string {
   return "GUE";
 }
 
-export function createDemoLiveStats(week = 7): LiveStatSnapshot {
+export function createDemoLiveStats(week = 3): LiveStatSnapshot {
   return {
     week,
     updatedAt: new Date().toISOString(),

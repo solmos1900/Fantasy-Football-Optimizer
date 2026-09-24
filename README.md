@@ -123,7 +123,7 @@ Copy `.env.example` → `.env`. **Never commit secrets.**
 | Projections / actuals / rosters | ESPN Fantasy unofficial API (synced + cached per user) or demo seed |
 | Weekly proj vs actual history | Neon `PlayerProjectionSnapshot` + `PlayerTrendMetric` (filled on sync / Insights / `POST /api/trends/refresh`) |
 | Prior-week form | ESPN player weekly `stats` (actual + projected when present); demo seed includes `recentWeeks` |
-| Defense vs similar players | League-wide `recentWeeks` vs opponent + seeded defense history table |
+| Defense vs similar players | Completed-week league `recentWeeks` vs opponent (ESPN scores + public scoreboard opponents). Honest empty state when sample is thin — never fabricated comps |
 | Injury / news | ESPN public site news + injuries APIs; roster injury flags as fallback — **never invented** |
 | Trades | `src/lib/insights/trade-value.ts` + `trades.ts` — full-PPR 1QB norms + stored trend chip nudges |
 | Trade Analyzer | `src/lib/insights/trade-analyzer.ts` — grades user-built packages with the same chip / need helpers |

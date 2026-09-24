@@ -276,12 +276,14 @@ export default async function PlayerDetailPage({
         </h2>
         <p className="mt-1 text-sm text-emerald-950/55">
           Same position / role vs {insight.venue.abbrev ?? "this opponent"} in
-          prior weeks. Concrete point totals from league history + seeded comps —
-          not guesses.
+          completed weeks only
+          {league.isDemo ? " (Demo league history)" : " (from your ESPN league sync)"}.
+          Point totals are real scored weeks — never invented comps.
         </p>
         {insight.comps.length === 0 ? (
           <p className="mt-3 text-sm text-emerald-950/50">
-            No comparable samples yet for this matchup.
+            {insight.compsEmptyMessage ??
+              `Not enough completed games of similar players vs ${insight.venue.abbrev ?? "this defense"} yet this season.`}
           </p>
         ) : (
           <ul className="mt-3 space-y-3">

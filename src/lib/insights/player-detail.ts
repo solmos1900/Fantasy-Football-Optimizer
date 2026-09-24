@@ -7,7 +7,10 @@ import type {
 import {
   analyzeDefenseMatchup,
   averageRecentPoints,
+  emptyDefenseMatchupMessage,
   inferPlayerRole,
+  isCompletedWeek,
+  matchupContextFromLeague,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
@@ -24,12 +27,14 @@ export interface PlayerDetailInsight {
   formSummary: string | null;
   comps: {
     week: number;
+    season: number;
     playerName: string;
     points: number;
     role: string;
     /** Concrete sentence: who scored what vs that defense in which week */
     blurb: string;
   }[];
+  compsEmptyMessage: string | null;
   venue: {
     abbrev: string | null;
     venue: "home" | "away" | "unknown";
@@ -108,19 +113,28 @@ function toComps(
   defenseAbbrev: string | null,
   samples: {
     week: number;
+    season: number;
     playerName: string;
     points: number;
     role: string;
     position?: PlayerPosition;
   }[],
+  contextSeason: number,
+  isDemo: boolean,
 ) {
   return samples.slice(0, 4).map((s) => {
     const role = roleLabel(s.role);
     const phrase = positionPhrase(s.position ?? player.position, s.role);
     const def = defenseAbbrev ?? "that";
-    const blurb = `${s.playerName} (${phrase}) only got ${s.points.toFixed(1)} PPR against the ${def} defense in week ${s.week}.`;
+    const weekBit =
+      s.season !== contextSeason
+        ? `${s.season} week ${s.week}`
+        : `week ${s.week}`;
+    const demoBit = isDemo ? " (Demo)" : "";
+    const blurb = `${s.playerName} (${phrase}) scored ${s.points.toFixed(1)} PPR against the ${def} defense in ${weekBit}.${demoBit}`;
     return {
       week: s.week,
+      season: s.season,
       playerName: s.playerName,
       points: s.points,
       role,
@@ -131,21 +145,34 @@ function toComps(
 
 /**
  * Start/Sit lean for a single player using projection, recent form, injury,
- * and similar-player vs defense comps. Never invents points — only stored
- * recentWeeks / seeded defense history / roster injury flags.
+ * and similar-player vs defense comps. Never invents points — only completed
+ * weeks from ESPN sync (or labeled demo recentWeeks) + roster injury flags.
  */
 export function buildPlayerDetailInsight(
   league: LeagueData,
   player: FantasyPlayer,
   trend?: PlayerTrendView | null,
 ): PlayerDetailInsight {
-  const matchup = analyzeDefenseMatchup(player, pool(league));
+  const context = matchupContextFromLeague(league);
+  const matchup = analyzeDefenseMatchup(player, pool(league), context);
   const form = recentFormSummary(player);
-  const recentAvg = averageRecentPoints(player.recentWeeks);
+  const recentAvg = averageRecentPoints(
+    (player.recentWeeks ?? []).filter((w) =>
+      isCompletedWeek(w.week, context.currentWeek),
+    ),
+  );
   const venue = parseVenue(player.opponent);
   const defenseAbbrev = venue.abbrev ?? matchup?.opponent ?? null;
   const reasons: string[] = [];
   let dataThin = false;
+  const compsEmptyMessage =
+    !matchup || matchup.samples.length === 0
+      ? emptyDefenseMatchupMessage(
+          player.position,
+          defenseAbbrev,
+          context.currentWeek,
+        )
+      : null;
 
   if (player.injuryStatus === "OUT" || player.injuryStatus === "IR") {
     const status = formatStatusCode(player.injuryStatus);
@@ -162,9 +189,17 @@ export function buildPlayerDetailInsight(
         `Projection is ${player.projectedPoints.toFixed(1)}; treat as unavailable until status flips.`,
       ],
       dataThin: false,
-      matchupSummary: matchup?.summary ?? null,
+      matchupSummary:
+        matchup && matchup.samples.length > 0 ? matchup.summary : null,
       formSummary: form,
-      comps: toComps(player, defenseAbbrev, matchup?.samples ?? []),
+      comps: toComps(
+        player,
+        defenseAbbrev,
+        matchup?.samples ?? [],
+        context.season,
+        Boolean(league.isDemo),
+      ),
+      compsEmptyMessage,
       venue,
     };
   }
@@ -200,9 +235,15 @@ export function buildPlayerDetailInsight(
     reasons.push(form);
   }
 
-  const comps = toComps(player, defenseAbbrev, matchup?.samples ?? []);
+  const comps = toComps(
+    player,
+    defenseAbbrev,
+    matchup?.samples ?? [],
+    context.season,
+    Boolean(league.isDemo),
+  );
 
-  if (matchup) {
+  if (matchup && matchup.samples.length > 0) {
     reasons.push(matchup.summary);
     if (matchup.toughMatchup) {
       reasons.push(
@@ -212,12 +253,13 @@ export function buildPlayerDetailInsight(
   } else {
     dataThin = true;
     reasons.push(
-      "No similar-player defense samples available yet for this opponent — matchup lean is weaker.",
+      compsEmptyMessage ??
+        "No similar-player defense samples available yet for this opponent — matchup lean is weaker.",
     );
   }
 
   reasons.push(
-    `Comparing similar ${roleLabel(inferPlayerRole(player))}s against this defense.`,
+    `Comparing similar ${roleLabel(inferPlayerRole(player))}s against this defense from completed weeks only.`,
   );
 
   let score = player.projectedPoints;
@@ -245,9 +287,11 @@ export function buildPlayerDetailInsight(
     headline,
     reasons,
     dataThin,
-    matchupSummary: matchup?.summary ?? null,
+    matchupSummary:
+      matchup && matchup.samples.length > 0 ? matchup.summary : null,
     formSummary: form,
     comps,
+    compsEmptyMessage,
     venue,
   };
 }

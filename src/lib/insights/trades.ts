@@ -21,6 +21,7 @@ import type {
 } from "@/lib/types";
 import {
   analyzeDefenseMatchup,
+  matchupContextFromLeague,
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import {
@@ -98,6 +99,7 @@ export function buildRealisticTrades(
   const others = league.teams.filter((t) => t.id !== you.id);
   const candidates: Candidate[] = [];
   const allPlayers = rosterPool(league);
+  const matchupCtx = matchupContextFromLeague(league);
 
   // 1) Same-position 1:1
   for (const pos of SKILL_POSITIONS) {
@@ -257,8 +259,8 @@ export function buildRealisticTrades(
     for (const p of c.receive) {
       const form = recentFormSummary(p);
       if (form) whyYouRaw.push(form);
-      const def = analyzeDefenseMatchup(p, allPlayers);
-      if (def) whyYouRaw.push(`This week: ${def.summary}`);
+      const def = analyzeDefenseMatchup(p, allPlayers, matchupCtx);
+      if (def && def.samples.length > 0) whyYouRaw.push(`This week: ${def.summary}`);
       const tb = trendBlurb(p, trends);
       if (tb) whyYouRaw.push(tb);
     }
