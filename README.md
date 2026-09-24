@@ -7,7 +7,7 @@ Add it to your Home Screen on iPhone (Safari → Share → Add to Home Screen) f
 **Live:** [fantasyfootballoptimizer-kappa.vercel.app](https://fantasyfootballoptimizer-kappa.vercel.app)  
 **Stack:** Next.js App Router, TypeScript, Tailwind CSS, Auth.js (NextAuth v5), Prisma + PostgreSQL (Neon on Vercel).
 
-UI lock: Retro Draft Board look + Helmet Orbit icon.
+UI lock: Retro Draft Board + Helmet Orbit icon on solid dark charcoal (`#1c1c1c`).
 
 ---
 

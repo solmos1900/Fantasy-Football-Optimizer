@@ -155,7 +155,7 @@ export function InstallHeroCta() {
         type="button"
         variant="secondary"
         size="lg"
-        className="w-full !text-orange-300 hover:!text-orange-200"
+        className="w-full"
         onClick={() => openInstallGuide()}
       >
         Install the app
@@ -245,12 +245,12 @@ export function InstallAppExperience() {
           role="region"
           aria-label="Install Gridiron IQ"
         >
-          <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl border border-emerald-950/15 bg-emerald-950 px-3 py-3 text-emerald-50 shadow-lg">
+          <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl border border-emerald-950/15 bg-[#2a2a2a] px-3 py-3 text-emerald-950 shadow-lg">
             <div className="min-w-0 flex-1">
-              <p className="type-brand text-base text-emerald-50">
+              <p className="type-brand text-base text-emerald-950">
                 Install Gridiron IQ
               </p>
-              <p className="type-caption mt-0.5 leading-snug text-emerald-50/75">
+              <p className="type-caption mt-0.5 leading-snug text-emerald-950/70">
                 Add to your Home Screen for a full-screen app shortcut.
               </p>
             </div>
@@ -269,7 +269,7 @@ export function InstallAppExperience() {
             <button
               type="button"
               onClick={dismissBanner}
-              className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-50/70 hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-950/60 hover:bg-emerald-950/10 hover:text-emerald-950"
               aria-label="Maybe later"
             >
               Later
@@ -330,7 +330,7 @@ export function InstallAppExperience() {
                 <ol className="space-y-4">
                   {SAFARI_STEPS.map((step) => (
                     <li key={step.title} className="flex gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-950 text-emerald-50">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#333333] text-emerald-950 ring-1 ring-emerald-950/15">
                         <step.Icon className="h-5 w-5" />
                       </span>
                       <div className="min-w-0">
@@ -371,8 +371,7 @@ export function InstallAppExperience() {
                     className={buttonVariants({
                       variant: "secondary",
                       size: "sm",
-                      className:
-                        "shrink-0 !text-orange-300 hover:!text-orange-200",
+                      className: "shrink-0",
                     })}
                   >
                     {copied ? "Copied" : "Copy link"}

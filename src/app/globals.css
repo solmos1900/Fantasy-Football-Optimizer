@@ -1,24 +1,23 @@
 @import "tailwindcss";
 
 /*
-  Option F — Retro Draft Board
-  Kraft/cream surfaces, forest green ink, burgundy stamps.
+  Option 15 — Dark charcoal
+  Solid #1c1c1c page, charcoal surfaces, light ink, burgundy stamps.
   Emerald / orange Tailwind scales remapped so existing utilities
-  pick up the locked palette without a full class rewrite.
+  stay readable on dark without a full class rewrite.
 */
 :root {
-  /* Soft kraft page — warm off-white, never stark #fff */
-  --background: #f3efe4;
-  --foreground: #1b3022;
-  --field: #1b3022;
-  --accent: #701d21;
-  /* Paper panels slightly lighter than page, still cream */
-  --surface: #f8f3e8;
-  --cork: #c4a574;
-  --cork-deep: #a88455;
-  --kraft: #ebe4d4;
+  --background: #1c1c1c;
+  --foreground: #ececec;
+  --field: #c8c8c8;
+  --accent: #b8454b;
+  /* Cards / chrome slightly above page charcoal */
+  --surface: #2a2a2a;
+  --cork: #333333;
+  --cork-deep: #262626;
+  --kraft: #333333;
   --radius-control: 0.7rem;
-  --ring-focus: rgba(112, 29, 33, 0.32);
+  --ring-focus: rgba(184, 69, 75, 0.4);
 }
 
 @theme inline {
@@ -32,44 +31,44 @@
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 
-  /* Forest green ← emerald */
-  --color-emerald-50: #f3f6f1;
-  --color-emerald-100: #e4ebe3;
-  --color-emerald-200: #c8d5c6;
-  --color-emerald-300: #9bb39a;
-  --color-emerald-400: #6a8a6c;
-  --color-emerald-500: #456348;
-  --color-emerald-600: #2f4a35;
-  --color-emerald-700: #243a2b;
-  --color-emerald-800: #1f3426;
-  --color-emerald-900: #1b3022;
-  --color-emerald-950: #14231a;
+  /*
+    Emerald scale inverted for dark UI:
+    - text-emerald-950 → light primary ink
+    - bg-emerald-950 → light filled chips / secondary CTAs
+    - emerald-50 → darkest wash (hovers on dark)
+  */
+  --color-emerald-50: #232323;
+  --color-emerald-100: #2a2a2a;
+  --color-emerald-200: #3a3a3a;
+  --color-emerald-300: #5a5a5a;
+  --color-emerald-400: #8a8a8a;
+  --color-emerald-500: #a8a8a8;
+  --color-emerald-600: #c0c0c0;
+  --color-emerald-700: #d0d0d0;
+  --color-emerald-800: #e0e0e0;
+  --color-emerald-900: #e8e8e8;
+  --color-emerald-950: #ececec;
 
-  /* Burgundy / maroon ← orange (START stamps & primary CTAs) */
-  --color-orange-50: #f9f0f0;
-  --color-orange-100: #f0d9da;
-  --color-orange-200: #e0b4b6;
-  --color-orange-300: #c97a7e;
+  /* Burgundy / maroon ← orange (CTAs & stamps) — brighter for dark bg */
+  --color-orange-50: #2a1819;
+  --color-orange-100: #3d2022;
+  --color-orange-200: #5c2a2e;
+  --color-orange-300: #8a3a40;
   --color-orange-400: #a8484d;
-  --color-orange-500: #8a2e33;
-  --color-orange-600: #701d21;
-  --color-orange-700: #5c181b;
-  --color-orange-800: #4a1416;
-  --color-orange-900: #3a1012;
-  --color-orange-950: #2a0b0d;
+  --color-orange-500: #b8454b;
+  --color-orange-600: #c45c61;
+  --color-orange-700: #d4a0a3;
+  --color-orange-800: #e0c0c2;
+  --color-orange-900: #f0d9da;
+  --color-orange-950: #f9f0f0;
 }
 
 /*
-  Keep html + body the same kraft color for the FULL scroll height.
-  Mobile Safari often paints overflow/rubber-band from html; if html is
-  viewport-tall only (h-full) while body grows, a darker layer can flash
-  behind content. Solid color on both + fixed decorative layer fixes it.
-
-  text-size-adjust: prevent iOS from inflating text (looks “zoomed”).
-  overflow-x: clip: wide tables scroll inside their wrappers, not the page.
+  Full-viewport solid charcoal — no checker / grain / stripe overlays.
 */
 html {
   background-color: var(--background);
+  color-scheme: dark;
   min-height: 100%;
   overflow-x: clip;
   -webkit-text-size-adjust: 100%;
@@ -88,24 +87,18 @@ body {
   line-height: 1.6;
   letter-spacing: -0.011em;
   overflow-x: clip;
-  /* Standalone / notch: horizontal + home indicator. Top inset is on sticky
-     header / marketing mains so chrome can sit under the status bar cleanly. */
   padding-right: env(safe-area-inset-right, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   padding-left: env(safe-area-inset-left, 0px);
 }
 
-/*
-  iOS Safari auto-zooms focused form controls when computed font-size < 16px
-  and often leaves the page stuck zoomed. Keep interactive fields at ≥16px.
-*/
 input,
 select,
 textarea {
   font-size: 1rem;
 }
 
-/* Solid cream page fill — no checker / grain / stripe overlays. */
+/* Solid charcoal underlay (Safari rubber-band) */
 body::before {
   content: "";
   position: fixed;
@@ -120,31 +113,20 @@ body::before {
   background-color: var(--background);
 }
 
-/* Cork board panel — draft-board character */
+/* Draft-board panel — dark charcoal with rivets (no tan cork / no grain) */
 .cork-board {
   position: relative;
   border-radius: 0.75rem;
   border: 2px solid var(--field);
-  background-color: #c9a86c;
+  background-color: var(--cork);
   background-image:
-    radial-gradient(circle at 0.8rem 0.8rem, #1b3022 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at calc(100% - 0.8rem) 0.8rem, #1b3022 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at 0.8rem calc(100% - 0.8rem), #1b3022 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at calc(100% - 0.8rem) calc(100% - 0.8rem), #1b3022 0 0.22rem, transparent 0.28rem),
-    radial-gradient(
-      circle at 20% 30%,
-      rgba(255, 255, 255, 0.12) 0,
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 80% 70%,
-      rgba(80, 50, 20, 0.12) 0,
-      transparent 45%
-    ),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)' opacity='0.22'/%3E%3C/svg%3E");
+    radial-gradient(circle at 0.8rem 0.8rem, #d8d4cc 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at calc(100% - 0.8rem) 0.8rem, #d8d4cc 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at 0.8rem calc(100% - 0.8rem), #d8d4cc 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at calc(100% - 0.8rem) calc(100% - 0.8rem), #d8d4cc 0 0.22rem, transparent 0.28rem);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 8px 28px -14px rgba(27, 48, 34, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 28px -14px rgba(0, 0, 0, 0.55);
 }
 
 /* —— Typography scale —— */
@@ -220,16 +202,16 @@ body::before {
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--surface);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface) 25%, transparent);
+  color: #f0ede6;
+  box-shadow: inset 0 0 0 1px rgba(240, 237, 230, 0.2);
 }
 
 .stamp-start {
-  background: #701d21;
+  background: #b8454b;
 }
 
 .stamp-sit {
-  background: #1b3022;
+  background: #3a3a3a;
 }
 
 .stamp-flex {
@@ -240,7 +222,7 @@ body::before {
 .field-input {
   width: 100%;
   border-radius: var(--radius-control);
-  border: 1.5px solid rgba(27, 48, 34, 0.18);
+  border: 1.5px solid rgba(240, 237, 230, 0.16);
   background: var(--surface);
   padding: 0.625rem 0.875rem;
   font-size: 1rem;
@@ -253,30 +235,29 @@ body::before {
 }
 
 .field-input:hover {
-  border-color: rgba(27, 48, 34, 0.28);
+  border-color: rgba(240, 237, 230, 0.28);
 }
 
 .field-input:focus-visible {
-  border-color: rgba(112, 29, 33, 0.55);
+  border-color: rgba(184, 69, 75, 0.7);
   box-shadow: 0 0 0 3px var(--ring-focus);
 }
 
 .field-input::placeholder {
-  color: rgba(27, 48, 34, 0.4);
+  color: rgba(240, 237, 230, 0.4);
 }
 
-/* —— Card / surface grouping (paper on board) —— */
+/* —— Card / surface grouping —— */
 .surface-card {
   border-radius: 0.85rem;
-  border: 1.5px solid rgba(27, 48, 34, 0.12);
+  border: 1.5px solid rgba(240, 237, 230, 0.1);
   background: var(--surface);
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--kraft) 35%, var(--surface)) inset,
-    0 1px 2px rgba(27, 48, 34, 0.04),
-    0 10px 28px -14px rgba(27, 48, 34, 0.18);
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 10px 28px -14px rgba(0, 0, 0, 0.45);
 }
 
-/* Masking-tape accent for featured cards */
 .tape-card {
   position: relative;
 }
@@ -290,9 +271,9 @@ body::before {
   width: 4.5rem;
   height: 1.05rem;
   transform: translateX(-50%) rotate(-2deg);
-  background: rgba(235, 220, 170, 0.72);
-  border: 1px solid rgba(180, 150, 80, 0.25);
-  box-shadow: 0 1px 2px rgba(27, 48, 34, 0.08);
+  background: rgba(184, 69, 75, 0.55);
+  border: 1px solid rgba(240, 237, 230, 0.15);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }
 

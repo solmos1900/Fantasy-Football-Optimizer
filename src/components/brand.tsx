@@ -5,22 +5,23 @@ type BrandMarkProps = {
   className?: string;
   size?: number;
   /**
-   * `app` — cream squircle tile (PWA / chrome).
-   * `hero` — transparent helmet + orbit only (marketing landing).
+   * `app` — light Helmet Orbit for dark chrome (no cream tile).
+   * `hero` — larger transparent light mark for marketing landing.
    */
   variant?: "app" | "hero";
 };
 
-/** Helmet Orbit mark — cream squircle (app) or floating transparent art (hero). */
+/** Helmet Orbit mark — light transparent art for dark charcoal UI. */
 export function BrandMark({
   className,
   size = 36,
   variant = "app",
 }: BrandMarkProps) {
+  // Light mark reads on #1c1c1c; cream squircle tile icons do not.
   const src =
     variant === "hero"
-      ? "/icons/helmet-orbit-mark-512.png"
-      : "/icons/icon-192.png";
+      ? "/icons/helmet-orbit-mark-light-512.png"
+      : "/icons/helmet-orbit-mark-light-256.png";
 
   return (
     <Image

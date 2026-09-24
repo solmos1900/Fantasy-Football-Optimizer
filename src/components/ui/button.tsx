@@ -9,9 +9,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-orange-600 text-white shadow-sm hover:bg-orange-500 active:bg-orange-700 disabled:bg-orange-600/50",
   secondary:
-    "bg-emerald-950 text-emerald-50 shadow-sm hover:bg-emerald-900 active:bg-emerald-950 disabled:bg-emerald-950/50",
+    "bg-[#333333] text-emerald-950 shadow-sm ring-1 ring-emerald-950/15 hover:bg-[#3a3a3a] active:bg-[#2e2e2e] disabled:bg-[#333333]/50",
   ghost:
-    "border-[1.5px] border-emerald-950/20 bg-[color-mix(in_srgb,var(--surface)_85%,var(--kraft))] text-emerald-950 shadow-sm hover:border-emerald-950/35 hover:bg-[var(--surface)] active:bg-emerald-50/80 disabled:bg-[color-mix(in_srgb,var(--kraft)_50%,var(--surface))]",
+    "border-[1.5px] border-emerald-950/20 bg-[var(--surface)] text-emerald-950 shadow-sm hover:border-emerald-950/35 hover:bg-[var(--kraft)] active:bg-emerald-50/80 disabled:opacity-50",
   danger:
     "bg-red-700 text-white shadow-sm hover:bg-red-600 active:bg-red-800 disabled:bg-red-700/50",
 };

@@ -68,7 +68,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
         Slim top chrome — on ~390px brand gets its own row so “Gridiron IQ”
         stays fully readable; utilities sit below with real gaps.
       */}
-      <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_88%,var(--kraft))]/95 shadow-[0_1px_0_rgba(253,249,240,0.55)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
+      <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_88%,var(--kraft))]/95 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_8px_24px_-18px_rgba(0,0,0,0.55)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4">
           <PendingLink
             href="/dashboard"
@@ -167,7 +167,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
                 <span
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-md transition-colors sm:h-8 sm:w-8",
-                    active && "bg-emerald-950 text-emerald-50",
+                    active && "bg-[#3a3a3a] text-emerald-950 ring-1 ring-emerald-950/20",
                   )}
                 >
                   <Icon
