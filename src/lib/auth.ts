@@ -44,6 +44,9 @@ if (googleOAuthConfigured) {
     Google({
       clientId: googleId!,
       clientSecret: googleSecret!,
+      // Personal single-owner app: allow Google to link to an existing
+      // email/password User with the same verified email.
+      allowDangerousEmailAccountLinking: true,
     }),
   );
 }
@@ -53,6 +56,7 @@ if (githubOAuthConfigured) {
     GitHub({
       clientId: githubId!,
       clientSecret: githubSecret!,
+      allowDangerousEmailAccountLinking: true,
     }),
   );
 }
