@@ -374,7 +374,7 @@ body::before {
 }
 
 .landing-entrance--run .landing-stage {
-  animation-fill-mode: both;
+  animation-fill-mode: forwards;
   animation-timing-function: cubic-bezier(0.22, 0.8, 0.28, 1);
 }
 
