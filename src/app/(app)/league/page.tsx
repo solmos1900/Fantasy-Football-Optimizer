@@ -98,7 +98,7 @@ export default async function LeaguePage() {
             return (
               <div
                 key={m.id}
-                className="rounded-xl border border-emerald-950/8 bg-white/50 px-3.5 py-3"
+                className="rounded-xl border border-emerald-950/8 bg-[color-mix(in_srgb,var(--kraft)_35%,var(--surface))] px-3.5 py-3"
               >
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{away?.name ?? "Away"}</span>

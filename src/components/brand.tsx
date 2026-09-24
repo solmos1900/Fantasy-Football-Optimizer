@@ -1,17 +1,32 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Helmet Orbit mark — cream squircle, charcoal helmet + orbital ring. */
+type BrandMarkProps = {
+  className?: string;
+  size?: number;
+  /**
+   * `app` — light Helmet Orbit for dark chrome (no cream tile).
+   * `hero` — larger transparent light mark for marketing landing.
+   */
+  variant?: "app" | "hero";
+};
+
+/** Helmet Orbit mark — light transparent art for dark charcoal UI. */
 export function BrandMark({
   className,
   size = 36,
-}: {
-  className?: string;
-  size?: number;
-}) {
+  variant = "app",
+}: BrandMarkProps) {
+  // Light mark reads on #1c1c1c; cream squircle tile icons do not.
+  // Cache-bust so cleaned PNG alpha lands after flake cleanup.
+  const src =
+    variant === "hero"
+      ? "/icons/helmet-orbit-mark-light-512.png?v=clean-1"
+      : "/icons/helmet-orbit-mark-light-256.png?v=clean-1";
+
   return (
     <Image
-      src="/icons/icon-192.png"
+      src={src}
       width={size}
       height={size}
       alt=""

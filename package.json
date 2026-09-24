@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && node scripts/migrate-deploy-retry.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "verify:defense": "tsx scripts/verify-defense-matchups.ts",
+    "verify:guest": "tsx scripts/verify-guest-entry.ts",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:push": "prisma db push",
@@ -39,6 +41,7 @@
     "eslint-config-next": "16.3.5",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
