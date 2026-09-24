@@ -34,6 +34,13 @@ function labelTone(label: PlayerTrendLabel): string {
   }
 }
 
+/** Shared window: early season shows full 1..current; later seasons keep last 5 for mobile. */
+export function visibleTrendWeeks<
+  T extends { week: number },
+>(weeks: T[]): T[] {
+  return [...weeks].sort((a, b) => a.week - b.week).slice(-5);
+}
+
 /** Proj vs actual by week — horizontal bars with values (readable on mobile cards). */
 export function ProjectionSpark({
   weeks,
@@ -42,7 +49,7 @@ export function ProjectionSpark({
   weeks: { week: number; projected: number | null; actual: number | null }[];
   className?: string;
 }) {
-  const rows = [...weeks].sort((a, b) => a.week - b.week).slice(-5);
+  const rows = visibleTrendWeeks(weeks);
   if (!rows.length) return null;
 
   const max = Math.max(
@@ -189,9 +196,8 @@ export function TrendPanel({
                 </tr>
               </thead>
               <tbody>
-                {[...trend.weeks]
+                {[...visibleTrendWeeks(trend.weeks)]
                   .sort((a, b) => b.week - a.week)
-                  .slice(0, 6)
                   .map((w) => {
                     const delta =
                       w.projected != null && w.actual != null
