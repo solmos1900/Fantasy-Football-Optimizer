@@ -24,7 +24,7 @@ export default async function HomePage() {
           <BrandMark
             variant="hero"
             size={96}
-            className="h-24 w-24 drop-shadow-[0_10px_24px_rgba(27,48,34,0.16)] sm:h-[6.5rem] sm:w-[6.5rem]"
+            className="h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem]"
           />
           <p className="type-brand text-5xl text-emerald-950 sm:text-7xl md:text-8xl">
             Gridiron IQ
