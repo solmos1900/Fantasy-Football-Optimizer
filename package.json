@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && node scripts/migrate-deploy-retry.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "verify:defense": "tsx scripts/verify-defense-matchups.ts",
