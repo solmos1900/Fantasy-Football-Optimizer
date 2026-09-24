@@ -29,6 +29,22 @@ export function isSafariBrowser(): boolean {
 
 export const INSTALL_DISMISS_KEY = "gridiron-iq-install-dismissed";
 export const INSTALL_OPEN_EVENT = "gridiron-iq:open-install";
+/** Soft install banner visibility — trade sticky CTAs listen to clear the button. */
+export const INSTALL_BANNER_EVENT = "gridiron-iq:install-banner";
+export const INSTALL_BANNER_OFFSET_VAR = "--install-banner-offset";
+/** Approximate soft-banner height above the tab bar (card + padding). */
+export const INSTALL_BANNER_OFFSET = "4.75rem";
+
+export function setInstallBannerOffset(visible: boolean): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.style.setProperty(
+    INSTALL_BANNER_OFFSET_VAR,
+    visible ? INSTALL_BANNER_OFFSET : "0px",
+  );
+  window.dispatchEvent(
+    new CustomEvent(INSTALL_BANNER_EVENT, { detail: { visible } }),
+  );
+}
 
 export function wasInstallDismissed(): boolean {
   if (typeof window === "undefined") return false;
@@ -45,6 +61,7 @@ export function dismissInstallPrompt(): void {
   } catch {
     /* ignore quota / private mode */
   }
+  setInstallBannerOffset(false);
 }
 
 export function openInstallGuide(): void {

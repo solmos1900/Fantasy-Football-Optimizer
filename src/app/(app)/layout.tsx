@@ -13,7 +13,7 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen flex-col bg-transparent">
       <AppNav />
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))]">
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-[calc(5.5rem+max(0.75rem,env(safe-area-inset-bottom,0px)))]">
         {children}
       </div>
     </div>

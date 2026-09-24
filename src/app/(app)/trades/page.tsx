@@ -7,7 +7,7 @@ import {
 } from "@/lib/insights/trends";
 import { TradeAnalyzer } from "@/components/trade-analyzer";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
-import type { PlayerTrendView } from "@/lib/types";
+import type { FantasyPlayer, PlayerTrendView } from "@/lib/types";
 
 export default async function TradesPage({
   searchParams,
@@ -61,9 +61,21 @@ export default async function TradesPage({
     ? params.get.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  const trendsByEspnId = new Map<number, PlayerTrendView>();
+  // Plain object so trends survive RSC → client serialization (Map does not).
+  const trendsByEspnId: Record<string, PlayerTrendView> = {};
   for (const [espnId, trend] of trendMap) {
-    trendsByEspnId.set(espnId, trend);
+    trendsByEspnId[String(espnId)] = trend;
+  }
+
+  // Dedupe league + FA universe by player id for PvP search corpus.
+  const poolById = new Map<string, FantasyPlayer>();
+  for (const team of league.teams) {
+    for (const player of team.roster) {
+      if (!poolById.has(player.id)) poolById.set(player.id, player);
+    }
+  }
+  for (const player of league.freeAgents) {
+    if (!poolById.has(player.id)) poolById.set(player.id, player);
   }
 
   return (
@@ -80,10 +92,7 @@ export default async function TradesPage({
       <TradeAnalyzer
         you={you}
         partners={partners}
-        poolPlayers={[
-          ...league.teams.flatMap((t) => t.roster),
-          ...league.freeAgents,
-        ]}
+        poolPlayers={[...poolById.values()]}
         trends={trendsByEspnId}
         initialPartnerId={
           partnerId != null && !Number.isNaN(partnerId) ? partnerId : undefined

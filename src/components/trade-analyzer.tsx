@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 import {
@@ -19,6 +26,12 @@ import { Button } from "@/components/ui/button";
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
 
+/** RSC-safe trend lookup (Map does not always survive server→client props). */
+export type TrendsProp =
+  | Map<number, PlayerTrendView>
+  | Record<string, PlayerTrendView>
+  | undefined;
+
 const STEPS: { id: TradeStep; label: string }[] = [
   { id: "yours", label: "Your side" },
   { id: "theirs", label: "Their side" },
@@ -33,8 +46,25 @@ const VERDICT_STYLE: Record<TradeVerdict, string> = {
   hard_reject: "bg-red-800 text-white",
 };
 
+/** Tab bar clearance: icon row (~3.75rem) + max(0.75rem, safe-area) + optional install banner. */
+const TAB_BAR_BOTTOM =
+  "bottom-[calc(3.75rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--install-banner-offset,0px))]";
+
 function sortRoster(roster: FantasyPlayer[]): FantasyPlayer[] {
   return sortByEspnRosterOrder(roster);
+}
+
+function toTrendMap(
+  trends: TrendsProp,
+): Map<number, PlayerTrendView> | undefined {
+  if (!trends) return undefined;
+  if (trends instanceof Map) return trends;
+  const map = new Map<number, PlayerTrendView>();
+  for (const [key, value] of Object.entries(trends)) {
+    const id = Number(key);
+    if (!Number.isNaN(id)) map.set(id, value);
+  }
+  return map;
 }
 
 function playerNames(players: FantasyPlayer[]): string {
@@ -74,6 +104,16 @@ function whoBenefitsCopy(
     headline: mode === "team" ? "They win this deal" : "Side B wins this deal",
     detail: `Ahead by ${Math.abs(gap).toFixed(1)} points of value.`,
   };
+}
+
+function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+  return (
+    player.name.toLowerCase().includes(q) ||
+    player.nflTeam.toLowerCase().includes(q) ||
+    player.position.toLowerCase().includes(q)
+  );
 }
 
 function PlayerPickRow({
@@ -134,6 +174,195 @@ function PlayerPickRow({
   );
 }
 
+/**
+ * Type-to-search picker for Player vs player mode.
+ * Empty query shows an empty state (no prepopulated checklist).
+ */
+function PlayerSearchPicker({
+  pool,
+  selectedIds,
+  blockedIds,
+  onSelect,
+  onRemove,
+  trends,
+  inputLabel,
+}: {
+  pool: FantasyPlayer[];
+  selectedIds: Set<string>;
+  /** Players already claimed by the other side — shown but not selectable. */
+  blockedIds: Set<string>;
+  onSelect: (id: string) => void;
+  onRemove: (id: string) => void;
+  trends?: Map<number, PlayerTrendView>;
+  inputLabel: string;
+}) {
+  const listId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const selected = useMemo(() => {
+    const byId = new Map(pool.map((p) => [p.id, p]));
+    return [...selectedIds]
+      .map((id) => byId.get(id))
+      .filter((p): p is FantasyPlayer => Boolean(p));
+  }, [pool, selectedIds]);
+
+  const suggestions = useMemo(() => {
+    const q = query.trim();
+    if (q.length < 1) return [];
+    return pool
+      .filter((p) => !selectedIds.has(p.id))
+      .filter((p) => matchesPlayerQuery(p, q))
+      .sort((a, b) => b.projectedPoints - a.projectedPoints)
+      .slice(0, 8);
+  }, [pool, query, selectedIds]);
+
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, []);
+
+  function pick(player: FantasyPlayer) {
+    if (blockedIds.has(player.id)) return;
+    onSelect(player.id);
+    setQuery("");
+    setOpen(false);
+  }
+
+  return (
+    <div ref={rootRef} className="space-y-3">
+      {selected.length > 0 && (
+        <ul className="flex flex-wrap gap-2" aria-label="Selected players">
+          {selected.map((player) => (
+            <li key={player.id}>
+              <button
+                type="button"
+                onClick={() => onRemove(player.id)}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-orange-700/25 bg-orange-50 px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-700/45"
+                aria-label={`Remove ${player.name}`}
+              >
+                <span className="truncate">{player.name}</span>
+                <span className="type-caption shrink-0 text-emerald-950/45">
+                  {player.position}
+                </span>
+                <X
+                  className="h-3.5 w-3.5 shrink-0 text-emerald-950/50"
+                  aria-hidden
+                />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <label className="block">
+        <span className="type-eyebrow text-emerald-950/45">{inputLabel}</span>
+        <input
+          type="search"
+          value={query}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          role="combobox"
+          aria-expanded={
+            open && (query.trim().length > 0 || suggestions.length > 0)
+          }
+          aria-controls={listId}
+          aria-autocomplete="list"
+          placeholder="Type a player name…"
+          className="field-input mt-1.5"
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setOpen(false);
+              (e.target as HTMLInputElement).blur();
+            }
+            if (e.key === "Enter" && suggestions[0]) {
+              e.preventDefault();
+              pick(suggestions[0]);
+            }
+          }}
+        />
+      </label>
+
+      {open && query.trim().length === 0 && (
+        <p className="type-body text-sm text-emerald-950/55">
+          Start typing to search the league player pool.
+        </p>
+      )}
+
+      {open && query.trim().length > 0 && (
+        <ul
+          id={listId}
+          role="listbox"
+          aria-label="Matching players"
+          className="overflow-hidden rounded-xl border border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_96%,white)] shadow-sm"
+        >
+          {suggestions.length === 0 ? (
+            <li className="px-3 py-3 type-body text-sm text-emerald-950/55">
+              No players match “{query.trim()}”.
+            </li>
+          ) : (
+            suggestions.map((player) => {
+              const blocked = blockedIds.has(player.id);
+              return (
+                <li key={player.id} role="option" aria-selected={false}>
+                  <button
+                    type="button"
+                    disabled={blocked}
+                    onClick={() => pick(player)}
+                    className={cn(
+                      "flex w-full items-center gap-3 border-b border-emerald-950/5 px-3 py-2.5 text-left last:border-0 transition",
+                      blocked
+                        ? "cursor-not-allowed opacity-45"
+                        : "hover:bg-orange-50/70",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-medium text-emerald-950">
+                          {player.name}
+                        </span>
+                        <span className="type-caption text-emerald-950/50">
+                          {player.position} · {player.nflTeam}
+                        </span>
+                        {blocked && (
+                          <span className="type-caption text-orange-700">
+                            On other side
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 type-caption text-emerald-950/45">
+                        proj {player.projectedPoints.toFixed(1)}
+                      </div>
+                    </div>
+                    <div className="text-right type-caption text-emerald-950/50">
+                      <div className="type-stat text-base leading-none text-emerald-950">
+                        {chipValue(player, trends).toFixed(1)}
+                      </div>
+                      <div>val</div>
+                    </div>
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function StepRail({
   step,
   onJump,
@@ -158,7 +387,10 @@ function StepRail({
             (s.id === "theirs" && canReachTheirs) ||
             (s.id === "results" && canReachResults);
           return (
-            <li key={s.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+            <li
+              key={s.id}
+              className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"
+            >
               <button
                 type="button"
                 disabled={!canJump || isCurrent}
@@ -184,7 +416,11 @@ function StepRail({
                         : "bg-emerald-950/10 text-emerald-950/50",
                   )}
                 >
-                  {isDone ? <Check className="h-3.5 w-3.5" aria-hidden /> : index + 1}
+                  {isDone ? (
+                    <Check className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    index + 1
+                  )}
                 </span>
                 <span className="type-eyebrow truncate tracking-wider">
                   {s.label}
@@ -195,7 +431,9 @@ function StepRail({
                   aria-hidden
                   className={cn(
                     "hidden h-px w-3 shrink-0 sm:block",
-                    index < currentIndex ? "bg-emerald-950/40" : "bg-emerald-950/15",
+                    index < currentIndex
+                      ? "bg-emerald-950/40"
+                      : "bg-emerald-950/15",
                   )}
                 />
               )}
@@ -236,10 +474,13 @@ function StickyStepActions({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
+  // Extra spacer when the iOS install soft-banner is lifting the CTA.
+  const spacerClass =
+    "h-[calc(4.75rem+var(--install-banner-offset,0px))]";
+
   return (
     <>
-      {/* Spacer so list/summary aren't covered by the fixed bar */}
-      <div className="h-[4.75rem]" aria-hidden />
+      <div className={spacerClass} aria-hidden />
       {mounted
         ? createPortal(
             <div
@@ -247,7 +488,7 @@ function StickyStepActions({ children }: { children: ReactNode }) {
                 "fixed inset-x-0 z-30 border-t-[1.5px] border-emerald-950/12",
                 "bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 backdrop-blur-md",
                 "shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.3)]",
-                "bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]",
+                TAB_BAR_BOTTOM,
               )}
               role="region"
               aria-label="Trade step actions"
@@ -291,7 +532,8 @@ function LeanResultsCard({
       <span
         className={cn(
           "stamp animate-stamp",
-          analysis.verdict === "hard_reject" || analysis.verdict === "lean_reject"
+          analysis.verdict === "hard_reject" ||
+            analysis.verdict === "lean_reject"
             ? "stamp-start"
             : analysis.verdict === "fair"
               ? "stamp-flex"
@@ -346,7 +588,7 @@ export function TradeAnalyzer({
   you,
   partners,
   poolPlayers,
-  trends,
+  trends: trendsProp,
   initialPartnerId,
   initialGiveIds = [],
   initialReceiveIds = [],
@@ -356,12 +598,14 @@ export function TradeAnalyzer({
   partners: FantasyTeam[];
   /** Full league + FA pool for free player-vs-player compare mode. */
   poolPlayers?: FantasyPlayer[];
-  trends?: Map<number, PlayerTrendView>;
+  trends?: TrendsProp;
   initialPartnerId?: number;
   initialGiveIds?: string[];
   initialReceiveIds?: string[];
   isDemo?: boolean;
 }) {
+  const trends = useMemo(() => toTrendMap(trendsProp), [trendsProp]);
+
   const hasDeepLinkBothSides =
     initialGiveIds.length > 0 && initialReceiveIds.length > 0;
 
@@ -372,7 +616,7 @@ export function TradeAnalyzer({
   const [partnerId, setPartnerId] = useState<number>(
     initialPartnerId && partners.some((p) => p.id === initialPartnerId)
       ? initialPartnerId
-      : partners[0]?.id ?? 0,
+      : (partners[0]?.id ?? 0),
   );
   const [giveIds, setGiveIds] = useState<Set<string>>(
     () => new Set(initialGiveIds),
@@ -398,18 +642,34 @@ export function TradeAnalyzer({
       seen.add(p.id);
       unique.push(p);
     }
-    return sortRoster(unique);
+    return unique.sort((a, b) => b.projectedPoints - a.projectedPoints);
   }, [poolPlayers, you.roster, partners]);
 
+  const freePoolById = useMemo(() => {
+    const map = new Map<string, FantasyPlayer>();
+    for (const p of freePool) map.set(p.id, p);
+    return map;
+  }, [freePool]);
+
+  // Resolve selections by id map so PvP picks stay valid even if roster
+  // ordering/filtering changes between steps (avoids empty results).
   const give = useMemo(() => {
-    const source = mode === "team" ? yourRoster : freePool;
-    return source.filter((p) => giveIds.has(p.id));
-  }, [mode, yourRoster, freePool, giveIds]);
+    if (mode === "team") {
+      return yourRoster.filter((p) => giveIds.has(p.id));
+    }
+    return [...giveIds]
+      .map((id) => freePoolById.get(id))
+      .filter((p): p is FantasyPlayer => Boolean(p));
+  }, [mode, yourRoster, freePoolById, giveIds]);
 
   const receive = useMemo(() => {
-    const source = mode === "team" ? theirRoster : freePool;
-    return source.filter((p) => receiveIds.has(p.id));
-  }, [mode, theirRoster, freePool, receiveIds]);
+    if (mode === "team") {
+      return theirRoster.filter((p) => receiveIds.has(p.id));
+    }
+    return [...receiveIds]
+      .map((id) => freePoolById.get(id))
+      .filter((p): p is FantasyPlayer => Boolean(p));
+  }, [mode, theirRoster, freePoolById, receiveIds]);
 
   const analysis = useMemo(() => {
     if (mode === "free") {
@@ -458,6 +718,50 @@ export function TradeAnalyzer({
     });
   }
 
+  function selectGive(id: string) {
+    setGiveIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setReceiveIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function selectReceive(id: string) {
+    setReceiveIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    setGiveIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function removeGive(id: string) {
+    setGiveIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function removeReceive(id: string) {
+    setReceiveIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
   function clearTrade() {
     setGiveIds(new Set());
     setReceiveIds(new Set());
@@ -489,7 +793,11 @@ export function TradeAnalyzer({
         <p className="type-body text-emerald-950/55">
           Need at least one other team in the league to analyze a team trade.
         </p>
-        <Button type="button" variant="secondary" onClick={() => switchMode("free")}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => switchMode("free")}
+        >
           Open player vs player compare
         </Button>
       </div>
@@ -582,7 +890,8 @@ export function TradeAnalyzer({
             </div>
           ) : (
             <p className="type-body max-w-xl text-sm text-emerald-950/65">
-              Pick who leaves your side. Next you&apos;ll choose who comes back.
+              Search for who leaves your side. Next you&apos;ll choose who comes
+              back.
             </p>
           )}
 
@@ -593,31 +902,47 @@ export function TradeAnalyzer({
             <p className="type-body mt-1 text-sm text-emerald-950/55">
               {mode === "team"
                 ? `From ${you.name} — select one or more players.`
-                : "Select one or more players leaving Side A."}
+                : "Type a name to add one or more players leaving Side A."}
             </p>
-            <div className="mt-3 border-t border-emerald-950/10">
-              {(mode === "team" ? yourRoster : freePool).map((p) => (
-                <PlayerPickRow
-                  key={`a-${p.id}`}
-                  player={p}
-                  selected={giveIds.has(p.id)}
-                  onToggle={() => toggleGive(p.id)}
-                  chip={chipValue(p, trends)}
+            {mode === "team" ? (
+              <div className="mt-3 border-t border-emerald-950/10">
+                {yourRoster.map((p) => (
+                  <PlayerPickRow
+                    key={`a-${p.id}`}
+                    player={p}
+                    selected={giveIds.has(p.id)}
+                    onToggle={() => toggleGive(p.id)}
+                    chip={chipValue(p, trends)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3">
+                <PlayerSearchPicker
+                  pool={freePool}
+                  selectedIds={giveIds}
+                  blockedIds={receiveIds}
+                  onSelect={selectGive}
+                  onRemove={removeGive}
+                  trends={trends}
+                  inputLabel="Search Side A"
                 />
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
-          {give.length > 0 && (
-            <SelectedSummary
-              label={mode === "team" ? "Selected — you give" : "Selected — Side A"}
-              players={give}
-            />
+          {mode === "team" && give.length > 0 && (
+            <SelectedSummary label="Selected — you give" players={give} />
           )}
 
           <StickyStepActions>
             {(give.length > 0 || receive.length > 0) && (
-              <Button type="button" variant="ghost" size="sm" onClick={clearTrade}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearTrade}
+              >
                 Clear picks
               </Button>
             )}
@@ -672,26 +997,37 @@ export function TradeAnalyzer({
             <p className="type-body mt-1 text-sm text-emerald-950/55">
               {mode === "team"
                 ? `From ${partner!.name} — select one or more players.`
-                : "Select one or more players leaving Side B."}
+                : "Type a name to add one or more players leaving Side B."}
             </p>
-            <div className="mt-3 border-t border-emerald-950/10">
-              {(mode === "team" ? theirRoster : freePool).map((p) => (
-                <PlayerPickRow
-                  key={`b-${p.id}`}
-                  player={p}
-                  selected={receiveIds.has(p.id)}
-                  onToggle={() => toggleReceive(p.id)}
-                  chip={chipValue(p, trends)}
+            {mode === "team" ? (
+              <div className="mt-3 border-t border-emerald-950/10">
+                {theirRoster.map((p) => (
+                  <PlayerPickRow
+                    key={`b-${p.id}`}
+                    player={p}
+                    selected={receiveIds.has(p.id)}
+                    onToggle={() => toggleReceive(p.id)}
+                    chip={chipValue(p, trends)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3">
+                <PlayerSearchPicker
+                  pool={freePool}
+                  selectedIds={receiveIds}
+                  blockedIds={giveIds}
+                  onSelect={selectReceive}
+                  onRemove={removeReceive}
+                  trends={trends}
+                  inputLabel="Search Side B"
                 />
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
-          {receive.length > 0 && (
-            <SelectedSummary
-              label={mode === "team" ? "Selected — you get" : "Selected — Side B"}
-              players={receive}
-            />
+          {mode === "team" && receive.length > 0 && (
+            <SelectedSummary label="Selected — you get" players={receive} />
           )}
 
           <StickyStepActions>
