@@ -11,14 +11,6 @@ export default async function HomePage() {
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.4]"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%231B3022' fill-opacity='0.04'%3E%3Cpath d='M0 0h40v40H0V0zm40 40h40v40H40V40z'/%3E%3C/g%3E%3C/svg%3E\")",
-        }}
-      />
-
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-28">
         <div className="animate-fade-up mx-auto flex w-full max-w-xl flex-col items-center gap-4 text-center sm:mx-0 sm:max-w-none sm:items-start sm:gap-5 sm:text-left">
           <BrandMark
