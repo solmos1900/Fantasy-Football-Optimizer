@@ -306,7 +306,7 @@ function PlayerSearchPicker({
           id={listId}
           role="listbox"
           aria-label="Matching players"
-          className="overflow-hidden rounded-xl border border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_96%,white)] shadow-sm"
+          className="overflow-hidden rounded-xl border border-emerald-950/12 bg-[var(--surface)] shadow-sm"
         >
           {suggestions.length === 0 ? (
             <li className="px-3 py-3 type-body text-sm text-emerald-950/55">
@@ -453,7 +453,7 @@ function SelectedSummary({
   players: FantasyPlayer[];
 }) {
   return (
-    <div className="rounded-xl border border-emerald-950/10 bg-[color-mix(in_srgb,var(--surface)_92%,white)] px-3 py-2.5">
+    <div className="rounded-xl border border-emerald-950/10 bg-[color-mix(in_srgb,var(--kraft)_30%,var(--surface))] px-3 py-2.5">
       <p className="type-eyebrow text-emerald-950/45">{label}</p>
       <p className="type-body mt-1 text-sm font-medium text-emerald-950">
         {playerNames(players)}
@@ -486,7 +486,7 @@ function StickyStepActions({ children }: { children: ReactNode }) {
             <div
               className={cn(
                 "fixed inset-x-0 z-30 border-t-[1.5px] border-emerald-950/12",
-                "bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 backdrop-blur-md",
+                "bg-[color-mix(in_srgb,var(--surface)_88%,var(--kraft))]/95 backdrop-blur-md",
                 "shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.3)]",
                 TAB_BAR_BOTTOM,
               )}
@@ -815,7 +815,7 @@ export function TradeAnalyzer({
 
       {step !== "results" && (
         <div
-          className="inline-flex rounded-xl border border-emerald-950/15 bg-[color-mix(in_srgb,var(--surface)_90%,white)] p-1"
+          className="inline-flex rounded-xl border border-emerald-950/15 bg-[color-mix(in_srgb,var(--kraft)_25%,var(--surface))] p-1"
           role="tablist"
           aria-label="Trade analyzer mode"
         >

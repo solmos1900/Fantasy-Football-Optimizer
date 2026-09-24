@@ -7,11 +7,13 @@
   pick up the locked palette without a full class rewrite.
 */
 :root {
-  --background: #f5f2e9;
+  /* Soft kraft page — warm off-white, never stark #fff */
+  --background: #f3efe4;
   --foreground: #1b3022;
   --field: #1b3022;
   --accent: #701d21;
-  --surface: #fdf9f0;
+  /* Paper panels slightly lighter than page, still cream */
+  --surface: #f8f3e8;
   --cork: #c4a574;
   --cork-deep: #a88455;
   --kraft: #ebe4d4;
@@ -110,7 +112,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: #f5f2e9;
+  background-color: var(--background);
   background-image:
     radial-gradient(
       ellipse 85% 50% at 50% -20%,
@@ -138,7 +140,7 @@ body::before {
 }
 
 .field-atmosphere {
-  background-color: #f5f2e9;
+  background-color: var(--background);
 }
 
 /* Cork board panel — draft-board character */
@@ -241,8 +243,8 @@ body::before {
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #fdf9f0;
-  box-shadow: inset 0 0 0 1px rgba(253, 249, 240, 0.25);
+  color: var(--surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface) 25%, transparent);
 }
 
 .stamp-start {
@@ -262,7 +264,7 @@ body::before {
   width: 100%;
   border-radius: var(--radius-control);
   border: 1.5px solid rgba(27, 48, 34, 0.18);
-  background: #fdf9f0;
+  background: var(--surface);
   padding: 0.625rem 0.875rem;
   font-size: 1rem;
   line-height: 1.4;
@@ -290,9 +292,9 @@ body::before {
 .surface-card {
   border-radius: 0.85rem;
   border: 1.5px solid rgba(27, 48, 34, 0.12);
-  background: color-mix(in srgb, var(--surface) 94%, white);
+  background: var(--surface);
   box-shadow:
-    0 1px 0 rgba(253, 249, 240, 0.8) inset,
+    0 1px 0 color-mix(in srgb, var(--kraft) 35%, var(--surface)) inset,
     0 1px 2px rgba(27, 48, 34, 0.04),
     0 10px 28px -14px rgba(27, 48, 34, 0.18);
 }

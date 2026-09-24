@@ -68,7 +68,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
         Slim top chrome — on ~390px brand gets its own row so “Gridiron IQ”
         stays fully readable; utilities sit below with real gaps.
       */}
-      <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_92%,white)]/95 shadow-[0_1px_0_rgba(253,249,240,0.8)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
+      <header className="sticky top-0 z-40 border-b-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_88%,var(--kraft))]/95 shadow-[0_1px_0_color-mix(in_srgb,var(--surface)_70%,transparent)_inset,0_8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pt-[env(safe-area-inset-top,0px)]">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4">
           <PendingLink
             href="/dashboard"
@@ -142,7 +142,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
       {/* Primary destinations — fixed bottom tab bar (all breakpoints) */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_94%,white)]/95 shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+        className="fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_90%,var(--kraft))]/95 shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
       >
         <div className="mx-auto grid max-w-6xl grid-cols-6 px-1 pb-1.5 pt-1.5 sm:px-2 sm:pb-2">
           {PRIMARY_TABS.map((tab) => {

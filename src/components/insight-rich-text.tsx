@@ -17,7 +17,7 @@ export function PlayerChip({
         "inline-flex max-w-full items-center truncate rounded-md border px-1.5 py-0.5 align-baseline text-[0.8125rem] font-semibold leading-snug",
         tone === "primary"
           ? "border-emerald-900 bg-emerald-900 text-emerald-50 shadow-sm"
-          : "border-emerald-950/25 bg-[color-mix(in_srgb,var(--kraft)_55%,white)] text-emerald-950",
+          : "border-emerald-950/25 bg-[color-mix(in_srgb,var(--kraft)_55%,var(--surface))] text-emerald-950",
         className,
       )}
     >

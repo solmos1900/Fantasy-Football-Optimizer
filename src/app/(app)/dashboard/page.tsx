@@ -125,7 +125,7 @@ export default async function DashboardPage() {
               {insights.map((insight) => (
                 <li
                   key={insight.id}
-                  className="rounded-lg border-l-2 border-orange-500 bg-white/40 py-2 pl-3 pr-2"
+                  className="rounded-lg border-l-2 border-orange-500 bg-[color-mix(in_srgb,var(--kraft)_45%,var(--surface))] py-2 pl-3 pr-2"
                 >
                   <p className="text-sm font-semibold text-emerald-950">
                     {insight.title}
