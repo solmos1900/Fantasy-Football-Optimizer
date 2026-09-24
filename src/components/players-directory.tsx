@@ -111,6 +111,7 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
               player={p}
               showSlotBadge={false}
               showOwnership
+              preferProjected
               ownerLabel={ownership.get(p.espnId) ?? "FA"}
               rank={i + 1}
               weekLabel={weekLabel}

@@ -39,7 +39,7 @@ function initials(name: string): string {
 function PlayerAvatar({ name }: { name: string }) {
   return (
     <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-semibold tracking-wide text-emerald-800 ring-1 ring-emerald-950/10"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-semibold tracking-wide text-emerald-800 ring-1 ring-emerald-950/10"
       aria-hidden
     >
       {initials(name)}
@@ -97,6 +97,8 @@ export function PlayerRow({
   ownerLabel,
   rank,
   weekLabel,
+  /** Prefer projected as the large right metric (Players directory). */
+  preferProjected = false,
 }: {
   player: FantasyPlayer;
   showOwnership?: boolean;
@@ -107,6 +109,7 @@ export function PlayerRow({
   rank?: number;
   /** e.g. "WK3" when league current week is known — labels only, not invented points. */
   weekLabel?: string;
+  preferProjected?: boolean;
 }) {
   const slot = formatStatusCode(player.slot ?? player.position);
   const injury = formatStatusCode(player.injuryStatus);
@@ -115,6 +118,7 @@ export function PlayerRow({
   const proj = player.projectedPoints.toFixed(1);
   const matchup = player.opponent?.trim() || null;
   const posTeam = `${player.position} · ${player.nflTeam}`;
+  const useProjPrimary = preferProjected;
 
   const stripBits: { label: string; value: string }[] = [];
   if (weekLabel) {
@@ -134,7 +138,7 @@ export function PlayerRow({
   return (
     <Link
       href={`/players/${encodeURIComponent(player.id)}`}
-      className="group flex gap-2.5 rounded-md px-1.5 py-2 transition hover:bg-emerald-950/[0.04] sm:gap-3 sm:px-2"
+      className="group flex gap-2 rounded-md px-1 py-1.5 transition hover:bg-emerald-950/[0.04] sm:gap-2.5 sm:px-1.5"
     >
       {typeof rank === "number" && (
         <span className="w-5 shrink-0 self-center text-center text-xs font-semibold tabular-nums text-emerald-950/40">
@@ -196,10 +200,10 @@ export function PlayerRow({
       </div>
 
       <MetricBlock
-        primary={actual}
-        secondaryLabel="proj"
-        secondary={proj}
-        emphasize="actual"
+        primary={useProjPrimary ? proj : actual}
+        secondaryLabel={useProjPrimary ? "act" : "proj"}
+        secondary={useProjPrimary ? actual : proj}
+        emphasize={useProjPrimary ? "proj" : "actual"}
       />
     </Link>
   );
@@ -214,10 +218,10 @@ export function EmptyRosterSlot({
   label?: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 px-1.5 py-2 sm:gap-3 sm:px-2">
+    <div className="flex items-center gap-2 px-1 py-1.5 sm:gap-2.5 sm:px-1.5">
       <PosBadge slot={slot} />
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100/80 text-[11px] text-emerald-950/30 ring-1 ring-emerald-950/10"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100/80 text-[10px] text-emerald-950/30 ring-1 ring-emerald-950/10"
         aria-hidden
       >
         —
