@@ -9,6 +9,13 @@ function resolveFlow(mode: string | undefined): LoginFlow {
   return mode === "guest" ? "guest" : "account";
 }
 
+function authErrorMessage(error: string): string {
+  if (error === "OAuthAccountNotLinked") {
+    return "This email already has a password account. Sign in with email/password instead — or try Google/GitHub again after account linking is enabled on this deployment.";
+  }
+  return `Sign-in error: ${error}. Try again, or use email/password or Guest.`;
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -35,8 +42,7 @@ export default async function LoginPage({
 
         {authError && (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            Sign-in error: {authError}. Try again, or use email/password or Guest
-            if OAuth is not configured.
+            {authErrorMessage(authError)}
           </p>
         )}
 
