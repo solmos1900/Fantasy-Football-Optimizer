@@ -47,10 +47,20 @@ function isTabActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppNav() {
+export type AppNavLeague = {
+  name: string | null;
+  isDemo: boolean;
+};
+
+export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
   const pathname = usePathname();
   const { data } = useSession();
   const [signingOut, startSignOut] = useTransition();
+
+  const leagueLabel =
+    league?.name?.trim() ||
+    (league?.isDemo ? "Demo league" : null) ||
+    "Manage league";
 
   return (
     <>
@@ -77,14 +87,26 @@ export function AppNav() {
               <InstallHowToLink className="px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
                 Install
               </InstallHowToLink>
-              <PendingLink
-                href="/connect"
-                className="relative px-1 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
-                contentClassName="gap-0"
-                pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
-              >
-                Connect
-              </PendingLink>
+              {league ? (
+                <PendingLink
+                  href="/connect"
+                  title="Manage or sync your league"
+                  className="relative max-w-[9.5rem] truncate px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:max-w-[12rem] sm:px-1.5 sm:text-sm"
+                  contentClassName="gap-0"
+                  pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
+                >
+                  {leagueLabel}
+                </PendingLink>
+              ) : (
+                <PendingLink
+                  href="/connect"
+                  className="relative px-1 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
+                  contentClassName="gap-0"
+                  pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
+                >
+                  Connect
+                </PendingLink>
+              )}
             </div>
             <div className="flex items-center gap-3 sm:gap-3">
               {data?.user?.isGuest ? (
