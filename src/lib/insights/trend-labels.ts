@@ -52,6 +52,12 @@ function lockedInPhrase(position: string, avg: number): string {
   return "Solid enough to start if the projection holds.";
 }
 
+
+/** Singular/plural for sample-window copy ("1 game" / "2 games"). */
+export function gamesPhrase(count: number): string {
+  return count === 1 ? "1 game" : `${count} games`;
+}
+
 /** One plain-English sentence for an insight card (no internals). */
 export function humanTrendSentence(trend: PlayerTrendView): string {
   const name = trend.playerName;
@@ -75,11 +81,11 @@ export function humanTrendSentence(trend: PlayerTrendView): string {
         : `${name} does not have enough recent games yet — lean on this week's projection.`;
     case "Rising":
       return scores && avg != null
-        ? `${name} is heating up — about ${avg.toFixed(1)} points over the last ${scored.length} games (${scores}). Lean into the start.`
+        ? `${name} is heating up — about ${avg.toFixed(1)} points over the last ${gamesPhrase(scored.length)} (${scores}). Lean into the start.`
         : `${name} is heating up versus recent weeks — lean into the start.`;
     case "Fading":
       return scores && avg != null
-        ? `${name} is cooling off — about ${avg.toFixed(1)} points over the last ${scored.length} games (${scores}). Consider a safer option if you have one.`
+        ? `${name} is cooling off — about ${avg.toFixed(1)} points over the last ${gamesPhrase(scored.length)} (${scores}). Consider a safer option if you have one.`
         : `${name} is cooling off versus recent weeks — consider a safer option if you have one.`;
     case "BoomBust":
       return scores && avg != null
@@ -87,7 +93,7 @@ export function humanTrendSentence(trend: PlayerTrendView): string {
         : `${name} has been boom-or-bust lately — fine if you need upside, expect volatility.`;
     default:
       return scores && avg != null
-        ? `${name} is averaging about ${avg.toFixed(1)} points over the last ${scored.length} games (${scores}). ${lockedInPhrase(trend.position, avg)}`
+        ? `${name} is averaging about ${avg.toFixed(1)} points over the last ${gamesPhrase(scored.length)} (${scores}). ${lockedInPhrase(trend.position, avg)}`
         : `${name}'s recent scoring looks steady — start with confidence if the projection is solid.`;
   }
 }

@@ -393,7 +393,7 @@ export function recentFormSummary(player: FantasyPlayer): string | null {
   const sorted = [...weeks].sort((a, b) => b.week - a.week).slice(0, 3);
   const avg = sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
   const detail = sorted.map((w) => w.points.toFixed(1)).join(", ");
-  return `${player.name} scored ${detail} over the last ${sorted.length} games — about ${avg.toFixed(1)} points per game.`;
+  return `${player.name} scored ${detail} over the last ${sorted.length === 1 ? "1 game" : `${sorted.length} games`} — about ${avg.toFixed(1)} points per game.`;
 }
 
 export function averageRecentPoints(weeks?: WeeklyScore[], n = 3): number | null {

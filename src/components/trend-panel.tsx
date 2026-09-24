@@ -34,7 +34,7 @@ function labelTone(label: PlayerTrendLabel): string {
   }
 }
 
-/** Compact proj vs actual bars for recent weeks (CSS only — no chart lib). */
+/** Proj vs actual by week — horizontal bars with values (readable on mobile cards). */
 export function ProjectionSpark({
   weeks,
   className,
@@ -42,10 +42,7 @@ export function ProjectionSpark({
   weeks: { week: number; projected: number | null; actual: number | null }[];
   className?: string;
 }) {
-  const rows = [...weeks]
-    .filter((w) => w.projected != null || w.actual != null)
-    .sort((a, b) => a.week - b.week)
-    .slice(-5);
+  const rows = [...weeks].sort((a, b) => a.week - b.week).slice(-5);
   if (!rows.length) return null;
 
   const max = Math.max(
@@ -53,37 +50,73 @@ export function ProjectionSpark({
     ...rows.flatMap((w) => [w.projected ?? 0, w.actual ?? 0]),
   );
 
+  const pct = (value: number | null) =>
+    value == null ? 0 : Math.max(value > 0 ? 6 : 0, (value / max) * 100);
+
   return (
-    <div className={cn("flex items-end gap-2", className)} aria-hidden>
-      {rows.map((w) => {
-        const projH = ((w.projected ?? 0) / max) * 100;
-        const actH = ((w.actual ?? 0) / max) * 100;
-        return (
-          <div key={w.week} className="flex w-8 flex-col items-center gap-1">
-            <div className="flex h-14 w-full items-end justify-center gap-0.5">
-              <div
-                className="w-1.5 rounded-sm bg-emerald-950/25"
-                style={{ height: `${Math.max(4, projH)}%` }}
-                title={
-                  w.projected != null
-                    ? `Projected ${w.projected.toFixed(1)}`
-                    : "No projection"
-                }
-              />
-              <div
-                className="w-1.5 rounded-sm bg-orange-600"
-                style={{ height: `${Math.max(4, actH)}%` }}
-                title={
-                  w.actual != null
-                    ? `Scored ${w.actual.toFixed(1)}`
-                    : "No score yet"
-                }
-              />
+    <div className={cn("space-y-2.5", className)}>
+      <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium uppercase tracking-wider text-emerald-950/50">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2.5 rounded-sm bg-emerald-950/30" aria-hidden />
+          Projected
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2.5 rounded-sm bg-orange-700" aria-hidden />
+          Scored
+        </span>
+      </div>
+      <div className="space-y-2" role="img" aria-label="Projected versus actual points by week">
+        {rows.map((w) => {
+          const pending = w.actual == null;
+          return (
+            <div key={w.week} className="grid grid-cols-[2.25rem_1fr] gap-x-2 gap-y-1 items-center">
+              <span className="type-stat text-base leading-none text-emerald-950">
+                W{w.week}
+              </span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-sm bg-emerald-950/8">
+                    {w.projected != null ? (
+                      <div
+                        className="h-full rounded-sm bg-emerald-950/35"
+                        style={{ width: `${pct(w.projected)}%` }}
+                      />
+                    ) : (
+                      <div className="h-full w-full rounded-sm border border-dashed border-emerald-950/20" />
+                    )}
+                  </div>
+                  <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-emerald-950/70">
+                    {w.projected != null ? w.projected.toFixed(1) : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-sm bg-orange-700/10">
+                    {w.actual != null ? (
+                      <div
+                        className="h-full rounded-sm bg-orange-700"
+                        style={{ width: `${pct(w.actual)}%` }}
+                      />
+                    ) : (
+                      <div
+                        className="h-full w-full rounded-sm border border-dashed border-orange-700/35"
+                        title={pending ? "Game not finished" : undefined}
+                      />
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      "w-9 shrink-0 text-right text-[11px] tabular-nums font-medium",
+                      w.actual != null ? "text-emerald-950" : "text-emerald-950/40",
+                    )}
+                  >
+                    {w.actual != null ? w.actual.toFixed(1) : "—"}
+                  </span>
+                </div>
+              </div>
             </div>
-            <span className="text-[10px] text-emerald-950/45">W{w.week}</span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -195,7 +228,7 @@ export function TrendPanel({
               </tbody>
             </table>
             <p className="mt-2 text-[11px] text-emerald-950/45">
-              Gray bars = projected · burgundy = actual points scored.
+              Top bar = projected · bottom bar = actual points scored.
             </p>
           </div>
         </details>

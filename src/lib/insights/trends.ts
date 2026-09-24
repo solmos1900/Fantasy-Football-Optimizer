@@ -48,45 +48,83 @@ function allPlayers(league: LeagueData): FantasyPlayer[] {
   return [...byEspn.values()];
 }
 
-export function weekRowsForPlayer(
-  player: FantasyPlayer,
-  currentWeek: number,
-): {
+export type WeekStatRow = {
   week: number;
   projectedPpr: number | null;
   actualPpr: number | null;
   opponent?: string;
-}[] {
-  const byWeek = new Map<
-    number,
-    { projectedPpr: number | null; actualPpr: number | null; opponent?: string }
-  >();
+};
+
+/**
+ * Shared week axis for every player: weeks 1..currentWeek.
+ * Missing storage still yields a row (nulls) so cards don't look like different seasons.
+ */
+export function scaffoldWeekAxis(
+  currentWeek: number,
+  known: WeekStatRow[] = [],
+): WeekStatRow[] {
+  const end = Math.max(1, currentWeek);
+  const byWeek = new Map<number, WeekStatRow>();
+  for (let week = 1; week <= end; week++) {
+    byWeek.set(week, {
+      week,
+      projectedPpr: null,
+      actualPpr: null,
+    });
+  }
+  for (const row of known) {
+    if (row.week < 1 || row.week > end) continue;
+    byWeek.set(row.week, {
+      week: row.week,
+      projectedPpr: row.projectedPpr,
+      actualPpr: row.actualPpr,
+      opponent: row.opponent,
+    });
+  }
+  return [...byWeek.values()].sort((a, b) => a.week - b.week);
+}
+
+export function weekRowsForPlayer(
+  player: FantasyPlayer,
+  currentWeek: number,
+): WeekStatRow[] {
+  const known: WeekStatRow[] = [];
 
   for (const w of player.recentWeeks ?? []) {
-    byWeek.set(w.week, {
+    if (w.week < 1 || w.week > currentWeek) continue;
+    known.push({
+      week: w.week,
       projectedPpr:
         typeof w.projectedPoints === "number" ? w.projectedPoints : null,
-      actualPpr: w.points,
+      actualPpr: typeof w.points === "number" ? w.points : null,
       opponent: w.opponent,
     });
   }
 
-  const existing = byWeek.get(currentWeek);
-  byWeek.set(currentWeek, {
-    projectedPpr:
-      player.projectedPoints > 0
-        ? player.projectedPoints
-        : (existing?.projectedPpr ?? null),
+  const rows = scaffoldWeekAxis(currentWeek, known);
+  const idx = rows.findIndex((r) => r.week === currentWeek);
+  const existing = idx >= 0 ? rows[idx] : undefined;
+
+  // Always write the current week from live roster fields.
+  // Injured / low-signal players often have projectedPoints === 0 — that is a real
+  // sit signal and must not be dropped (previously `> 0` turned 0 into null and the
+  // upsert skipped the week entirely).
+  const current: WeekStatRow = {
+    week: currentWeek,
+    projectedPpr: Number.isFinite(player.projectedPoints)
+      ? player.projectedPoints
+      : (existing?.projectedPpr ?? null),
     actualPpr:
       player.actualPoints > 0
         ? player.actualPoints
         : (existing?.actualPpr ?? null),
     opponent: player.opponent ?? existing?.opponent,
-  });
+  };
 
-  return [...byWeek.entries()]
-    .map(([week, row]) => ({ week, ...row }))
-    .sort((a, b) => a.week - b.week);
+  if (idx >= 0) rows[idx] = current;
+  else rows.push(current);
+
+  return rows.sort((a, b) => a.week - b.week);
 }
 
 function slope(values: number[]): number | null {
@@ -384,7 +422,8 @@ export async function refreshProjectionTrends(
         projected = Math.round(heuristicProj * 10) / 10;
         rowSource = "heuristic";
       }
-      if (projected == null && row.actualPpr == null) continue;
+      // Persist the full 1..currentWeek axis — including null/null placeholders and
+      // 0-projection injury weeks — so every Insights card shares the same weeks.
 
       const projectionDelta =
         projected != null && row.actualPpr != null
@@ -455,9 +494,19 @@ export async function refreshProjectionTrends(
       orderBy: { week: "asc" },
     });
 
+    const axis = scaffoldWeekAxis(
+      league.scoringPeriodId,
+      stored.map((s) => ({
+        week: s.week,
+        projectedPpr: s.projectedPpr,
+        actualPpr: s.actualPpr,
+        opponent: s.opponent ?? undefined,
+      })),
+    );
+
     const derived = deriveTrendFromWeeks(
       player.name,
-      stored.map((s) => ({
+      axis.map((s) => ({
         week: s.week,
         projectedPpr: s.projectedPpr,
         actualPpr: s.actualPpr,
@@ -640,11 +689,17 @@ export async function loadTrendMap(
 
   const map = new Map<number, PlayerTrendView>();
   for (const m of metrics) {
-    const weeks = (weeksByEspn.get(m.espnId) ?? []).map((s) => ({
+    const known = (weeksByEspn.get(m.espnId) ?? []).map((s) => ({
+      week: s.week,
+      projectedPpr: s.projectedPpr,
+      actualPpr: s.actualPpr,
+      opponent: s.opponent ?? undefined,
+    }));
+    const weeks = scaffoldWeekAxis(league.scoringPeriodId, known).map((s) => ({
       week: s.week,
       projected: s.projectedPpr,
       actual: s.actualPpr,
-      opponent: s.opponent,
+      opponent: s.opponent ?? null,
     }));
     map.set(m.espnId, toTrendView(m, weeks));
   }

@@ -186,7 +186,7 @@ function mapPlayer(
     }
 
     return [...byWeek.values()]
-      .filter((w) => w.points > 0 || (w.projectedPoints ?? 0) > 0)
+      .filter((w) => Number.isFinite(w.points) || w.projectedPoints != null)
       .sort((a, b) => b.week - a.week)
       .slice(0, 6);
   })();
