@@ -1,255 +1,130 @@
 # Gridiron IQ
 
-Fantasy football web app: Google / GitHub / email-password / guest login, ESPN league sync (public + private), live stats, roster/league views, and explainable PPR insights (start/sit, mutual trades, news, defense history).
+PPR fantasy football helper as a Progressive Web App. Connect an ESPN fantasy league (or try the labeled demo as a guest), see projected vs actual points, and get explainable start/sit, waiver, matchup, and trade guidance — not black-box magic.
 
-Built with **Next.js App Router**, **TypeScript**, **Tailwind CSS**, **Auth.js (NextAuth v5)**, and **Prisma + PostgreSQL**.
+Add it to your Home Screen on iPhone (Safari → Share → Add to Home Screen) for a full-screen app shortcut.
 
----
+**Live:** [fantasyfootballoptimizer-kappa.vercel.app](https://fantasyfootballoptimizer-kappa.vercel.app)  
+**Stack:** Next.js App Router, TypeScript, Tailwind CSS, Auth.js (NextAuth v5), Prisma + PostgreSQL (Neon on Vercel).
 
-## Features
-
-1. **Authentication** — Google and GitHub OAuth when configured; email/password (bcrypt) registration + sign-in; **Guest** mode for try-without-account. Demo-only login is removed.
-2. **ESPN Fantasy integration** — Connect by league ID + season once; the connection is saved on that user (guest or signed-in). Later visits use **Sync** to refresh — you do not re-enter the League ID every session. Private leagues accept `SWID` + `espn_s2` cookies (also stored). Guest and signed-in accounts do **not** share leagues.
-3. **My Team** — Starters/bench with projected vs actual points and injury flags. Player rows open a drill-down (recent PPR, defense comps, start/sit lean).
-4. **Live stats** — NFL scoreboard from ESPN’s public site API (no key). Refresh button + 60s auto-poll.
-5. **League overview** — Standings, matchups, and every team’s roster (full league visibility for trades).
-6. **Player directory** — Searchable pool with ownership and stats.
-7. **Insights (product core)** — Rule-based, explainable recommendations:
-   - **Start / Sit** with START vs SIT verdicts (projection, recent form, injury, defense history)
-   - **Mutual trades** with other teams (why it helps both sides)
-   - **Waiver Wire Shark** — injury → opportunity claims (handcuffs / next-man-up) filtered to your league’s free agents
-   - **Injury / news** cards from ESPN public feeds (never invented)
-   - **Matchup notes** — how similar-role players fared vs that defense recently
-   - Drop/add, weak positions, streaming as supporting signals
-8. **Trade Analyzer** — Interactive give/get builder against any league mate; instant verdict (Accept → Hard reject), chip totals + value gap, hard-reject reasons, For you / For them, and partner acceptance lean as a Low/Medium/High band (not a fake %). Same 1QB full-PPR chip math + trend nudges as Insights suggestions. Works with demo or ESPN-synced leagues.
-
-Guest and email/password work **without** OAuth secrets. Demo-seeded league still loads from Connect for guests.
+UI lock: Retro Draft Board look + Helmet Orbit icon.
 
 ---
 
-## Quick start (local)
+## What it is
 
-```bash
-# 1. Install
-npm install
+Gridiron IQ is a **full-PPR redraft helper** for managers who already play on ESPN Fantasy. It does not replace ESPN’s league host. It syncs your league (or loads a demo), stores that snapshot on your account or guest session, and surfaces weekly decisions with plain-English reasons.
 
-# 2. Env
-cp .env.example .env
-# AUTH_SECRET is required — generate one:
-openssl rand -base64 32
-# paste into AUTH_SECRET in .env
+| Path | Who it’s for |
+|------|----------------|
+| **Guest** | Try the product with only a display name. No email required. Guest sessions do not share data with later Google/GitHub/email accounts. |
+| **Signed in** | Google, GitHub, or email/password. League connections persist on that account. |
 
-# 3. Postgres (Docker)
-docker compose up -d postgres
-# DATABASE_URL in .env.example already matches this compose file
-
-# 4. Migrate
-npx prisma migrate deploy
-# or during development: npx prisma migrate dev
-
-# 5. Run
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) → **Get started** → sign in with email, **Continue as Guest**, or OAuth → **Load demo league** (or connect ESPN).
+After entry you choose how to get data: **Load demo league** or **Connect ESPN** — peer CTAs, neither nested under the other. In demo mode, your display name becomes your team name.
 
 ---
 
-## Vercel production checklist
+## Feature set
 
-Live Auth.js fails with *"There is a problem with the server configuration"* when `AUTH_SECRET` is missing. Postgres is required (no SQLite on Vercel serverless).
-
-In **Vercel → Project → Settings → Environment Variables**, set these for **Production** (and Preview if you use it), then **Redeploy**:
-
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `AUTH_SECRET` | output of `openssl rand -base64 32` | **Required.** Without it, `/api/auth/*` returns the opaque config error. |
-| `AUTH_TRUST_HOST` | `true` | Safe with Vercel reverse proxy (code also sets `trustHost: true`). |
-| `AUTH_URL` | `https://gridiron-iq-app-alpha.vercel.app` | Use your real production URL. Avoid leaving this as `http://localhost:3000`. |
-| `DATABASE_URL` | `postgresql://…` from Neon or Vercel Postgres | **Required** for all auth modes (Credentials / Guest upsert users). Prefer the **pooled** Neon URL + `sslmode=require`. |
-
-### Optional — Google / GitHub OAuth (not required for email or Guest)
-
-Set **either** Auth.js names **or** common aliases:
-
-| Provider | Preferred | Also accepted |
-|----------|-----------|-----------------|
-| Google | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` |
-| GitHub | `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | `GITHUB_ID` / `GITHUB_SECRET` |
-
-**Redirect URIs to register with the providers:**
-
-- Google: `{AUTH_URL}/api/auth/callback/google`
-- GitHub: `{AUTH_URL}/api/auth/callback/github`
-
-If OAuth vars are empty, the sign-in page still shows Google/GitHub as disabled/hidden with a short note; **email/password and Guest remain available**.
-
-### Database on Vercel
-
-1. Create a Neon (or Vercel Marketplace Postgres) database.
-2. Copy the connection string into `DATABASE_URL` (Production + Preview).
-3. Redeploy. The build script runs `prisma migrate deploy` when `DATABASE_URL` is available.
-
-Build command (already in `package.json`):
-
-```bash
-prisma generate && prisma migrate deploy && next build
-```
+- **My Team** — Starters and bench with projected vs actual points and injury flags. Rows open a player drill-down.
+- **Insights** — Weekly callouts: start/sit, waiver-style pickups, news, roster gaps, and matchup notes. Trend cards show projected vs actual over completed weeks.
+- **Player detail** — This week’s matchup, recent form, and **similar players vs this defense** drawn only from real completed games in the synced (or labeled demo) data. Thin samples show an honest empty state — never invented weeks or points.
+- **Trades** — Guided 3-step give/get analyzer against a league mate: pick who you trade with, what you send, what you get, then a verdict (Accept → Hard reject), chip totals, points differential (value gap), and who benefits / who loses, plus a Low/Medium/High partner-acceptance lean.
+- **League / Players** — Standings, matchups, full rosters, and a searchable player pool.
+- **Sync vs Connect** — **Connect** saves league ID (+ private cookies if needed) once on this account. **Sync** refreshes from that saved connection without re-entering the ID every session.
+- **Live scoreboard** — NFL games from ESPN’s public scoreboard API (no API key).
 
 ---
 
-## Environment variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | Postgres URL (`postgresql://…`) |
-| `AUTH_SECRET` | Yes | Random string for Auth.js session encryption |
-| `AUTH_TRUST_HOST` | Recommended | Set `true` on Vercel / reverse proxies |
-| `AUTH_URL` | Recommended (prod) | Absolute app URL for the deployment |
-| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Optional | Google OAuth (or `GOOGLE_CLIENT_*`) |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET` | Optional | GitHub OAuth (or `GITHUB_ID` / `GITHUB_SECRET`) |
-| `DEFAULT_ESPN_SEASON` | Optional | Default season year (e.g. `2026`) |
-| `NEXT_PUBLIC_DEFAULT_SEASON` | Optional | Client form default; keep in sync with `DEFAULT_ESPN_SEASON` |
-| `NEXT_PUBLIC_APP_NAME` | Optional | Display name |
-
-Copy `.env.example` → `.env`. **Never commit secrets.**
-
----
-
-## Insights data sources
+## Where data comes from
 
 | Signal | Source |
 |--------|--------|
-| Projections / actuals / rosters | ESPN Fantasy unofficial API (synced + cached per user) or demo seed |
-| Weekly proj vs actual history | Neon `PlayerProjectionSnapshot` + `PlayerTrendMetric` (filled on sync / Insights / `POST /api/trends/refresh`) |
-| Prior-week form | ESPN player weekly `stats` (actual + projected when present); demo seed includes `recentWeeks` |
-| Defense vs similar players | Completed-week league `recentWeeks` vs opponent (ESPN scores + public scoreboard opponents). Honest empty state when sample is thin — never fabricated comps |
-| Injury / news | ESPN public site news + injuries APIs; roster injury flags as fallback — **never invented** |
-| Trades | `src/lib/insights/trade-value.ts` + `trades.ts` — full-PPR 1QB norms + stored trend chip nudges |
-| Trade Analyzer | `src/lib/insights/trade-analyzer.ts` — grades user-built packages with the same chip / need helpers |
-| Waiver Wire Shark | `src/lib/insights/waivers.ts` — injury → FA opportunity mapping |
+| Rosters, projections, actuals, matchups | ESPN Fantasy league APIs (unofficial endpoints the fantasy.espn.com web app uses), synced and cached per user |
+| Opponent labels for completed weeks | ESPN public NFL scoreboard |
+| Guest demo | In-app **labeled demo** seed (week aligned to completed weeks only). Demo comps are tagged Demo |
+| News / injuries | ESPN public news feeds + roster injury flags — never invented |
+| Trends (proj vs actual) | Stored on sync / Insights load in Postgres for that league connection |
 
-Engine: `src/lib/insights/engine.ts` + `trade-value.ts` + `trades.ts` + `trade-analyzer.ts` + `waivers.ts` + `defense-matchups.ts` + `trends.ts`. No paid LLM dependency.
+**Honesty rules**
 
-See **[docs/projections-and-trends.md](docs/projections-and-trends.md)** for schema, refresh path, and how to read trend labels.
-
-### Waiver Wire Shark (injury → opportunity)
-
-Situational claims, not generic “highest projected FA” lists:
-
-1. **Injury signal only** — roster `OUT` / `DOUBTFUL` / `IR`, plus ESPN news that clearly marks a player out. Never invent injuries.
-2. **Beneficiary mapping** — prefer curated same-team handcuffs/backups (e.g. Puka → Tutu Atwell; Kyren → Blake Corum; Tua → Jameis Winston); else same-NFL-team FAs at the same position (depth next-up), labeled as uncertain when inferred.
-3. **League FA cross-check** — only recommend players actually on your waiver wire (not rostered).
-4. **Drop hint** — if the roster looks full, suggest a weak/injured bench drop candidate.
-5. Works for guest/demo leagues and connected ESPN leagues.
-
-### Trade recommendation rules (1QB full PPR)
-
-Encoded from common r/fantasyfootball / Trade Analyzer norms — not raw projection swaps:
-
-**Hard rejects**
-- No 1-for-1 QB ↔ WR/RB/TE (streaming QBs are deep; elite skill is scarce).
-- No tier gaps of 2+ on 1:1s; no chip-value ratio above ~1.55 (QBs heavily discounted).
-
-**Preferred**
-- Same-position or skill↔skill surplus→need fills.
-- 2-for-1 / 1-for-2 when values are uneven.
-- QB only as a package sweetener (QB + skill ↔ elite skill) when the partner needs QB.
-- Each card includes “why this gets accepted” plus **trend/projection rationale** when Neon snapshots exist (buy-low on bust/cold, sell-high on boom/hot).
-
-**Valuation**
-- Chip blend: ~70% ROS/recent form + ~30% this-week projection, plus `restOfSeasonAdj` from stored proj-vs-actual trends; scarcity TE/RB1 > WR1 > QB.
-- Assumes **full PPR** product default; ESPN `appliedTotal` already reflects connected league scoring when synced.
-
-### Trade Analyzer (interactive)
-
-Page: `/trades` (also linked from Insights → Trade ideas).
-
-1. Pick a partner team from the league.
-2. Select players to **Give** (your roster) and **Get** (theirs).
-3. Instant analysis card:
-   - Verdict: Accept / Lean accept / Fair / Lean reject / Hard reject (plain language)
-   - Side chip totals + value gap (shared `chipValue` from `trade-value.ts`, including trend nudges when available)
-   - Hard-reject reasons when applicable
-   - For you / For them / why accepted or not (need-fit)
-   - Partner acceptance lean as **Low / Medium / High** (or None if blocked) — not a calibrated %
-4. Deep-link from an Insights suggestion: `/trades?partner=<teamId>&give=<ids>&get=<ids>`
-5. Default scoring: full PPR / 1QB redraft. Dynasty, draft picks, and half-PPR toggles are out of scope for v1.
+- Defense / similar-player comps use **completed weeks only** (never the current or future week).
+- No seeded or hallucinated named-player week/point comps for live leagues.
+- When the sample is thin, the UI says so and shows an empty state.
+- Prior-season lines include the year so they are not confused with this season.
 
 ---
 
-## How ESPN auth works (2025–2026)
+## How trades are graded (product level)
 
-ESPN does not publish an official Fantasy Football consumer API. The community uses the same JSON endpoints the fantasy.espn.com web app calls:
+The Trade Analyzer and Insights trade ideas share the same **1QB full-PPR** chip model.
 
-```
-https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{season}/segments/0/leagues/{leagueId}
-  ?view=mTeam&view=mRoster&view=mMatchup&view=mSettings&view=mStandings
-```
+**Inputs (what you already see in-app)**
 
-| League type | What you need |
-|-------------|----------------|
-| **Public** | League ID + season |
-| **Private** | Above + cookies `SWID` and `espn_s2` |
+- This week’s projections and available actuals
+- Recent form / proj-vs-actual trends when enough completed weeks exist
+- Roster need (surplus vs hole at a position)
+- Hard constraints typical of 1QB redraft (for example, one-sided QB-for-elite-skill swaps)
 
-### Copying private-league cookies
+**Verdict shape**
 
-1. Log into [fantasy.espn.com](https://fantasy.espn.com) in a browser.
-2. DevTools → **Application** → **Cookies** → `https://fantasy.espn.com`.
-3. Copy **SWID** (includes braces, e.g. `{ABC-...}`).
-4. Copy **espn_s2** (long value — keep encoding as shown).
-5. Paste both into **Connect league** in this app.
+- A plain-language call: Accept, Lean accept, Fair, Lean reject, or Hard reject
+- Side chip totals and a **points differential** (value gap: what you get minus what you give on the chip scale)
+- Short “for you” / “for them” notes so it’s clear **who benefits** and who is giving up more
+- Partner acceptance lean as Low / Medium / High (or none if blocked) — a product judgment band, not a fake percentage
 
-Cookies are stored on your user row in Postgres and sent only to ESPN’s fantasy API. Treat them like passwords.
-
-### Live NFL scores
-
-```
-https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard
-```
+The engine is rule-based and explainable. Magic constants and full scoring source are intentionally not documented here.
 
 ---
 
-## Architecture
+## Trust / honesty
 
-```
-src/lib/auth.ts                    Auth.js providers (Google, GitHub, credentials, guest) + JWT
-src/lib/password.ts                bcrypt helpers for email/password
-src/app/api/auth/register/route.ts Email registration
-src/lib/espn/client.ts             ESPN Fantasy + scoreboard + recent weekly stats
-src/lib/espn/news.ts               ESPN public news / injuries
-src/lib/stats/provider.ts          Live stats (ESPN public or demo fallback)
-src/lib/insights/engine.ts         Start/sit, news, matchup notes, other
-src/lib/insights/trade-value.ts    Shared 1QB full-PPR chip / need / hard-reject helpers
-src/lib/insights/trades.ts         Auto mutual trade suggestions (uses trade-value)
-src/lib/insights/trade-analyzer.ts Interactive package grading (uses trade-value)
-src/lib/insights/waivers.ts        Injury → waiver opportunity (Shark)
-src/lib/insights/player-detail.ts  Per-player start/sit + defense comps + trends
-src/lib/insights/defense-matchups.ts Similar-player vs defense history
-src/lib/insights/trends.ts         Projection snapshots + trend metrics (Neon)
-src/lib/insights/trend-labels.ts   Shared trend label copy
-src/app/api/trends/refresh/route.ts On-demand trend refresh / read
-src/components/trend-panel.tsx     Proj vs actual spark + table
-src/components/trade-analyzer.tsx  Client UI for give/get + analysis card
-src/lib/league/service.ts          Persist/connect/sync per user (+ trend refresh)
-src/lib/demo/seed.ts               Mock league for guest / demo connect
-```
-
-Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/connect`, `/login`.
+- Comps never invent a player, week, or point total.
+- Demo data is always labeled as demo.
+- Guest mode is temporary browse/try — connect ESPN on a real account when you want a lasting league link.
+- Live ESPN leagues never fall back to demo top-performer names or points.
 
 ---
 
-## Feature walkthrough
+## PWA install (iOS Safari)
 
-1. **Login** with Google, GitHub, email/password, or **Guest**.
-2. **Connect** → Load demo *or* enter ESPN League ID once (+ cookies if private). Saved on your account.
-3. **Home** — team snapshot, top insights, live scoreboard with Refresh + **Sync**.
-4. **My Team** — starters vs bench, proj/actual, injury badges.
-5. **League** — standings, matchups, every roster + **Sync** (no re-entry of League ID).
-6. **Players** — search/filter owned + free agents.
-7. **Insights** — Start/Sit, Trades (PPR norms), Waiver Wire Shark, News, Matchup notes, and supporting signals.
-8. **Trades** — Interactive Trade Analyzer (give/get builder + instant grade); deep-links from Insights suggestions.
-9. **Sync** (Home / League / Connect) — re-fetch ESPN or re-seed demo from the saved connection.
+1. Open the site in **Safari** (Home Screen install requires Safari on iPhone/iPad).
+2. Tap **Share** → **Add to Home Screen** → **Add**.
+3. Launch **Gridiron IQ** from the Home Screen for a full-screen shortcut.
+
+Android Chrome: browser menu → Install app / Add to Home screen.
+
+---
+
+## Run locally
+
+```bash
+npm install
+cp .env.example .env
+# Set AUTH_SECRET — generate with: openssl rand -base64 32
+docker compose up -d postgres   # matches DATABASE_URL in .env.example
+npx prisma migrate deploy
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) → **Continue as Guest** (display name only) or **Get started** → **Load demo league** or connect ESPN.
+
+### Environment variables (high level)
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DATABASE_URL` | Yes | Postgres URL |
+| `AUTH_SECRET` | Yes | Auth.js session encryption |
+| `AUTH_TRUST_HOST` | Recommended on Vercel | `true` behind the proxy |
+| `AUTH_URL` | Recommended in prod | Absolute app URL (your Vercel domain) |
+| `AUTH_GOOGLE_*` / `AUTH_GITHUB_*` | Optional | OAuth (email + Guest work without them) |
+| `DEFAULT_ESPN_SEASON` / `NEXT_PUBLIC_DEFAULT_SEASON` | Optional | Season year defaults |
+
+Private ESPN leagues need `SWID` + `espn_s2` cookies from fantasy.espn.com while logged in — paste them in Connect. Treat cookies like passwords. See `.env.example` for details. **Never commit secrets.**
+
+### Vercel
+
+Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Build runs `prisma generate && prisma migrate deploy && next build`.
 
 ---
 
@@ -257,22 +132,38 @@ Pages: `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/c
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Next.js dev server |
-| `npm run build` | `prisma generate` + `migrate deploy` + `next build` |
-| `npm run start` | Run production server |
+| `npm run dev` | Dev server |
+| `npm run build` | Migrate + production build |
 | `npm run lint` | ESLint |
-| `npm run db:up` | Start local Postgres via Docker Compose |
-| `npm run db:down` | Stop local Postgres |
-| `npm run db:migrate` | Prisma migrate (dev) |
-| `npm run db:deploy` | Prisma migrate deploy (prod/CI) |
-| `npm run db:push` | Push Prisma schema (no migration history) |
-| `npm run db:studio` | Prisma Studio |
+| `npm run db:up` / `db:down` | Local Postgres via Docker Compose |
+| `npm run db:migrate` / `db:deploy` | Prisma migrate |
+| `npx tsx scripts/verify-defense-matchups.ts` | Trust guards for defense comps |
+| `npx tsx scripts/verify-guest-entry.ts` | Guest/demo path regression (no DB) |
 
 ---
 
-## Notes / limits (v1)
+## Architecture (contributors)
 
-- Insights are explicit heuristics, not ML.
-- ESPN unofficial APIs can change; sync errors surface in the Connect form.
-- ESPN-synced `nflTeam` / opponent labels come from the proTeamId map + public NFL scoreboard (re-sync to refresh).
-- Postgres is required for local and Vercel.
+```
+src/lib/auth.ts                 Auth.js (Google, GitHub, email, guest) + JWT
+src/lib/espn/client.ts          ESPN Fantasy sync + scoreboard helpers
+src/lib/league/service.ts       Connect / sync / cached payload per user
+src/lib/demo/seed.ts            Labeled demo league
+src/lib/insights/engine.ts      Insights bundle
+src/lib/insights/trade-*.ts     Chip helpers, suggestions, interactive grader
+src/lib/insights/defense-matchups.ts  Completed-week comps only
+src/lib/insights/trends.ts      Proj vs actual persistence
+src/app/(app)/*                 Authenticated pages (dashboard, team, …)
+```
+
+Pages: `/` (marketing), `/login`, `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/connect`.
+
+Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections-and-trends.md).
+
+---
+
+## Limits (v1)
+
+- Scoring assumption: **full PPR / 1QB** redraft. Dynasty, draft picks, and half-PPR toggles are out of scope.
+- ESPN has no official consumer Fantasy API; private leagues depend on cookies that can expire.
+- Guest sessions are for trying the product; create an account to keep a lasting ESPN connection.

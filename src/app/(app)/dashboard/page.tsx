@@ -85,16 +85,18 @@ export default async function DashboardPage() {
                   <p className="text-sm text-emerald-950">
                     This week:{" "}
                     <span className="type-stat text-2xl text-orange-600">
-                      {(matchup.homeTeamId === team.id
-                        ? matchup.homeScore
-                        : matchup.awayScore
+                      {(
+                        (matchup.homeTeamId === team.id
+                          ? matchup.homeScore
+                          : matchup.awayScore) ?? 0
                       ).toFixed(1)}
                     </span>
                     <span className="text-emerald-950/40"> / proj </span>
                     <span className="type-stat">
-                      {(matchup.homeTeamId === team.id
-                        ? matchup.homeProjected
-                        : matchup.awayProjected
+                      {(
+                        (matchup.homeTeamId === team.id
+                          ? matchup.homeProjected
+                          : matchup.awayProjected) ?? 0
                       ).toFixed(1)}
                     </span>
                   </p>

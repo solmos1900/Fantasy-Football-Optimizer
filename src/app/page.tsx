@@ -20,24 +20,30 @@ export default async function HomePage() {
       />
 
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-28">
-        <div className="animate-fade-up flex flex-col items-start gap-5">
-          <BrandMark size={72} className="shadow-[0_8px_28px_-12px_rgba(27,48,34,0.35)]" />
+        <div className="animate-fade-up mx-auto flex w-full max-w-xl flex-col items-center gap-4 text-center sm:mx-0 sm:max-w-none sm:items-start sm:gap-5 sm:text-left">
+          <BrandMark
+            variant="hero"
+            size={96}
+            className="h-24 w-24 drop-shadow-[0_10px_24px_rgba(27,48,34,0.16)] sm:h-[6.5rem] sm:w-[6.5rem]"
+          />
           <p className="type-brand text-5xl text-emerald-950 sm:text-7xl md:text-8xl">
             Gridiron IQ
           </p>
         </div>
-        <h1 className="animate-fade-up-delay mt-6 max-w-xl text-2xl font-semibold leading-snug tracking-tight text-emerald-950 sm:text-3xl">
+        <h1 className="animate-fade-up-delay mx-auto mt-6 max-w-xl text-center text-2xl font-semibold leading-snug tracking-tight text-emerald-950 sm:mx-0 sm:text-left sm:text-3xl">
           Own your league week with clearer starts, smarter adds, and live ESPN
           sync.
         </h1>
-        <p className="animate-fade-up-delay-2 type-body mt-4 max-w-lg text-emerald-950/65">
+        <p className="animate-fade-up-delay-2 type-body mx-auto mt-4 max-w-lg text-center text-emerald-950/65 sm:mx-0 sm:text-left">
           Connect your fantasy league, see projected vs actual points, and get
           explainable recommendations — not black-box magic.
         </p>
 
-        <InstallHeroCta />
+        <div className="mx-auto w-full max-w-md sm:mx-0">
+          <InstallHeroCta />
+        </div>
 
-        <div className="animate-fade-up-delay-2 mt-6 flex flex-wrap items-center gap-3">
+        <div className="animate-fade-up-delay-2 mx-auto mt-6 flex flex-wrap items-center justify-center gap-3 sm:mx-0 sm:justify-start">
           <PendingLink
             href="/login?mode=account"
             className={buttonVariants({ variant: "primary", size: "lg" })}
