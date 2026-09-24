@@ -18,10 +18,11 @@ export function BrandMark({
   variant = "app",
 }: BrandMarkProps) {
   // Light mark reads on #1c1c1c; cream squircle tile icons do not.
+  // Cache-bust so cleaned PNG alpha lands after flake cleanup.
   const src =
     variant === "hero"
-      ? "/icons/helmet-orbit-mark-light-512.png"
-      : "/icons/helmet-orbit-mark-light-256.png";
+      ? "/icons/helmet-orbit-mark-light-512.png?v=clean-1"
+      : "/icons/helmet-orbit-mark-light-256.png?v=clean-1";
 
   return (
     <Image
