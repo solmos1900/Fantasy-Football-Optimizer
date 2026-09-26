@@ -1,31 +1,27 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type BrandMarkProps = {
   className?: string;
   size?: number;
   /**
-   * `app` — light Helmet Orbit for dark chrome (no cream tile).
-   * `hero` — larger transparent light mark for marketing landing.
+   * `app` — chrome mark (nav / wordmark).
+   * `hero` — larger landing mark. Both use the same crisp SVG.
    */
   variant?: "app" | "hero";
 };
 
-/** Helmet Orbit mark — light transparent art for dark charcoal UI. */
+/** Helmet Orbit mark — vector SVG, cream on transparent for charcoal UI. */
 export function BrandMark({
   className,
   size = 36,
-  variant = "app",
+  variant: _variant = "app",
 }: BrandMarkProps) {
-  // Light mark reads on #1c1c1c; cream squircle tile icons do not.
-  // Cache-bust so cleaned PNG alpha lands after flake cleanup.
-  const src =
-    variant === "hero"
-      ? "/icons/helmet-orbit-mark-light-512.png?v=clean-1"
-      : "/icons/helmet-orbit-mark-light-256.png?v=clean-1";
+  // True vector at any display size (no PNG upscale). Query busts old raster caches.
+  const src = `/icons/helmet-orbit-mark.svg?v=vector-1`;
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element -- SVG mark; avoid next/image rasterization
+    <img
       src={src}
       width={size}
       height={size}
@@ -33,7 +29,7 @@ export function BrandMark({
       className={cn("shrink-0", className)}
       aria-hidden
       draggable={false}
-      unoptimized
+      decoding="async"
     />
   );
 }
