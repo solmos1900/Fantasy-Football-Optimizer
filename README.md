@@ -1,8 +1,8 @@
 # Gridiron IQ
 
-PPR fantasy football helper as a Progressive Web App. Connect an ESPN fantasy league (or try the labeled demo as a guest), see projected vs actual points, and get explainable start/sit, waiver, matchup, and trade guidance — not black-box magic.
+A fantasy football helper you can install like an app on your phone. Connect your ESPN fantasy league (or try the labeled demo as a guest). See projected vs actual points, and get start/sit, waiver, matchup, and trade advice with reasons you can read — not a black box.
 
-Add it to your Home Screen on iPhone (Safari → Share → Add to Home Screen) for a full-screen app shortcut.
+Add it to your Home Screen on iPhone (Safari → Share → Add to Home Screen) for a full-screen shortcut.
 
 **Live:** [fantasyfootballoptimizer-kappa.vercel.app](https://fantasyfootballoptimizer-kappa.vercel.app)  
 **Stack:** Next.js App Router, TypeScript, Tailwind CSS, Auth.js (NextAuth v5), Prisma + PostgreSQL (Neon on Vercel).
@@ -13,67 +13,75 @@ UI lock: Retro Draft Board + Helmet Orbit icon on solid dark charcoal (`#1c1c1c`
 
 ## What it is
 
-Gridiron IQ is a **full-PPR redraft helper** for managers who already play on ESPN Fantasy. It does not replace ESPN’s league host. It syncs your league (or loads a demo), stores that snapshot on your account or guest session, and surfaces weekly decisions with plain-English reasons.
+Gridiron IQ helps managers in **full-PPR** ESPN fantasy leagues make weekly decisions. **Full PPR** means receptions count as a full point. It does not replace ESPN as your league host. It syncs your league (or loads a demo), saves that snapshot on your account or guest session, and shows advice in plain English.
+
+This app assumes **1QB redraft**: a season-long league where you start one quarterback and the league resets every year (no dynasty or keepers).
 
 | Path | Who it’s for |
 |------|----------------|
-| **Guest** | Try the product with only a display name. No email required. Guest sessions do not share data with later Google/GitHub/email accounts. |
-| **Signed in** | Google, GitHub, or email/password. League connections persist on that account. |
+| **Guest** | Try the product with only a display name. No email required. Guest data does not carry over if you later sign in with Google, GitHub, or email. |
+| **Signed in** | Google, GitHub, or email/password. League connections stay on that account. |
 
-After entry you choose how to get data: **Load demo league** or **Connect ESPN** — peer CTAs, neither nested under the other. In demo mode, your display name becomes your team name.
+After you enter, you pick how to get data: **Load demo league** or **Connect ESPN**. Those are equal choices — neither sits under the other. In demo mode, your display name becomes your team name.
 
 ---
 
 ## Feature set
 
-- **My Team** — Starters and bench with projected vs actual points and injury flags. Rows open a player drill-down.
-- **Insights** — Weekly callouts: start/sit, waiver-style pickups, news, roster gaps, and matchup notes. Trend cards show projected vs actual over completed weeks.
-- **Player detail** — This week’s matchup, recent form, and **similar players vs this defense** drawn only from real completed games in the synced (or labeled demo) data. Thin samples show an honest empty state — never invented weeks or points.
-- **Trades** — Guided 3-step give/get analyzer against a league mate: pick who you trade with, what you send, what you get, then a verdict (Accept → Hard reject), chip totals, points differential (value gap), and who benefits / who loses, plus a Low/Medium/High partner-acceptance lean. Second tab: **Who to Start** — pick two same-position players (type-to-search, no team-first) for a START A / START B (or lean) call with plain-English reasons from projection, recent form, injury, and defense matchup (rule-based; same honesty rules as Insights).
+- **My Team** — Your starters and bench with projected vs actual points and injury flags. Tap a row for a player detail page.
+- **Insights** — Weekly callouts: who to start or sit, free-agent pickups, news, roster gaps, and matchup notes. Trend cards show how projections compared to real scores over finished weeks.
+- **Player detail** — This week’s matchup, recent scoring, and similar players vs this defense — taken only from real finished games in your synced league (or the labeled demo). If there isn’t enough history, you get an empty state — never made-up weeks or points.
+- **Trades** — Two tools on one page:
+  - **Trade analyzer** — A 3-step give/get grader vs a league mate (who you trade with, what you send, what you get). See [How trade grades work](#how-trade-grades-work) below.
+  - **Who to Start** — Pick two players at the same position (search by name; you don’t pick a team first). Get a START A / START B call (or a lean / toss-up) with short reasons from projection, recent form, injury, and defense matchup. Same honesty rules as Insights.
 - **League / Players** — Standings, matchups, full rosters, and a searchable player pool.
-- **Sync vs Connect** — **Connect** saves league ID (+ private cookies if needed) once on this account. **Sync** refreshes from that saved connection without re-entering the ID every session.
+- **Sync vs Connect** — **Connect** saves your league ID (and private cookies if needed) once on this account. **Sync** refreshes from that saved connection without typing the ID again.
 - **Live scoreboard** — NFL games from ESPN’s public scoreboard API (no API key).
 
 ---
 
 ## Where data comes from
 
-| Signal | Source |
-|--------|--------|
-| Rosters, projections, actuals, matchups | ESPN Fantasy league APIs (unofficial endpoints the fantasy.espn.com web app uses), synced and cached per user |
-| Opponent labels for completed weeks | ESPN public NFL scoreboard |
-| Guest demo | In-app **labeled demo** seed (week aligned to completed weeks only). Demo comps are tagged Demo |
+| What you see | Where it comes from |
+|--------------|---------------------|
+| Rosters, projections, actuals, matchups | ESPN Fantasy league APIs (the unofficial endpoints the fantasy.espn.com site uses), synced and cached for your account |
+| Opponent labels for finished weeks | ESPN’s public NFL scoreboard |
+| Guest demo | In-app **labeled demo** seed (weeks limited to finished ones). Demo comps are tagged Demo |
 | News / injuries | ESPN public news feeds + roster injury flags — never invented |
-| Trends (proj vs actual) | Stored on sync / Insights load in Postgres for that league connection |
+| Trends (projected vs actual) | Saved in Postgres when you sync or open Insights, for that league connection |
 
 **Honesty rules**
 
-- Defense / similar-player comps use **completed weeks only** (never the current or future week).
-- No seeded or hallucinated named-player week/point comps for live leagues.
+- Defense / similar-player comps use **finished weeks only** (never the current or future week).
+- No made-up named-player week or point comps for live leagues.
 - When the sample is thin, the UI says so and shows an empty state.
-- Prior-season lines include the year so they are not confused with this season.
+- Prior-season lines include the year so they are not mixed up with this season.
 
 ---
 
-## How trades are graded (product level)
+## How trade grades work
 
-The Trade Analyzer and Insights trade ideas share the same **1QB full-PPR** chip model.
+When you build a trade on the Trades page, Gridiron IQ scores both sides and tells you whether the deal looks good for you.
 
-**Inputs (what you already see in-app)**
+**Chip value** is the app’s internal score for “how valuable is this player right now for trading.” It is not ESPN points and not auction dollars. It is built from this week’s projection, how they have been scoring lately, rest-of-season trend when we have one, and injury status.
 
-- This week’s projections and available actuals
-- Recent form / proj-vs-actual trends when enough completed weeks exist
-- Roster need (surplus vs hole at a position)
-- Hard constraints typical of 1QB redraft (for example, one-sided QB-for-elite-skill swaps)
+The Trade Analyzer and Insights trade ideas use the same **1QB full-PPR** chip model.
 
-**Verdict shape**
+It looks at:
 
-- A plain-language call: Accept, Lean accept, Fair, Lean reject, or Hard reject
-- Side chip totals and a **points differential** (value gap: what you get minus what you give on the chip scale)
-- Short “for you” / “for them” notes so it’s clear **who benefits** and who is giving up more
-- Partner acceptance lean as Low / Medium / High (or none if blocked) — a product judgment band, not a fake percentage
+- How many points each player is projected to score this week
+- How those players have actually been scoring in recent weeks (only after enough games have been played)
+- Whether your roster is weak or strong at that position (for example, you already have three good RBs vs you have nobody at TE)
+- Hard “don’t do this” rules for a normal one-QB league — for example, trading your only good quarterback straight-up for a skill player is blocked as a bad idea
 
-The engine is rule-based and explainable. Magic constants and full scoring source are intentionally not documented here.
+You get:
+
+- A clear verdict in English: Accept, Lean accept, Fair, Lean reject, or Hard reject
+- Totals for each side of the trade, and the gap between them (how much more value one side is getting on the chip scale)
+- Short notes that say who comes out ahead and who is giving up more
+- A Low / Medium / High read on whether the other manager might say yes — or none if the deal is blocked. This is a rough judgment band, not a made-up percentage
+
+The grading is rule-based TypeScript, not an AI chatbot. Exact formula constants stay private.
 
 ---
 
@@ -154,7 +162,8 @@ src/lib/league/service.ts       Connect / sync / cached payload per user
 src/lib/demo/seed.ts            Labeled demo league
 src/lib/insights/engine.ts      Insights bundle
 src/lib/insights/trade-*.ts     Chip helpers, suggestions, interactive grader
-src/lib/insights/defense-matchups.ts  Completed-week comps only
+src/lib/insights/who-to-start.ts  Same-position start comparison
+src/lib/insights/defense-matchups.ts  Finished-week comps only
 src/lib/insights/trends.ts      Proj vs actual persistence
 src/app/(app)/*                 Authenticated pages (dashboard, team, …)
 ```
