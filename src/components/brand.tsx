@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type BrandMarkProps = {
@@ -5,31 +6,39 @@ type BrandMarkProps = {
   size?: number;
   /**
    * `app` — chrome mark (nav / wordmark).
-   * `hero` — larger landing mark. Both use the same crisp SVG.
+   * `hero` — larger landing mark.
    */
   variant?: "app" | "hero";
 };
 
-/** Helmet Orbit mark — vector SVG, cream on transparent for charcoal UI. */
+/** High-res transparent Helmet Orbit (Sebastian-approved ChatGPT mark). */
+const MARK_SRC = "/icons/helmet-orbit-mark-light-2048.png";
+
+/** Helmet Orbit mark — cream on transparent for charcoal UI. */
 export function BrandMark({
   className,
   size = 36,
-  variant: _variant = "app",
+  variant = "app",
 }: BrandMarkProps) {
-  // True vector at any display size (no PNG upscale). Query busts old raster caches.
-  const src = `/icons/helmet-orbit-mark.svg?v=vector-1`;
+  const isHero = variant === "hero";
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- SVG mark; avoid next/image rasterization
-    <img
-      src={src}
+    <Image
+      src={MARK_SRC}
       width={size}
       height={size}
       alt=""
       className={cn("shrink-0", className)}
+      sizes={
+        isHero
+          ? "(max-width: 640px) 96px, 112px"
+          : `${Math.max(size, 36)}px`
+      }
+      // Source is 2048² — plenty for retina hero (~96–112 CSS).
+      quality={95}
+      priority={isHero}
       aria-hidden
       draggable={false}
-      decoding="async"
     />
   );
 }
