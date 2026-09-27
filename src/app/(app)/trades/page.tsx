@@ -5,7 +5,7 @@ import {
   enrichPlayersWithSnapshots,
   loadTrendMap,
 } from "@/lib/insights/trends";
-import { TradeAnalyzer } from "@/components/trade-analyzer";
+import { TradesHub } from "@/components/trades-hub";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import type { FantasyPlayer, PlayerTrendView } from "@/lib/types";
 
@@ -16,6 +16,7 @@ export default async function TradesPage({
     partner?: string;
     give?: string;
     get?: string;
+    tool?: string;
   }>;
 }) {
   const session = await auth();
@@ -27,8 +28,8 @@ export default async function TradesPage({
   if (!rawLeague) {
     return (
       <EmptyLeagueConnect
-        title="Trade Analyzer"
-        message="Load a demo league or connect ESPN to build and grade trades with your 1QB full-PPR chip values and roster needs."
+        title="Trades"
+        message="Load a demo league or connect ESPN to grade trades and decide who to start with your 1QB full-PPR data."
       />
     );
   }
@@ -67,7 +68,7 @@ export default async function TradesPage({
     trendsByEspnId[String(espnId)] = trend;
   }
 
-  // Dedupe league + FA universe by player id for PvP search corpus.
+  // Dedupe league + FA universe by player id for search corpus.
   const poolById = new Map<string, FantasyPlayer>();
   for (const team of league.teams) {
     for (const player of team.roster) {
@@ -78,29 +79,25 @@ export default async function TradesPage({
     if (!poolById.has(player.id)) poolById.set(player.id, player);
   }
 
-  return (
-    <div className="space-y-8">
-      <div className="animate-fade-up">
-        <h1 className="type-page text-emerald-950">Trade Analyzer</h1>
-        <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Build a trade in three steps: pick what you give, pick what you get,
-          then see a short verdict — reason, value difference, and who wins the
-          deal.
-        </p>
-      </div>
+  const initialTool =
+    params.tool === "who-to-start" || params.tool === "start"
+      ? "who-to-start"
+      : "analyzer";
 
-      <TradeAnalyzer
-        you={you}
-        partners={partners}
-        poolPlayers={[...poolById.values()]}
-        trends={trendsByEspnId}
-        initialPartnerId={
-          partnerId != null && !Number.isNaN(partnerId) ? partnerId : undefined
-        }
-        initialGiveIds={giveIds}
-        initialReceiveIds={receiveIds}
-        isDemo={league.isDemo}
-      />
-    </div>
+  return (
+    <TradesHub
+      league={league}
+      you={you}
+      partners={partners}
+      poolPlayers={[...poolById.values()]}
+      trends={trendsByEspnId}
+      initialPartnerId={
+        partnerId != null && !Number.isNaN(partnerId) ? partnerId : undefined
+      }
+      initialGiveIds={giveIds}
+      initialReceiveIds={receiveIds}
+      isDemo={league.isDemo}
+      initialTool={initialTool}
+    />
   );
 }
