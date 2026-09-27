@@ -198,7 +198,8 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
             </h3>
             <p className="type-body mt-2 text-emerald-950/65">
               Public leagues need only League ID + season. Private leagues also
-              need SWID and espn_s2 cookies from fantasy.espn.com.
+              need SWID and espn_s2 cookies from fantasy.espn.com. Treat them
+              like passwords — they are encrypted at rest on your account.
             </p>
           </div>
 

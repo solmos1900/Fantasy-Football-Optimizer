@@ -9,6 +9,7 @@
     "lint": "eslint",
     "verify:defense": "tsx scripts/verify-defense-matchups.ts",
     "verify:guest": "tsx scripts/verify-guest-entry.ts",
+    "verify:cookie-crypto": "tsx scripts/verify-cookie-crypto.ts",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:push": "prisma db push",
