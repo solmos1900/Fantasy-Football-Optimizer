@@ -4,6 +4,10 @@ import {
   createDemoLeague,
 } from "@/lib/demo/seed";
 import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
+import {
+  decryptEspnCookie,
+  encryptEspnCookie,
+} from "@/lib/espn/cookie-crypto";
 import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
 
@@ -178,8 +182,8 @@ export async function connectEspnLeague(
       isDemo: false,
       teamId: input.teamId ?? null,
       leagueName: league.name,
-      espnSwid: creds.swid ?? null,
-      espnS2: creds.espnS2 ?? null,
+      espnSwid: encryptEspnCookie(creds.swid),
+      espnS2: encryptEspnCookie(creds.espnS2),
       cachedPayload: JSON.stringify(league),
       lastSyncedAt: new Date(),
     },
@@ -190,8 +194,8 @@ export async function connectEspnLeague(
       teamId: input.teamId ?? null,
       leagueName: league.name,
       isDemo: false,
-      espnSwid: creds.swid ?? null,
-      espnS2: creds.espnS2 ?? null,
+      espnSwid: encryptEspnCookie(creds.swid),
+      espnS2: encryptEspnCookie(creds.espnS2),
       cachedPayload: JSON.stringify(league),
       lastSyncedAt: new Date(),
     },
@@ -211,11 +215,12 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
     return connectDemoLeague(userId);
   }
 
+  // Decrypt only for the ESPN fetch path; next write re-encrypts at rest.
   return connectEspnLeague(userId, {
     leagueId: connection.leagueId,
     season: connection.season,
     teamId: connection.teamId ?? undefined,
-    swid: connection.espnSwid ?? undefined,
-    espnS2: connection.espnS2 ?? undefined,
+    swid: decryptEspnCookie(connection.espnSwid) ?? undefined,
+    espnS2: decryptEspnCookie(connection.espnS2) ?? undefined,
   });
 }

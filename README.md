@@ -119,12 +119,13 @@ Open [http://localhost:3000](http://localhost:3000) → **Continue as Guest** (d
 | `AUTH_URL` | Recommended in prod | Absolute app URL (your Vercel domain) |
 | `AUTH_GOOGLE_*` / `AUTH_GITHUB_*` | Optional | OAuth (email + Guest work without them) |
 | `DEFAULT_ESPN_SEASON` / `NEXT_PUBLIC_DEFAULT_SEASON` | Optional | Season year defaults |
+| `ESPN_COOKIE_ENCRYPTION_KEY` | Required in prod for private leagues | AES-256-GCM key for SWID / espn_s2 at rest (`openssl rand -base64 32`) |
 
-Private ESPN leagues need `SWID` + `espn_s2` cookies from fantasy.espn.com while logged in — paste them in Connect. Treat cookies like passwords. See `.env.example` for details. **Never commit secrets.**
+Private ESPN leagues need `SWID` + `espn_s2` cookies from fantasy.espn.com while logged in — paste them in Connect. Treat cookies like passwords; they are **encrypted at rest** (AES-256-GCM) on `LeagueConnection`. See `.env.example`. **Never commit secrets.**
 
 ### Vercel
 
-Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Build runs `prisma generate && prisma migrate deploy && next build`.
+Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Set `ESPN_COOKIE_ENCRYPTION_KEY` before connecting private ESPN leagues. Build runs `prisma generate && prisma migrate deploy && next build`.
 
 ---
 
@@ -139,6 +140,7 @@ Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and 
 | `npm run db:migrate` / `db:deploy` | Prisma migrate |
 | `npx tsx scripts/verify-defense-matchups.ts` | Trust guards for defense comps |
 | `npx tsx scripts/verify-guest-entry.ts` | Guest/demo path regression (no DB) |
+| `npm run verify:cookie-crypto` | ESPN cookie encrypt-at-rest unit checks |
 
 ---
 
@@ -147,6 +149,7 @@ Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and 
 ```
 src/lib/auth.ts                 Auth.js (Google, GitHub, email, guest) + JWT
 src/lib/espn/client.ts          ESPN Fantasy sync + scoreboard helpers
+src/lib/espn/cookie-crypto.ts   AES-256-GCM encrypt/decrypt for SWID / espn_s2
 src/lib/league/service.ts       Connect / sync / cached payload per user
 src/lib/demo/seed.ts            Labeled demo league
 src/lib/insights/engine.ts      Insights bundle
@@ -165,5 +168,5 @@ Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections
 ## Limits (v1)
 
 - Scoring assumption: **full PPR / 1QB** redraft. Dynasty, draft picks, and half-PPR toggles are out of scope.
-- ESPN has no official consumer Fantasy API; private leagues depend on cookies that can expire.
+- ESPN has no official consumer Fantasy API; private leagues depend on cookies that can expire. Cookies are encrypted at rest (AES-256-GCM); set `ESPN_COOKIE_ENCRYPTION_KEY` in production.
 - Guest sessions are for trying the product; create an account to keep a lasting ESPN connection.
