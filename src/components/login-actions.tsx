@@ -188,7 +188,7 @@ export function LoginActions({
       )}
 
       {!googleEnabled && !githubEnabled && (
-        <p className="rounded-xl border border-dashed border-emerald-950/15 bg-white/50 px-3 py-2 text-xs leading-relaxed text-emerald-950/55">
+        <p className="rounded-xl border border-dashed border-emerald-950/15 bg-[color-mix(in_srgb,var(--kraft)_40%,var(--surface))] px-3 py-2 text-xs leading-relaxed text-emerald-950/55">
           Google and GitHub OAuth are optional. Set{" "}
           <code className="text-emerald-900">AUTH_GOOGLE_*</code> /{" "}
           <code className="text-emerald-900">AUTH_GITHUB_*</code> (or{" "}

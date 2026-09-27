@@ -21,13 +21,13 @@ export default async function PlayersPage() {
   return (
     <div className="space-y-6">
       <div className="animate-fade-up">
-        <h1 className="type-page text-emerald-950">Player directory</h1>
+        <h1 className="type-page text-emerald-950">Players</h1>
         <p className="type-body mt-2 text-emerald-950/60">
-          Owned players and free agents with ownership %, projections, and
-          actuals.
+          Owned players and free agents — projections, actuals, and ESPN
+          ownership when available.
         </p>
       </div>
-      <div className="animate-fade-up-delay surface-card p-4 sm:p-5">
+      <div className="animate-fade-up-delay surface-card px-2 py-3 sm:px-3 sm:py-4">
         <PlayersDirectory league={league} />
       </div>
     </div>

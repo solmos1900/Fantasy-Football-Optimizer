@@ -57,7 +57,7 @@ export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
         {live.games.map((g) => (
           <div
             key={g.id}
-            className="rounded-xl border border-emerald-950/8 bg-white/50 px-3 py-2.5"
+            className="rounded-xl border border-emerald-950/8 bg-[color-mix(in_srgb,var(--kraft)_35%,var(--surface))] px-3 py-2.5"
           >
             <div className="mb-1.5 flex items-center justify-between type-caption font-semibold text-emerald-950/45">
               <span>

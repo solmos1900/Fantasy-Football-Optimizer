@@ -17,18 +17,42 @@ async function persistTrendsSafe(league: LeagueData): Promise<void> {
 }
 
 async function demoOwnerDisplayName(userId: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true },
-  });
-  return user?.name ?? null;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    return user?.name ?? null;
+  } catch (err) {
+    console.error("[league] demoOwnerDisplayName failed", err);
+    return null;
+  }
+}
+
+/** Current demo season shape — stale caches from older seeds are rebuilt. */
+const DEMO_SCORING_PERIOD = 3;
+
+function isCurrentDemoShape(league: LeagueData): boolean {
+  return (
+    league.isDemo === true &&
+    Number(league.scoringPeriodId) === DEMO_SCORING_PERIOD &&
+    Number(league.currentWeek) === DEMO_SCORING_PERIOD &&
+    Array.isArray(league.teams) &&
+    league.teams.length > 0
+  );
 }
 
 export async function getUserLeagueConnection(userId: string) {
-  return prisma.leagueConnection.findFirst({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-  });
+  try {
+    return await prisma.leagueConnection.findFirst({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+    });
+  } catch (err) {
+    // Never take down app chrome after guest/auth — empty state is recoverable.
+    console.error("[league] getUserLeagueConnection failed", err);
+    return null;
+  }
 }
 
 export async function getLeagueDataForUser(userId: string): Promise<LeagueData | null> {
@@ -43,9 +67,14 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
     try {
       const cached = JSON.parse(connection.cachedPayload) as LeagueData;
       if (connection.isDemo) {
-        return applyDemoOwnerDisplayName(cached, ownerName);
+        // Pre–week-3 demo caches (and any corrupt payload) can blow up Insights /
+        // defense comps after the completed-week-only change. Rebuild instead.
+        if (isCurrentDemoShape(cached)) {
+          return applyDemoOwnerDisplayName(cached, ownerName);
+        }
+      } else {
+        return cached;
       }
-      return cached;
     } catch {
       // fall through
     }
@@ -55,14 +84,18 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
     const demo = createDemoLeague(connection.teamId ?? 1, {
       ownerDisplayName: ownerName,
     });
-    await prisma.leagueConnection.update({
-      where: { id: connection.id },
-      data: {
-        cachedPayload: JSON.stringify(demo),
-        lastSyncedAt: new Date(),
-        leagueName: demo.name,
-      },
-    });
+    try {
+      await prisma.leagueConnection.update({
+        where: { id: connection.id },
+        data: {
+          cachedPayload: JSON.stringify(demo),
+          lastSyncedAt: new Date(),
+          leagueName: demo.name,
+        },
+      });
+    } catch (err) {
+      console.error("[league] failed to persist rebuilt demo cache", err);
+    }
     await persistTrendsSafe(demo);
     return demo;
   }

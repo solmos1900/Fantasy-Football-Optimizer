@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { FantasyPlayer, LeagueData } from "@/lib/types";
-import { cn, formatStatusCode, statusColor } from "@/lib/utils";
+import { PlayerRow } from "@/components/player-row";
+import { cn } from "@/lib/utils";
+
+const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"] as const;
 
 export function PlayersDirectory({ league }: { league: LeagueData }) {
   const [query, setQuery] = useState("");
@@ -28,7 +30,9 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
     for (const p of league.freeAgents) {
       if (!byId.has(p.espnId)) byId.set(p.espnId, p);
     }
-    return Array.from(byId.values()).sort((a, b) => b.projectedPoints - a.projectedPoints);
+    return Array.from(byId.values()).sort(
+      (a, b) => b.projectedPoints - a.projectedPoints,
+    );
   }, [league]);
 
   const filtered = allPlayers.filter((p) => {
@@ -49,8 +53,10 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
     return true;
   });
 
+  const weekLabel = `WK${league.currentWeek}`;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block flex-1 text-sm">
           <span className="mb-1.5 block font-medium text-emerald-950">Search</span>
@@ -60,20 +66,6 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
             placeholder="Name, team, position…"
             className="field-input"
           />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1.5 block font-medium text-emerald-950">Position</span>
-          <select
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-            className="field-input"
-          >
-            {["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"].map((pos) => (
-              <option key={pos} value={pos}>
-                {pos}
-              </option>
-            ))}
-          </select>
         </label>
         <label className="block text-sm">
           <span className="mb-1.5 block font-medium text-emerald-950">Pool</span>
@@ -89,58 +81,44 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
         </label>
       </div>
 
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {POSITIONS.map((pos) => {
+          const active = position === pos;
+          return (
+            <button
+              key={pos}
+              type="button"
+              onClick={() => setPosition(pos)}
+              className={cn(
+                "shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-bold tracking-wide transition",
+                active
+                  ? "bg-emerald-950 text-emerald-50"
+                  : "bg-emerald-100 text-emerald-950/55 hover:bg-emerald-200 hover:text-emerald-950/80",
+              )}
+            >
+              {pos}
+            </button>
+          );
+        })}
+      </div>
+
       <p className="text-xs text-emerald-950/50">{filtered.length} players</p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-left text-sm">
-          <thead>
-            <tr className="border-b border-emerald-950/10 text-xs uppercase tracking-wider text-emerald-950/45">
-              <th className="py-2 pr-2 font-semibold">Player</th>
-              <th className="py-2 pr-2 font-semibold">Pos</th>
-              <th className="py-2 pr-2 font-semibold">Owner</th>
-              <th className="py-2 pr-2 font-semibold">Own%</th>
-              <th className="py-2 pr-2 font-semibold">Proj</th>
-              <th className="py-2 font-semibold">Actual</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 80).map((p) => (
-              <tr key={p.id} className="border-b border-emerald-950/5">
-                <td className="py-2.5 pr-2">
-                  <Link
-                    href={`/players/${encodeURIComponent(p.id)}`}
-                    className="font-medium text-emerald-950 hover:text-orange-700 hover:underline"
-                  >
-                    {p.name}
-                  </Link>
-                  <span className="ml-2 text-xs text-emerald-950/45">{p.nflTeam}</span>
-                  {p.injuryStatus !== "ACTIVE" && (
-                    <span
-                      className={cn(
-                        "ml-2 rounded px-1 py-0.5 text-[10px] font-semibold uppercase",
-                        statusColor(p.injuryStatus),
-                      )}
-                    >
-                      {formatStatusCode(p.injuryStatus)}
-                    </span>
-                  )}
-                </td>
-                <td className="py-2.5 pr-2">{p.position}</td>
-                <td className="py-2.5 pr-2 text-emerald-950/60">
-                  {ownership.get(p.espnId) ?? "FA"}
-                </td>
-                <td className="py-2.5 pr-2">{p.percentOwned.toFixed(0)}%</td>
-                <td className="py-2.5 pr-2 type-stat text-base">
-                  {p.projectedPoints.toFixed(1)}
-                </td>
-                <td className="py-2.5 type-stat text-base text-orange-600">
-                  {p.actualPoints > 0 ? p.actualPoints.toFixed(1) : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ul className="divide-y divide-emerald-950/10">
+        {filtered.slice(0, 80).map((p, i) => (
+          <li key={p.id}>
+            <PlayerRow
+              player={p}
+              showSlotBadge={false}
+              showOwnership
+              preferProjected
+              ownerLabel={ownership.get(p.espnId) ?? "FA"}
+              rank={i + 1}
+              weekLabel={weekLabel}
+            />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

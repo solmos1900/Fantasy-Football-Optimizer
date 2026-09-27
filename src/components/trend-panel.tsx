@@ -21,10 +21,10 @@ function labelTone(label: PlayerTrendLabel): string {
               : "Stable";
   switch (n) {
     case "Rising":
-      return "bg-emerald-700 text-white";
+      return "bg-[#2f4a35] text-[#ececec]";
     case "Fading":
     case "InjuryRisk":
-      return "bg-orange-700 text-white";
+      return "bg-orange-500 text-white";
     case "BoomBust":
       return "bg-amber-700 text-white";
     case "Thin":
@@ -37,7 +37,8 @@ function labelTone(label: PlayerTrendLabel): string {
 /** Shared window: early season shows full 1..current; later seasons keep last 5 for mobile. */
 export function visibleTrendWeeks<
   T extends { week: number },
->(weeks: T[]): T[] {
+>(weeks: T[] | null | undefined): T[] {
+  if (!weeks?.length) return [];
   return [...weeks].sort((a, b) => a.week - b.week).slice(-5);
 }
 
@@ -179,8 +180,8 @@ export function TrendPanel({
           {takeaway}
         </p>
       )}
-      <ProjectionSpark weeks={trend.weeks} />
-      {!compact && trend.weeks.length > 0 && (
+      <ProjectionSpark weeks={trend.weeks ?? []} />
+      {!compact && (trend.weeks?.length ?? 0) > 0 && (
         <details className="border-t border-emerald-950/10 pt-2">
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-emerald-950/45 hover:text-emerald-950/70">
             Week-by-week scores

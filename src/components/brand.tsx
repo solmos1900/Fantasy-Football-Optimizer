@@ -1,24 +1,39 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** Helmet Orbit mark — cream squircle, charcoal helmet + orbital ring. */
+type BrandMarkProps = {
+  className?: string;
+  size?: number;
+  /**
+   * `app` — chrome mark (nav / wordmark).
+   * `hero` — larger landing mark.
+   */
+  variant?: "app" | "hero";
+};
+
+/** High-res transparent Helmet Orbit (Sebastian-approved ChatGPT mark). */
+const MARK_SRC = "/icons/helmet-orbit-mark-light-2048.png";
+
+/**
+ * Helmet Orbit mark — cream on transparent for charcoal UI.
+ * Served unoptimized so next/image does not requantize the silhouette
+ * to an 8-bit palette (that made Preview look crusty).
+ */
 export function BrandMark({
   className,
   size = 36,
-}: {
-  className?: string;
-  size?: number;
-}) {
+  variant: _variant = "app",
+}: BrandMarkProps) {
   return (
     <Image
-      src="/icons/icon-192.png"
+      src={MARK_SRC}
       width={size}
       height={size}
       alt=""
       className={cn("shrink-0", className)}
+      unoptimized
       aria-hidden
       draggable={false}
-      unoptimized
     />
   );
 }

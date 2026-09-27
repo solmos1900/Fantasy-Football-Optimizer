@@ -110,7 +110,7 @@ function InsightCard({
       </p>
 
       {why && (
-        <div className="mt-3 rounded-lg border border-emerald-950/12 border-l-4 border-l-orange-600 bg-[color-mix(in_srgb,var(--kraft)_60%,white)] px-3 py-2.5">
+        <div className="mt-3 rounded-lg border border-emerald-950/12 border-l-4 border-l-orange-600 bg-[color-mix(in_srgb,var(--kraft)_55%,var(--surface))] px-3 py-2.5">
           <p className="type-eyebrow text-orange-700">Why we chose this</p>
           <p className="mt-1.5">
             <InsightRichText text={why} names={names} emphasize />
@@ -242,7 +242,7 @@ function Section({
         </div>
       </div>
       {shown.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-emerald-950/10 bg-white/40 px-4 py-3 text-sm text-emerald-950/50">
+        <p className="rounded-xl border border-dashed border-emerald-950/10 bg-[color-mix(in_srgb,var(--kraft)_40%,var(--surface))] px-4 py-3 text-sm text-emerald-950/50">
           {empty}
         </p>
       ) : (

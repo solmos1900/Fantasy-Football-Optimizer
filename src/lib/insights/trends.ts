@@ -674,39 +674,45 @@ function toTrendView(
 export async function loadTrendMap(
   league: LeagueData,
 ): Promise<Map<number, PlayerTrendView>> {
-  const lid = leagueKey(league.leagueId);
-  const metrics = await prisma.playerTrendSnapshot.findMany({
-    where: { season: league.season, leagueId: lid },
-  });
-  const snaps = await prisma.playerWeekStat.findMany({
-    where: { season: league.season, leagueId: lid },
-    orderBy: { week: "asc" },
-  });
+  try {
+    const lid = leagueKey(league.leagueId);
+    const metrics = await prisma.playerTrendSnapshot.findMany({
+      where: { season: league.season, leagueId: lid },
+    });
+    const snaps = await prisma.playerWeekStat.findMany({
+      where: { season: league.season, leagueId: lid },
+      orderBy: { week: "asc" },
+    });
 
-  const weeksByEspn = new Map<number, typeof snaps>();
-  for (const s of snaps) {
-    const list = weeksByEspn.get(s.espnId) ?? [];
-    list.push(s);
-    weeksByEspn.set(s.espnId, list);
-  }
+    const weeksByEspn = new Map<number, typeof snaps>();
+    for (const s of snaps) {
+      const list = weeksByEspn.get(s.espnId) ?? [];
+      list.push(s);
+      weeksByEspn.set(s.espnId, list);
+    }
 
-  const map = new Map<number, PlayerTrendView>();
-  for (const m of metrics) {
-    const known = (weeksByEspn.get(m.espnId) ?? []).map((s) => ({
-      week: s.week,
-      projectedPpr: s.projectedPpr,
-      actualPpr: s.actualPpr,
-      opponent: s.opponent ?? undefined,
-    }));
-    const weeks = scaffoldWeekAxis(league.scoringPeriodId, known).map((s) => ({
-      week: s.week,
-      projected: s.projectedPpr,
-      actual: s.actualPpr,
-      opponent: s.opponent ?? null,
-    }));
-    map.set(m.espnId, toTrendView(m, weeks));
+    const map = new Map<number, PlayerTrendView>();
+    for (const m of metrics) {
+      const known = (weeksByEspn.get(m.espnId) ?? []).map((s) => ({
+        week: s.week,
+        projectedPpr: s.projectedPpr,
+        actualPpr: s.actualPpr,
+        opponent: s.opponent ?? undefined,
+      }));
+      const weeks = scaffoldWeekAxis(league.scoringPeriodId, known).map((s) => ({
+        week: s.week,
+        projected: s.projectedPpr,
+        actual: s.actualPpr,
+        opponent: s.opponent ?? null,
+      }));
+      map.set(m.espnId, toTrendView(m, weeks));
+    }
+    return map;
+  } catch (err) {
+    // Neon blips must not 500 Insights / Trades / player detail after guest entry.
+    console.error("[trends] loadTrendMap failed; using in-memory league trends", err);
+    return computeTrendsFromLeague(league);
   }
-  return map;
 }
 
 export function computeTrendsFromLeague(
