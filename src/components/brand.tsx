@@ -14,14 +14,16 @@ type BrandMarkProps = {
 /** High-res transparent Helmet Orbit (Sebastian-approved ChatGPT mark). */
 const MARK_SRC = "/icons/helmet-orbit-mark-light-2048.png";
 
-/** Helmet Orbit mark — cream on transparent for charcoal UI. */
+/**
+ * Helmet Orbit mark — cream on transparent for charcoal UI.
+ * Served unoptimized so next/image does not requantize the silhouette
+ * to an 8-bit palette (that made Preview look crusty).
+ */
 export function BrandMark({
   className,
   size = 36,
-  variant = "app",
+  variant: _variant = "app",
 }: BrandMarkProps) {
-  const isHero = variant === "hero";
-
   return (
     <Image
       src={MARK_SRC}
@@ -29,14 +31,7 @@ export function BrandMark({
       height={size}
       alt=""
       className={cn("shrink-0", className)}
-      sizes={
-        isHero
-          ? "(max-width: 640px) 96px, 112px"
-          : `${Math.max(size, 36)}px`
-      }
-      // Source is 2048² — plenty for retina hero (~96–112 CSS).
-      quality={95}
-      priority={isHero}
+      unoptimized
       aria-hidden
       draggable={false}
     />
