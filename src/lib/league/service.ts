@@ -12,6 +12,9 @@ import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
 
 async function persistTrendsSafe(league: LeagueData): Promise<void> {
+  // Demo seed is fully regenerable in-memory — skip Neon writes (shared
+  // leagueId "demo-league" would only churn upserts for every guest visit).
+  if (league.isDemo) return;
   try {
     await refreshProjectionTrends(league);
   } catch (err) {
@@ -20,17 +23,25 @@ async function persistTrendsSafe(league: LeagueData): Promise<void> {
   }
 }
 
-async function demoOwnerDisplayName(userId: string): Promise<string | null> {
+async function userFlags(userId: string): Promise<{
+  name: string | null;
+  isGuest: boolean;
+}> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true },
+      select: { name: true, isGuest: true },
     });
-    return user?.name ?? null;
+    return { name: user?.name ?? null, isGuest: Boolean(user?.isGuest) };
   } catch (err) {
-    console.error("[league] demoOwnerDisplayName failed", err);
-    return null;
+    console.error("[league] userFlags failed", err);
+    return { name: null, isGuest: false };
   }
+}
+
+async function demoOwnerDisplayName(userId: string): Promise<string | null> {
+  const { name } = await userFlags(userId);
+  return name;
 }
 
 /** Current demo season shape — stale caches from older seeds are rebuilt. */
@@ -88,17 +99,31 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
     const demo = createDemoLeague(connection.teamId ?? 1, {
       ownerDisplayName: ownerName,
     });
-    try {
-      await prisma.leagueConnection.update({
-        where: { id: connection.id },
-        data: {
-          cachedPayload: JSON.stringify(demo),
-          lastSyncedAt: new Date(),
-          leagueName: demo.name,
-        },
-      });
-    } catch (err) {
-      console.error("[league] failed to persist rebuilt demo cache", err);
+    const { isGuest } = await userFlags(userId);
+    // Guests: keep a slim connection row (no JSON blob). Seed regenerates fast.
+    // Signed-in demo users: cache payload so Insights stays snappy offline of seed changes.
+    if (!isGuest) {
+      try {
+        await prisma.leagueConnection.update({
+          where: { id: connection.id },
+          data: {
+            cachedPayload: JSON.stringify(demo),
+            lastSyncedAt: new Date(),
+            leagueName: demo.name,
+          },
+        });
+      } catch (err) {
+        console.error("[league] failed to persist rebuilt demo cache", err);
+      }
+    } else if (connection.leagueName !== demo.name) {
+      try {
+        await prisma.leagueConnection.update({
+          where: { id: connection.id },
+          data: { leagueName: demo.name, lastSyncedAt: new Date() },
+        });
+      } catch (err) {
+        console.error("[league] failed to touch guest demo connection", err);
+      }
     }
     await persistTrendsSafe(demo);
     return demo;
@@ -108,8 +133,10 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
 }
 
 export async function connectDemoLeague(userId: string): Promise<LeagueData> {
-  const ownerName = await demoOwnerDisplayName(userId);
+  const { name: ownerName, isGuest } = await userFlags(userId);
   const demo = createDemoLeague(1, { ownerDisplayName: ownerName });
+  // Guests skip cachedPayload — wipe on session end; avoid storing demo JSON per visit.
+  const payload = isGuest ? null : JSON.stringify(demo);
   await prisma.leagueConnection.upsert({
     where: {
       userId_leagueId_season: {
@@ -124,7 +151,7 @@ export async function connectDemoLeague(userId: string): Promise<LeagueData> {
       leagueName: demo.name,
       espnSwid: null,
       espnS2: null,
-      cachedPayload: JSON.stringify(demo),
+      cachedPayload: payload,
       lastSyncedAt: new Date(),
     },
     create: {
@@ -134,7 +161,7 @@ export async function connectDemoLeague(userId: string): Promise<LeagueData> {
       teamId: 1,
       leagueName: demo.name,
       isDemo: true,
-      cachedPayload: JSON.stringify(demo),
+      cachedPayload: payload,
       lastSyncedAt: new Date(),
     },
   });

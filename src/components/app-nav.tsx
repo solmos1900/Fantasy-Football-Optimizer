@@ -129,7 +129,19 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
                 aria-label={signingOut ? "Signing out" : "Sign out"}
                 onClick={() =>
                   startSignOut(() => {
-                    void signOut({ callbackUrl: "/" });
+                    void (async () => {
+                      // Wipe guest User + LeagueConnection before clearing the JWT.
+                      // Real accounts skip wipe on the server.
+                      try {
+                        await fetch("/api/guest/end-session", {
+                          method: "POST",
+                          keepalive: true,
+                        });
+                      } catch {
+                        // Still sign out even if cleanup fails; cron is a backstop.
+                      }
+                      await signOut({ callbackUrl: "/" });
+                    })();
                   })
                 }
                 className="!h-9 !min-h-9 !shrink-0 !gap-1 !px-2.5 !text-xs !font-semibold whitespace-nowrap sm:!px-3 sm:!text-sm"
