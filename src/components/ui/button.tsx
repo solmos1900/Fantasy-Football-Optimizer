@@ -5,21 +5,25 @@ import { cn } from "@/lib/utils";
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
+/**
+ * Shared geometry across variants: fixed height (border-box), 1px border
+ * (transparent on filled variants), identical pill radius + padding.
+ */
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-orange-600 text-white shadow-sm hover:bg-orange-500 active:bg-orange-700 disabled:bg-orange-600/50",
+    "border border-transparent bg-brand text-white shadow-sm hover:bg-brand/90 active:bg-brand/80 disabled:bg-brand/50",
   secondary:
-    "bg-[#212121] text-emerald-950 shadow-sm ring-1 ring-emerald-950/15 hover:bg-[#353535] active:bg-[#2a2a2a] disabled:bg-[#212121]/50",
+    "border border-[var(--border)] bg-[var(--surface)] text-white shadow-sm hover:bg-[#353535] active:bg-[#2a2a2a] disabled:opacity-50",
   ghost:
-    "border-[1.5px] border-emerald-950/20 bg-[var(--surface)] text-emerald-950 shadow-sm hover:border-emerald-950/35 hover:bg-[var(--kraft)] active:bg-emerald-50/80 disabled:opacity-50",
+    "border border-[var(--border)] bg-transparent text-white shadow-sm hover:border-emerald-950/35 hover:bg-[var(--surface)] active:bg-emerald-50/80 disabled:opacity-50",
   danger:
-    "bg-danger text-white shadow-sm hover:bg-danger/90 active:bg-danger/80 disabled:bg-danger/50",
+    "border border-transparent bg-danger text-white shadow-sm hover:bg-danger/90 active:bg-danger/80 disabled:bg-danger/50",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "min-h-9 gap-1.5 rounded-lg px-3 text-sm font-semibold",
-  md: "min-h-11 gap-2 rounded-xl px-5 text-sm font-semibold",
-  lg: "min-h-12 gap-2 rounded-xl px-6 text-base font-semibold",
+  sm: "h-9 gap-1.5 rounded-full px-4 text-sm font-semibold",
+  md: "h-11 gap-2 rounded-full px-5 text-sm font-semibold",
+  lg: "h-12 gap-2 rounded-full px-6 text-base font-semibold",
 };
 
 export function buttonVariants({
@@ -32,8 +36,8 @@ export function buttonVariants({
   className?: string;
 } = {}) {
   return cn(
-    "inline-flex items-center justify-center transition-colors",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]",
+    "inline-flex items-center justify-center box-border transition-colors",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]",
     "disabled:pointer-events-none disabled:opacity-60",
     variantClasses[variant],
     sizeClasses[size],
