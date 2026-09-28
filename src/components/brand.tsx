@@ -9,24 +9,33 @@ type BrandMarkProps = {
    * `hero` — larger landing mark.
    */
   variant?: "app" | "hero";
+  /**
+   * `dark` — white helmet on #0B0B0B with neon-purple GIQ + orbit (default / dark-first).
+   * `light` — dark helmet on #FFFFFF for light surfaces.
+   */
+  tone?: "dark" | "light";
 };
 
-/** High-res transparent Helmet Orbit (Sebastian-approved ChatGPT mark). */
-const MARK_SRC = "/icons/helmet-orbit-mark-light-2048.png";
+/** GIQ + neon-purple Helmet Orbit masters (lossless 1024 PNGs; Image uses unoptimized). */
+const MARK_SRC = {
+  dark: "/icons/helmet-orbit-giq-dark-1024.png",
+  light: "/icons/helmet-orbit-giq-light-1024.png",
+} as const;
 
 /**
- * Helmet Orbit mark — cream on transparent for midnight UI.
+ * Helmet Orbit mark — GIQ + neon-purple orbit.
  * Served unoptimized so next/image does not requantize the silhouette
- * to an 8-bit palette (that made Preview look crusty).
+ * (lossy compression made Preview look crusty).
  */
 export function BrandMark({
   className,
   size = 36,
   variant: _variant = "app",
+  tone = "dark",
 }: BrandMarkProps) {
   return (
     <Image
-      src={MARK_SRC}
+      src={MARK_SRC[tone]}
       width={size}
       height={size}
       alt=""
