@@ -38,13 +38,13 @@ const STEPS: { id: TradeStep; label: string }[] = [
   { id: "results", label: "Results" },
 ];
 
-/** Chip tones: Accept → success, Hard reject → danger, lean caution → warning. */
+/** Soft stamp variants — wash + border + tinted text. */
 const VERDICT_STYLE: Record<TradeVerdict, string> = {
-  accept: "bg-success text-white",
-  lean_accept: "bg-success/85 text-white",
-  fair: "bg-[#353535] text-white",
-  lean_reject: "bg-warning text-[#0b0b0b]",
-  hard_reject: "bg-danger text-white",
+  accept: "stamp-success",
+  lean_accept: "stamp-success",
+  fair: "stamp-sit",
+  lean_reject: "stamp-warning",
+  hard_reject: "stamp-danger",
 };
 
 /** Tab bar clearance: icon row (~3.75rem) + max(0.75rem, safe-area) + optional install banner. */
@@ -531,17 +531,7 @@ function LeanResultsCard({
       )}
     >
       <span
-        className={cn(
-          "stamp animate-stamp",
-          analysis.verdict === "hard_reject"
-            ? "stamp-danger"
-            : analysis.verdict === "lean_reject"
-              ? "stamp-warning"
-              : analysis.verdict === "fair"
-                ? "stamp-sit"
-                : "stamp-success",
-          VERDICT_STYLE[analysis.verdict],
-        )}
+        className={cn("stamp animate-stamp", VERDICT_STYLE[analysis.verdict])}
       >
         {analysis.verdictLabel}
       </span>

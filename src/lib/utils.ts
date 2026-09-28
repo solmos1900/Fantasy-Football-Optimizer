@@ -46,15 +46,15 @@ export function injuryStatusPhrase(
 export function statusColor(status: string) {
   switch (formatStatusCode(status)) {
     case "QUESTIONABLE":
-      return "text-warning bg-warning/15";
+      return "border border-warning/40 bg-warning/15 font-sans font-semibold text-[color-mix(in_srgb,var(--warning)_55%,white)]";
     case "DOUBTFUL":
-      return "text-warning bg-warning/20";
+      return "border border-warning/45 bg-warning/20 font-sans font-semibold text-[color-mix(in_srgb,var(--warning)_55%,white)]";
     case "OUT":
     case "IR":
     case "SUSPENSION":
-      return "text-danger bg-danger/15";
+      return "border border-danger/40 bg-danger/15 font-sans font-semibold text-[color-mix(in_srgb,var(--danger)_55%,white)]";
     default:
-      return "text-emerald-800 bg-emerald-100";
+      return "border border-emerald-950/15 bg-emerald-100 font-sans font-semibold text-emerald-700";
   }
 }
 

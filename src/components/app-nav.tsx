@@ -112,7 +112,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
             {/* Guest + Sign out: auto column — always fully visible */}
             <div className="flex shrink-0 items-center justify-end gap-2.5 sm:gap-3">
               {data?.user?.isGuest ? (
-                <span className="shrink-0 rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
+                <span className="stamp stamp-start shrink-0 text-[10px]">
                   Guest
                 </span>
               ) : (

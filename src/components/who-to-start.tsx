@@ -23,13 +23,13 @@ export type TrendsProp =
   | Record<string, PlayerTrendView>
   | undefined;
 
-/** START = brand purple; lean = warning; toss-up = muted chrome. */
+/** Soft stamp variants — wash + tinted text; no solid fills. */
 const VERDICT_STYLE: Record<WhoToStartVerdict, string> = {
-  start_a: "bg-brand text-white",
-  start_b: "bg-brand text-white",
-  lean_a: "bg-warning text-[#0b0b0b]",
-  lean_b: "bg-warning text-[#0b0b0b]",
-  toss_up: "bg-[#353535] text-emerald-950 ring-1 ring-emerald-950/20",
+  start_a: "stamp-start",
+  start_b: "stamp-start",
+  lean_a: "stamp-warning",
+  lean_b: "stamp-warning",
+  toss_up: "stamp-sit",
 };
 
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
@@ -250,11 +250,7 @@ function VerdictCard({ result }: { result: WhoToStartResult }) {
       )}
     >
       <span
-        className={cn(
-          "stamp animate-stamp",
-          result.verdict === "toss_up" ? "stamp-flex" : "stamp-start",
-          VERDICT_STYLE[result.verdict],
-        )}
+        className={cn("stamp animate-stamp", VERDICT_STYLE[result.verdict])}
       >
         {result.verdictLabel}
       </span>
