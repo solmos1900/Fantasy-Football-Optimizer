@@ -82,9 +82,9 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
             />
           </PendingLink>
 
-          <div className="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto sm:justify-end sm:gap-x-3.5">
-            {/* Install + league: may shrink; never underlap Guest / Sign out */}
-            <div className="flex min-w-0 flex-1 items-center gap-3 sm:flex-initial sm:gap-3">
+          <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end sm:gap-x-3.5">
+            {/* Install + league: fr column ellipsizes; never underlaps actions */}
+            <div className="flex min-w-0 items-center gap-3">
               <InstallHowToLink className="shrink-0 px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
                 Install
               </InstallHowToLink>
@@ -109,8 +109,8 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
                 </PendingLink>
               )}
             </div>
-            {/* Guest + Sign out: fixed chrome — always fully visible */}
-            <div className="ml-auto flex shrink-0 items-center gap-2.5 sm:ml-0 sm:gap-3">
+            {/* Guest + Sign out: auto column — always fully visible */}
+            <div className="flex shrink-0 items-center justify-end gap-2.5 sm:gap-3">
               {data?.user?.isGuest ? (
                 <span className="shrink-0 rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
                   Guest
