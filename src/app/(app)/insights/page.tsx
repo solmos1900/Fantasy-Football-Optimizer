@@ -19,6 +19,7 @@ import {
   InsightRichText,
   PlayerChip,
 } from "@/components/insight-rich-text";
+import { PositionChip } from "@/components/position-chip";
 import { PendingLink } from "@/components/pending-link";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { cn, priorityColor } from "@/lib/utils";
@@ -126,9 +127,9 @@ function InsightCard({
             </p>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {insight.trade.give.map((p) => (
-                <li key={p.id} className="flex items-center gap-1">
+                <li key={p.id} className="flex items-center gap-1.5">
                   <PlayerChip name={p.name} />
-                  <span className="text-xs text-emerald-950/45">{p.position}</span>
+                  <PositionChip position={p.position} />
                 </li>
               ))}
             </ul>
@@ -150,9 +151,9 @@ function InsightCard({
             </p>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {insight.trade.receive.map((p) => (
-                <li key={p.id} className="flex items-center gap-1">
+                <li key={p.id} className="flex items-center gap-1.5">
                   <PlayerChip name={p.name} tone="secondary" />
-                  <span className="text-xs text-emerald-950/45">{p.position}</span>
+                  <PositionChip position={p.position} />
                 </li>
               ))}
             </ul>
@@ -356,9 +357,7 @@ export default async function InsightsPage() {
                 className="surface-card border-b-0 p-4 pb-4"
               >
                 <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                  <span className="type-caption text-emerald-950/45">
-                    {t.position}
-                  </span>
+                  <PositionChip position={t.position} />
                 </div>
                 <TrendPanel trend={t} />
               </div>
@@ -373,8 +372,8 @@ export default async function InsightsPage() {
         </h2>
         <div className="flex flex-wrap gap-5">
           {Object.entries(averages).map(([pos, avg]) => (
-            <div key={pos}>
-              <span className="type-caption text-emerald-950/50">{pos}</span>
+            <div key={pos} className="space-y-1">
+              <PositionChip position={pos} />
               <p className="type-stat text-2xl text-emerald-950">
                 {avg.toFixed(1)}
               </p>

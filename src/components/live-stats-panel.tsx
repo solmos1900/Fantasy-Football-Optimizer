@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import type { LiveStatSnapshot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { PositionChip } from "@/components/position-chip";
 
 export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
   const [live, setLive] = useState(initial);
@@ -95,10 +96,11 @@ export function LiveStatsPanel({ initial }: { initial: LiveStatSnapshot }) {
                 key={`${p.playerName}-${p.points}`}
                 className="flex items-center justify-between text-sm"
               >
-                <span className="text-emerald-950">
-                  {p.playerName}{" "}
-                  <span className="text-emerald-950/45">
-                    {p.position} · {p.team}
+                <span className="flex min-w-0 items-center gap-2 text-emerald-950">
+                  <PositionChip position={p.position} />
+                  <span className="truncate">
+                    {p.playerName}{" "}
+                    <span className="text-emerald-950/45">{p.team}</span>
                   </span>
                 </span>
                 <span className="type-stat text-lg text-orange-600">

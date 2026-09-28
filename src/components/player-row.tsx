@@ -1,33 +1,7 @@
 import Link from "next/link";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 import type { FantasyPlayer, PlayerPosition } from "@/lib/types";
-
-/** Subtle Gridiron-native slot colors — midnight family + neon purple/kraft, not Sleeper rainbow. */
-function slotBadgeClass(slot: string): string {
-  switch (formatStatusCode(slot)) {
-    case "QB":
-      return "bg-orange-200 text-orange-900";
-    case "RB":
-      return "bg-[#3a3330] text-[#e8ddd4]";
-    case "WR":
-      return "bg-emerald-200 text-emerald-900";
-    case "TE":
-      return "bg-[#4a4030] text-[#e8dcc8]";
-    case "FLEX":
-      return "bg-[#5c4a28] text-[#f0ede6]";
-    case "K":
-      return "bg-emerald-100 text-emerald-700 border border-emerald-950/15";
-    case "D/ST":
-    case "DST":
-      return "bg-orange-100 text-orange-800";
-    case "BN":
-      return "bg-emerald-100 text-emerald-600";
-    case "IR":
-      return "bg-orange-50 text-orange-700 border border-orange-500/30";
-    default:
-      return "bg-emerald-100 text-emerald-700";
-  }
-}
+import { PositionChip } from "@/components/position-chip";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -44,20 +18,6 @@ function PlayerAvatar({ name }: { name: string }) {
     >
       {initials(name)}
     </div>
-  );
-}
-
-function PosBadge({ slot }: { slot: string }) {
-  const label = formatStatusCode(slot) === "D/ST" ? "DEF" : formatStatusCode(slot);
-  return (
-    <span
-      className={cn(
-        "inline-flex h-6 min-w-[2.25rem] shrink-0 items-center justify-center rounded px-1.5 text-[10px] font-bold tracking-wide",
-        slotBadgeClass(slot),
-      )}
-    >
-      {label}
-    </span>
   );
 }
 
@@ -93,6 +53,7 @@ function MetricBlock({
 export function PlayerRow({
   player,
   showOwnership = false,
+  /** Team roster: badge lineup slot (QB/FLEX/BN…). Else badge player.position. */
   showSlotBadge = true,
   ownerLabel,
   rank,
@@ -102,7 +63,6 @@ export function PlayerRow({
 }: {
   player: FantasyPlayer;
   showOwnership?: boolean;
-  /** Team roster: show lineup slot badge (QB/BN/IR…). Directory can omit. */
   showSlotBadge?: boolean;
   /** Fantasy team name or "FA" when known — never invent ownership. */
   ownerLabel?: string;
@@ -112,6 +72,7 @@ export function PlayerRow({
   preferProjected?: boolean;
 }) {
   const slot = formatStatusCode(player.slot ?? player.position);
+  const badge = showSlotBadge ? slot : formatStatusCode(player.position);
   const injury = formatStatusCode(player.injuryStatus);
   const actual =
     player.actualPoints > 0 ? player.actualPoints.toFixed(1) : "—";
@@ -146,7 +107,7 @@ export function PlayerRow({
         </span>
       )}
 
-      {showSlotBadge && <PosBadge slot={slot} />}
+      <PositionChip position={badge} />
 
       <PlayerAvatar name={player.name} />
 
@@ -155,11 +116,6 @@ export function PlayerRow({
           <span className="truncate text-[15px] font-semibold leading-tight text-emerald-950">
             {player.name}
           </span>
-          {!showSlotBadge && (
-            <span className="shrink-0 text-[11px] font-medium uppercase tracking-wide text-emerald-950/45">
-              {player.position}
-            </span>
-          )}
           {injury !== "ACTIVE" && (
             <span
               className={cn(
@@ -219,7 +175,7 @@ export function EmptyRosterSlot({
 }) {
   return (
     <div className="flex items-center gap-2 px-1 py-1.5 sm:gap-2.5 sm:px-1.5">
-      <PosBadge slot={slot} />
+      <PositionChip position={slot} />
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100/80 text-[10px] text-emerald-950/30 ring-1 ring-emerald-950/10"
         aria-hidden

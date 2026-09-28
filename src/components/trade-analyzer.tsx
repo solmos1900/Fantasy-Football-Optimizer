@@ -22,6 +22,7 @@ import {
 import { chipValue } from "@/lib/insights/trade-value";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { Button } from "@/components/ui/button";
+import { PositionChip } from "@/components/position-chip";
 
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
@@ -146,8 +147,9 @@ function PlayerPickRow({
           <span className="truncate font-medium text-emerald-950">
             {player.name}
           </span>
+          <PositionChip position={player.position} />
           <span className="type-caption text-emerald-950/50">
-            {player.position} · {player.nflTeam}
+            {player.nflTeam}
           </span>
           {player.injuryStatus !== "ACTIVE" && (
             <span
@@ -249,9 +251,7 @@ function PlayerSearchPicker({
                 aria-label={`Remove ${player.name}`}
               >
                 <span className="truncate">{player.name}</span>
-                <span className="type-caption shrink-0 text-emerald-950/45">
-                  {player.position}
-                </span>
+                <PositionChip position={player.position} />
                 <X
                   className="h-3.5 w-3.5 shrink-0 text-emerald-950/50"
                   aria-hidden
@@ -334,8 +334,9 @@ function PlayerSearchPicker({
                         <span className="truncate font-medium text-emerald-950">
                           {player.name}
                         </span>
+                        <PositionChip position={player.position} />
                         <span className="type-caption text-emerald-950/50">
-                          {player.position} · {player.nflTeam}
+                          {player.nflTeam}
                         </span>
                         {blocked && (
                           <span className="type-caption text-orange-700">

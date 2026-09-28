@@ -272,6 +272,99 @@ body::before {
   border-color: color-mix(in srgb, var(--info) 42%, transparent);
 }
 
+/*
+  Position chips — app-wide standard (Team → Players / Insights / Trades / League).
+  Subtle Sanity wash: tinted bg + readable tinted label. UI sans only.
+  QB purple · RB red-brown · WR charcoal · TE olive · FLEX tan · DEF deep purple · K outline.
+*/
+/*
+  Position chips — Team Sanity wash, app-wide.
+  QB purple · RB muted red-brown · WR charcoal · TE olive ·
+  FLEX tan/gold · DEF deep purple · K outline only.
+*/
+:root {
+  --pos-qb-bg: #4a1a5c;
+  --pos-qb-fg: #ecc0ff;
+  --pos-rb-bg: #4a302c;
+  --pos-rb-fg: #edd8d2;
+  --pos-wr-bg: #353535;
+  --pos-wr-fg: #e8e8e8;
+  --pos-te-bg: #3a422c;
+  --pos-te-fg: #e4e8d4;
+  --pos-flex-bg: #5c4a28;
+  --pos-flex-fg: #f0ede6;
+  --pos-def-bg: #2a0f35;
+  --pos-def-fg: #ecc0ff;
+  --pos-k-fg: #b9b9b9;
+  --pos-k-border: #353535;
+  --pos-bn-bg: #212121;
+  --pos-bn-fg: #9a9a9a;
+  --pos-ir-bg: color-mix(in srgb, var(--danger) 16%, transparent);
+  --pos-ir-fg: color-mix(in srgb, var(--danger) 55%, #ffffff);
+  --pos-ir-border: color-mix(in srgb, var(--danger) 42%, transparent);
+}
+
+.pos-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.5rem;
+  min-width: 2.25rem;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+  padding: 0 0.375rem;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.pos-chip--qb {
+  background: var(--pos-qb-bg);
+  color: var(--pos-qb-fg);
+}
+.pos-chip--rb {
+  background: var(--pos-rb-bg);
+  color: var(--pos-rb-fg);
+}
+.pos-chip--wr {
+  background: var(--pos-wr-bg);
+  color: var(--pos-wr-fg);
+}
+.pos-chip--te {
+  background: var(--pos-te-bg);
+  color: var(--pos-te-fg);
+}
+.pos-chip--flex {
+  background: var(--pos-flex-bg);
+  color: var(--pos-flex-fg);
+}
+.pos-chip--def {
+  background: var(--pos-def-bg);
+  color: var(--pos-def-fg);
+}
+.pos-chip--k {
+  background: transparent;
+  color: var(--pos-k-fg);
+  border-color: var(--pos-k-border);
+}
+.pos-chip--bn {
+  background: var(--pos-bn-bg);
+  color: var(--pos-bn-fg);
+}
+.pos-chip--ir {
+  background: var(--pos-ir-bg);
+  color: var(--pos-ir-fg);
+  border-color: var(--pos-ir-border);
+}
+.pos-chip--default {
+  background: var(--pos-wr-bg);
+  color: var(--pos-wr-fg);
+}
+
 /* —— Shared form control surface —— */
 .field-input {
   width: 100%;
