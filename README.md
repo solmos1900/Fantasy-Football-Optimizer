@@ -128,12 +128,16 @@ Open [http://localhost:3000](http://localhost:3000) → **Continue as Guest** (d
 | `AUTH_GOOGLE_*` / `AUTH_GITHUB_*` | Optional | OAuth (email + Guest work without them) |
 | `DEFAULT_ESPN_SEASON` / `NEXT_PUBLIC_DEFAULT_SEASON` | Optional | Season year defaults |
 | `ESPN_COOKIE_ENCRYPTION_KEY` | Required in prod for private leagues | AES-256-GCM key for SWID / espn_s2 at rest (`openssl rand -base64 32`) |
+| `CRON_SECRET` | Required for cron cleanup | Bearer token for `GET /api/cron/cleanup` (Vercel Cron sends it automatically when set) |
+| `GUEST_SESSION_TTL_HOURS` | Optional (default `24`) | Abandoned guest users + their league rows are deleted after this TTL |
 
 Private ESPN leagues need `SWID` + `espn_s2` cookies from fantasy.espn.com while logged in — paste them in Connect. Treat cookies like passwords; they are **encrypted at rest** (AES-256-GCM) on `LeagueConnection`. See `.env.example`. **Never commit secrets.**
 
 ### Vercel
 
-Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Set `ESPN_COOKIE_ENCRYPTION_KEY` before connecting private ESPN leagues. Build runs `prisma generate && prisma migrate deploy && next build`.
+Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Set `ESPN_COOKIE_ENCRYPTION_KEY` before connecting private ESPN leagues. Set `CRON_SECRET` so the daily guest/session cleanup cron can run (`vercel.json` → `/api/cron/cleanup`). Build runs `prisma generate && prisma migrate deploy && next build`.
+
+**Storage note:** Vercel **Function Storage** (Hobby ~10 GB) is *deployment* function-bundle retention — not your Neon database. Guest cleanup below frees **Postgres** rows. To reduce Function Storage, shorten the project’s [Deployment Retention Policy](https://vercel.com/docs/deployment-storage) and delete old unused deployments in the dashboard.
 
 ---
 
@@ -148,6 +152,7 @@ Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and 
 | `npm run db:migrate` / `db:deploy` | Prisma migrate |
 | `npx tsx scripts/verify-defense-matchups.ts` | Trust guards for defense comps |
 | `npx tsx scripts/verify-guest-entry.ts` | Guest/demo path regression (no DB) |
+| `npx tsx scripts/verify-ephemeral-cleanup.ts` | Guest TTL helpers + cleanup route guards (no DB) |
 | `npm run verify:cookie-crypto` | ESPN cookie encrypt-at-rest unit checks |
 
 ---
@@ -156,6 +161,7 @@ Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and 
 
 ```
 src/lib/auth.ts                 Auth.js (Google, GitHub, email, guest) + JWT
+src/lib/cleanup/ephemeral.ts    Guest wipe + cron purge (sessions, tokens, fat caches)
 src/lib/espn/client.ts          ESPN Fantasy sync + scoreboard helpers
 src/lib/espn/cookie-crypto.ts   AES-256-GCM encrypt/decrypt for SWID / espn_s2
 src/lib/league/service.ts       Connect / sync / cached payload per user
@@ -164,13 +170,15 @@ src/lib/insights/engine.ts      Insights bundle
 src/lib/insights/trade-*.ts     Chip helpers, suggestions, interactive grader
 src/lib/insights/who-to-start.ts  Same-position start comparison
 src/lib/insights/defense-matchups.ts  Finished-week comps only
-src/lib/insights/trends.ts      Proj vs actual persistence
+src/lib/insights/trends.ts      Proj vs actual persistence (live ESPN only)
+src/app/api/cron/cleanup        Daily Vercel Cron purge
+src/app/api/guest/end-session   Immediate guest wipe on Sign out
 src/app/(app)/*                 Authenticated pages (dashboard, team, …)
 ```
 
 Pages: `/` (marketing), `/login`, `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/connect`.
 
-Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections-and-trends.md).
+Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections-and-trends.md), [docs/ephemeral-cleanup.md](docs/ephemeral-cleanup.md).
 
 ---
 
@@ -178,4 +186,4 @@ Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections
 
 - Scoring assumption: **full PPR / 1QB** redraft. Dynasty, draft picks, and half-PPR toggles are out of scope.
 - ESPN has no official consumer Fantasy API; private leagues depend on cookies that can expire. Cookies are encrypted at rest (AES-256-GCM); set `ESPN_COOKIE_ENCRYPTION_KEY` in production.
-- Guest sessions are for trying the product; create an account to keep a lasting ESPN connection.
+- Guest sessions are for trying the product; create an account to keep a lasting ESPN connection. Guest users and their league rows are deleted on Sign out and by the daily cleanup cron (`GUEST_SESSION_TTL_HOURS`, default 24h).

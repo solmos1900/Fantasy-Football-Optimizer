@@ -6,6 +6,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Provider } from "next-auth/providers";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { deleteGuestUserById } from "@/lib/cleanup/ephemeral";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -167,6 +168,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/login",
     error: "/login",
+  },
+  events: {
+    // Backup for guest wipe when sign-out bypasses /api/guest/end-session
+    // (e.g. Auth.js default signOut). JWT strategy → message.token.
+    async signOut(message) {
+      const token =
+        message && typeof message === "object" && "token" in message
+          ? (message as { token?: { sub?: string; isGuest?: boolean } }).token
+          : undefined;
+      if (!token?.sub || !token.isGuest) return;
+      try {
+        await deleteGuestUserById(token.sub);
+      } catch (err) {
+        console.error("[auth] guest cleanup on signOut failed", err);
+      }
+    },
   },
   callbacks: {
     async jwt({ token, user }) {

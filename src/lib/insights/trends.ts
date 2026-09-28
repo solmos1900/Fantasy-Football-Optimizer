@@ -393,7 +393,12 @@ async function upsertPlayer(player: FantasyPlayer) {
 export async function refreshProjectionTrends(
   league: LeagueData,
 ): Promise<{ snapshots: number; trends: number }> {
-  const source: SnapshotSource = league.isDemo ? "demo" : "espn";
+  // Demo data is labeled + regenerable — never persist fantasy stats for demo/guest
+  // traffic (callers fall back to computeTrendsFromLeague).
+  if (league.isDemo) {
+    return { snapshots: 0, trends: 0 };
+  }
+  const source: SnapshotSource = "espn";
   const lid = leagueKey(league.leagueId);
   const players = allPlayers(league);
   let snapshots = 0;
