@@ -116,7 +116,7 @@ export default async function DashboardPage() {
             <h2 className="type-section text-emerald-950">
               Top insights
               {waiverCount > 0 && (
-                <span className="ml-2 align-middle rounded-md bg-orange-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                <span className="stamp stamp-start ml-2 align-middle text-[10px]">
                   {waiverCount} waiver{waiverCount === 1 ? "" : "s"}
                 </span>
               )}

@@ -1,35 +1,20 @@
+/**
+ * Route-transition placeholder for app chrome.
+ * Lean Sanity pulse only — no cork-board / draft-board art (PWA first paint).
+ * Top brand progress strip lives in NavigationProgress.
+ */
 export default function AppLoading() {
   return (
     <div
-      className="animate-pulse space-y-8"
+      className="flex min-h-[42vh] flex-col items-center justify-center gap-3"
       aria-busy="true"
       aria-label="Loading page"
     >
-      <div className="space-y-3">
-        <div className="h-3 w-28 rounded bg-emerald-950/10" />
-        <div className="h-9 w-52 max-w-full rounded bg-emerald-950/12" />
-        <div className="h-4 w-72 max-w-full rounded bg-emerald-950/8" />
-      </div>
-
-      <div className="cork-board p-3 sm:p-4">
-        <div className="surface-card space-y-4 p-4 sm:p-5">
-          <div className="h-5 w-32 rounded bg-emerald-950/10" />
-          <div className="space-y-3">
-            <div className="h-10 rounded-lg bg-emerald-950/[0.06]" />
-            <div className="h-10 rounded-lg bg-emerald-950/[0.06]" />
-            <div className="h-10 rounded-lg bg-emerald-950/[0.06]" />
-            <div className="h-10 rounded-lg bg-emerald-950/[0.06]" />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center gap-2 pt-2 text-sm text-emerald-950/45">
-        <span
-          className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-orange-700/30 border-t-orange-700"
-          aria-hidden
-        />
-        Loading…
-      </div>
+      <span
+        className="h-2.5 w-2.5 animate-pulse rounded-full bg-brand shadow-[0_0_14px_rgba(192,38,255,0.55)]"
+        aria-hidden
+      />
+      <span className="type-caption text-emerald-950/45">Loading…</span>
     </div>
   );
 }

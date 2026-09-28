@@ -17,18 +17,20 @@ import {
   type WhoToStartVerdict,
 } from "@/lib/insights/who-to-start";
 import { Button } from "@/components/ui/button";
+import { PositionChip } from "@/components/position-chip";
 
 export type TrendsProp =
   | Map<number, PlayerTrendView>
   | Record<string, PlayerTrendView>
   | undefined;
 
+/** Soft stamp variants — wash + tinted text; no solid fills. */
 const VERDICT_STYLE: Record<WhoToStartVerdict, string> = {
-  start_a: "bg-orange-600 text-white",
-  start_b: "bg-orange-600 text-white",
-  lean_a: "bg-[#8a6a2f] text-white",
-  lean_b: "bg-[#8a6a2f] text-white",
-  toss_up: "bg-[#333333] text-emerald-950 ring-1 ring-emerald-950/20",
+  start_a: "stamp-start",
+  start_b: "stamp-start",
+  lean_a: "stamp-warning",
+  lean_b: "stamp-warning",
+  toss_up: "stamp-sit",
 };
 
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
@@ -116,8 +118,9 @@ function SinglePlayerSearch({
               <span className="truncate font-medium text-emerald-950">
                 {selected.name}
               </span>
+              <PositionChip position={selected.position} />
               <span className="type-caption text-emerald-950/50">
-                {selected.position} · {selected.nflTeam}
+                {selected.nflTeam}
               </span>
               {selected.injuryStatus !== "ACTIVE" && (
                 <span
@@ -216,8 +219,9 @@ function SinglePlayerSearch({
                           <span className="truncate font-medium text-emerald-950">
                             {player.name}
                           </span>
+                          <PositionChip position={player.position} />
                           <span className="type-caption text-emerald-950/50">
-                            {player.position} · {player.nflTeam}
+                            {player.nflTeam}
                           </span>
                         </div>
                         <div className="mt-0.5 type-caption text-emerald-950/45">
@@ -249,11 +253,7 @@ function VerdictCard({ result }: { result: WhoToStartResult }) {
       )}
     >
       <span
-        className={cn(
-          "stamp animate-stamp",
-          result.verdict === "toss_up" ? "stamp-flex" : "stamp-start",
-          VERDICT_STYLE[result.verdict],
-        )}
+        className={cn("stamp animate-stamp", VERDICT_STYLE[result.verdict])}
       >
         {result.verdictLabel}
       </span>
@@ -431,10 +431,10 @@ export function WhoToStart({
                   onClick={() => quickPick(p)}
                   className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-950/15 bg-[var(--kraft)] px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-600/45 hover:bg-orange-50/40"
                 >
+                  <PositionChip position={p.position} />
                   <span className="truncate">{p.name}</span>
                   <span className="type-caption shrink-0 text-emerald-950/45">
-                    {p.position}
-                    {p.isStarter ? " · S" : " · BN"}
+                    {p.isStarter ? "S" : "BN"}
                   </span>
                 </button>
               </li>

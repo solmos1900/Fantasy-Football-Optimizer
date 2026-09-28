@@ -14,15 +14,16 @@ import {
   loadTrendMap,
   refreshProjectionTrends,
 } from "@/lib/insights/trends";
-import { TrendPanel } from "@/components/trend-panel";
 import {
   InsightRichText,
   PlayerChip,
 } from "@/components/insight-rich-text";
+import { PositionChip } from "@/components/position-chip";
 import { PendingLink } from "@/components/pending-link";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
+import { StartSitBoard } from "@/components/start-sit-board";
 import { cn, priorityColor } from "@/lib/utils";
-import type { InsightRecommendation, InsightType, PlayerTrendView } from "@/lib/types";
+import type { InsightRecommendation, InsightType } from "@/lib/types";
 
 const TYPE_LABEL: Record<InsightType, string> = {
   start_sit: "Start / Sit",
@@ -40,7 +41,6 @@ function namesForInsight(
   insight: InsightRecommendation,
   nameById?: Map<string, string>,
 ): string[] {
-  // Order matters: first name is the primary chip / entity.
   const names: string[] = [];
   for (const pid of insight.relatedPlayerIds ?? []) {
     const n = nameById?.get(pid);
@@ -126,9 +126,9 @@ function InsightCard({
             </p>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {insight.trade.give.map((p) => (
-                <li key={p.id} className="flex items-center gap-1">
+                <li key={p.id} className="flex items-center gap-1.5">
                   <PlayerChip name={p.name} />
-                  <span className="text-xs text-emerald-950/45">{p.position}</span>
+                  <PositionChip position={p.position} />
                 </li>
               ))}
             </ul>
@@ -150,9 +150,9 @@ function InsightCard({
             </p>
             <ul className="mt-1.5 flex flex-wrap gap-1.5">
               {insight.trade.receive.map((p) => (
-                <li key={p.id} className="flex items-center gap-1">
+                <li key={p.id} className="flex items-center gap-1.5">
                   <PlayerChip name={p.name} tone="secondary" />
-                  <span className="text-xs text-emerald-950/45">{p.position}</span>
+                  <PositionChip position={p.position} />
                 </li>
               ))}
             </ul>
@@ -278,7 +278,6 @@ export default async function InsightsPage() {
     );
   }
 
-  // Persist / refresh weekly proj vs actual snapshots when Insights loads
   try {
     await refreshProjectionTrends(rawLeague);
   } catch {
@@ -300,30 +299,27 @@ export default async function InsightsPage() {
   const bundle = buildInsightsBundle(league, newsItems, trendMap);
   const averages = leaguePositionalAverages(league);
 
-  const trendsByPlayerId = new Map<string, PlayerTrendView>();
   const nameById = new Map<string, string>();
   for (const p of [...rosterPlayers, ...league.freeAgents]) {
     nameById.set(p.id, p.name);
-    const t = trendMap.get(p.espnId);
-    if (t) trendsByPlayerId.set(p.id, t);
   }
 
-  const yourTrends = (league.teams.find((t) => t.isCurrentUser)?.roster ?? [])
-    .map((p) => trendMap.get(p.espnId))
-    .filter((t): t is PlayerTrendView => Boolean(t && t.weeksSampled > 0))
-    .sort((a, b) => Math.abs(b.avgDelta ?? 0) - Math.abs(a.avgDelta ?? 0))
-    .slice(0, 4);
+  const you =
+    league.teams.find((t) => t.isCurrentUser) ?? league.teams[0] ?? null;
+
+  const trendsRecord: Record<string, import("@/lib/types").PlayerTrendView> = {};
+  for (const [id, view] of trendMap) {
+    trendsRecord[String(id)] = view;
+  }
 
   return (
     <div className="space-y-8 sm:space-y-10">
       <div className="animate-fade-up">
         <h1 className="type-page text-emerald-950">Insights</h1>
         <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Clear weekly calls — who to start, who to pick up, and which trades are
-          worth making — with a plain-English reason on every card. We use
-          projections, recent scoring, injuries, and how similar players did
-          against this week&apos;s defense. News comes from ESPN (never invented).
-          Build any package in the{" "}
+          Compare two players side-by-side, then scan trade ideas, waivers, and
+          news. Every call includes a plain-English reason. Build any package in
+          the{" "}
           <PendingLink href="/trades" className="font-semibold text-orange-700">
             Trade Analyzer
           </PendingLink>
@@ -336,36 +332,11 @@ export default async function InsightsPage() {
         )}
       </div>
 
-      <section className="animate-fade-up-delay space-y-4">
-        <div>
-          <h2 className="type-section text-emerald-950">Trend analyst</h2>
-          <p className="type-body mt-1 text-emerald-950/55">
-            How your players have been scoring lately — plain English, not rankings jargon.
-          </p>
-        </div>
-        {yourTrends.length === 0 ? (
-          <p className="type-body text-emerald-950/50">
-            No trend samples yet. Sync your league once to store this week&apos;s
-            projections; after games finish, actuals fill in.
-          </p>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2">
-            {yourTrends.map((t) => (
-              <div
-                key={t.espnId}
-                className="surface-card border-b-0 p-4 pb-4"
-              >
-                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                  <span className="type-caption text-emerald-950/45">
-                    {t.position}
-                  </span>
-                </div>
-                <TrendPanel trend={t} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {you && (
+        <section className="animate-fade-up-delay">
+          <StartSitBoard league={league} you={you} trends={trendsRecord} />
+        </section>
+      )}
 
       <section className="animate-fade-up-delay surface-card p-5">
         <h2 className="type-eyebrow mb-3 text-emerald-950/45">
@@ -373,8 +344,8 @@ export default async function InsightsPage() {
         </h2>
         <div className="flex flex-wrap gap-5">
           {Object.entries(averages).map(([pos, avg]) => (
-            <div key={pos}>
-              <span className="type-caption text-emerald-950/50">{pos}</span>
+            <div key={pos} className="space-y-1">
+              <PositionChip position={pos} />
               <p className="type-stat text-2xl text-emerald-950">
                 {avg.toFixed(1)}
               </p>
@@ -383,14 +354,16 @@ export default async function InsightsPage() {
         </div>
       </section>
 
-      <Section
-        title="Start / Sit"
-        description="Who belongs in your lineup this week — with a clear reason on every card."
-        items={bundle.startSit}
-        empty="No start/sit inefficiencies flagged this week."
-        nameById={nameById}
-        limit={4}
-      />
+      {bundle.startSit.length > 0 && (
+        <Section
+          title="Suggested lineup calls"
+          description="Automatic flags from your roster this week — tap Start / Sit above to compare yourself."
+          items={bundle.startSit}
+          empty=""
+          nameById={nameById}
+          limit={3}
+        />
+      )}
 
       <section className="space-y-4">
         <div className="cork-board p-3 sm:p-4">
@@ -417,10 +390,7 @@ export default async function InsightsPage() {
         ) : (
           bundle.trades.slice(0, 3).map((insight) => (
             <div key={insight.id} className="space-y-2">
-              <InsightCard
-                insight={insight}
-                nameById={nameById}
-              />
+              <InsightCard insight={insight} nameById={nameById} />
               {insight.trade && (
                 <PendingLink
                   href={`/trades?partner=${insight.trade.partnerTeamId}&give=${insight.trade.give.map((p) => p.id).join(",")}&get=${insight.trade.receive.map((p) => p.id).join(",")}`}
@@ -471,67 +441,13 @@ export default async function InsightsPage() {
       />
 
       <section>
-        <h2 className="type-section mb-3 text-emerald-950">
-          Full league snapshot
-        </h2>
-        <p className="mb-4 text-sm text-emerald-950/55">
-          Standings and every roster so trade and start/sit context is league-wide.{" "}
+        <h2 className="type-section mb-3 text-emerald-950">League</h2>
+        <p className="mb-2 text-sm text-emerald-950/55">
+          Standings with tap-to-expand rosters.{" "}
           <PendingLink href="/league" className="font-semibold text-orange-700">
             Open League →
           </PendingLink>
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-emerald-950/10 text-xs uppercase tracking-wider text-emerald-950/45">
-                <th className="py-2 pr-2 font-semibold">#</th>
-                <th className="py-2 pr-2 font-semibold">Team</th>
-                <th className="py-2 pr-2 font-semibold">Record</th>
-                <th className="py-2 pr-2 font-semibold">PF</th>
-                <th className="py-2 font-semibold">Top starters</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...league.teams]
-                .sort(
-                  (a, b) => a.standing - b.standing || b.pointsFor - a.pointsFor,
-                )
-                .map((t) => (
-                  <tr
-                    key={t.id}
-                    className={cn(
-                      "border-b border-emerald-950/5",
-                      t.isCurrentUser && "bg-orange-50/60",
-                    )}
-                  >
-                    <td className="py-2.5 pr-2 type-stat text-lg">
-                      {t.standing}
-                    </td>
-                    <td className="py-2.5 pr-2 font-medium">
-                      {t.name}
-                      {t.isCurrentUser && (
-                        <span className="ml-2 text-[10px] font-semibold uppercase text-orange-700">
-                          you
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-2">
-                      {t.wins}-{t.losses}
-                      {t.ties ? `-${t.ties}` : ""}
-                    </td>
-                    <td className="py-2.5 pr-2">{t.pointsFor.toFixed(1)}</td>
-                    <td className="py-2.5 text-emerald-950/70">
-                      {t.roster
-                        .filter((p) => p.isStarter)
-                        .slice(0, 4)
-                        .map((p) => p.name)
-                        .join(", ")}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
       </section>
     </div>
   );

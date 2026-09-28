@@ -21,16 +21,16 @@ function labelTone(label: PlayerTrendLabel): string {
               : "Stable";
   switch (n) {
     case "Rising":
-      return "bg-[#2f4a35] text-[#ececec]";
-    case "Fading":
+      return "stamp stamp-success";
     case "InjuryRisk":
-      return "bg-orange-500 text-white";
+      return "stamp stamp-danger";
+    case "Fading":
     case "BoomBust":
-      return "bg-amber-700 text-white";
+      return "stamp stamp-warning";
     case "Thin":
-      return "bg-emerald-950/10 text-emerald-950/60";
+      return "stamp stamp-sit";
     default:
-      return "bg-emerald-950/15 text-emerald-950";
+      return "stamp stamp-sit";
   }
 }
 
@@ -137,13 +137,7 @@ export function TrendBadge({
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        "rounded px-1.5 py-0.5 text-[11px] font-semibold",
-        labelTone(label),
-        className,
-      )}
-    >
+    <span className={cn(labelTone(label), className)}>
       {trendLabelCopy(label)}
     </span>
   );

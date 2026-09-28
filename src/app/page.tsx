@@ -9,13 +9,25 @@ import {
 import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 
+const LANDING_BAND_ITEMS = [
+  "Full-PPR · Redraft · Honest projections",
+  "Start / Sit locked",
+  "Live ESPN sync",
+  "Explainable trades",
+] as const;
+
 export default async function HomePage() {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
+  const bandLoop = [...LANDING_BAND_ITEMS, ...LANDING_BAND_ITEMS];
+
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
-      <LandingEntrance className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-28">
+      {/* Landing-only CSS wash — purple/blue radials, no images */}
+      <div className="landing-hero-wash" aria-hidden />
+
+      <LandingEntrance className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-10">
         <LandingStage stage={1} className="mx-auto flex justify-center sm:mx-0 sm:justify-start">
           <BrandMark
             variant="hero"
@@ -46,23 +58,41 @@ export default async function HomePage() {
             <InstallHeroCta />
           </div>
 
-          <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-3 sm:mx-0 sm:justify-start">
-            <PendingLink
-              href="/login?mode=account"
-              className={buttonVariants({ variant: "primary", size: "lg" })}
-            >
-              Get started
-            </PendingLink>
-            <PendingLink
-              href="/login?mode=guest"
-              className={buttonVariants({ variant: "ghost", size: "lg" })}
-            >
-              Continue as Guest
-            </PendingLink>
-            <InstallHowToLink className="px-2 text-sm font-semibold text-emerald-950/70 underline-offset-2 hover:text-orange-700 hover:underline" />
+          <div className="mx-auto mt-6 flex w-full max-w-md flex-col gap-3 sm:mx-0 sm:max-w-xl sm:items-start">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-stretch">
+              <PendingLink
+                href="/login?mode=account"
+                className={buttonVariants({
+                  variant: "primary",
+                  size: "lg",
+                  className: "w-full sm:w-auto sm:min-w-[10.5rem]",
+                })}
+              >
+                Get started
+              </PendingLink>
+              <PendingLink
+                href="/login?mode=guest"
+                className={buttonVariants({
+                  variant: "ghost",
+                  size: "lg",
+                  className: "w-full sm:w-auto sm:min-w-[10.5rem]",
+                })}
+              >
+                Continue as Guest
+              </PendingLink>
+            </div>
+            <InstallHowToLink className="min-h-11 px-1 text-sm font-semibold text-emerald-950/70 underline-offset-2 hover:text-brand hover:underline self-center sm:self-start" />
           </div>
         </LandingStage>
       </LandingEntrance>
+
+      <div className="landing-brand-band" aria-hidden>
+        <div className="landing-brand-band__track">
+          {bandLoop.map((item, i) => (
+            <span key={`${item}-${i}`}>{item}</span>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }

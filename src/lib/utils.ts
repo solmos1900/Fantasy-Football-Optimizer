@@ -46,24 +46,24 @@ export function injuryStatusPhrase(
 export function statusColor(status: string) {
   switch (formatStatusCode(status)) {
     case "QUESTIONABLE":
-      return "text-amber-300 bg-amber-950/50";
+      return "border border-warning/40 bg-warning/15 font-sans font-semibold text-[color-mix(in_srgb,var(--warning)_55%,white)]";
     case "DOUBTFUL":
-      return "text-orange-700 bg-orange-50";
+      return "border border-warning/45 bg-warning/20 font-sans font-semibold text-[color-mix(in_srgb,var(--warning)_55%,white)]";
     case "OUT":
     case "IR":
     case "SUSPENSION":
-      return "text-red-300 bg-red-950/50";
+      return "border border-danger/40 bg-danger/15 font-sans font-semibold text-[color-mix(in_srgb,var(--danger)_55%,white)]";
     default:
-      return "text-emerald-800 bg-emerald-100";
+      return "border border-emerald-950/15 bg-emerald-100 font-sans font-semibold text-emerald-700";
   }
 }
 
 export function priorityColor(priority: string) {
   switch (priority) {
     case "high":
-      return "border-l-orange-500 bg-orange-50/80";
+      return "border-l-danger bg-danger/10";
     case "medium":
-      return "border-l-amber-400 bg-amber-950/40";
+      return "border-l-warning bg-warning/10";
     default:
       return "border-l-emerald-950/25 bg-emerald-50/80";
   }

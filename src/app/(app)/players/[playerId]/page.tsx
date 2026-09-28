@@ -15,6 +15,7 @@ import {
 } from "@/lib/insights/trends";
 import { TrendPanel } from "@/components/trend-panel";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
+import { PositionChip } from "@/components/position-chip";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -82,11 +83,14 @@ export default async function PlayerDetailPage({
         </Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
-              {player.position} · {player.nflTeam}
-              {teamName ? ` · ${teamName}` : " · Free agent"}
-              {league.isDemo ? " · Demo data" : " · ESPN sync"}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <PositionChip position={player.position} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-950/45">
+                {player.nflTeam}
+                {teamName ? ` · ${teamName}` : " · Free agent"}
+                {league.isDemo ? " · Demo data" : " · ESPN sync"}
+              </p>
+            </div>
             <h1 className="type-page text-emerald-950">
               {player.name}
             </h1>

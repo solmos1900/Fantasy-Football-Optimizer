@@ -82,25 +82,26 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
             />
           </PendingLink>
 
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 sm:justify-end sm:gap-x-3.5">
-            <div className="flex items-center gap-3.5 sm:gap-3">
-              <InstallHowToLink className="px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
+          <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end sm:gap-x-3.5">
+            {/* Install + league: fr column ellipsizes; never underlaps actions */}
+            <div className="flex min-w-0 items-center gap-3">
+              <InstallHowToLink className="shrink-0 px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:px-1.5 sm:text-sm">
                 Install
               </InstallHowToLink>
               {league ? (
                 <PendingLink
                   href="/connect"
-                  title="Manage or sync your league"
-                  className="relative max-w-[9.5rem] truncate px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:max-w-[12rem] sm:px-1.5 sm:text-sm"
-                  contentClassName="gap-0"
+                  title={leagueLabel}
+                  className="block min-w-0 flex-1 overflow-hidden px-1 py-1 text-xs font-medium text-emerald-950/55 hover:text-orange-700 sm:max-w-[12rem] sm:flex-initial sm:px-1.5 sm:text-sm"
+                  contentClassName="flex min-w-0 w-full max-w-full items-center gap-0 overflow-hidden"
                   pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
                 >
-                  {leagueLabel}
+                  <span className="min-w-0 flex-1 truncate">{leagueLabel}</span>
                 </PendingLink>
               ) : (
                 <PendingLink
                   href="/connect"
-                  className="relative px-1 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
+                  className="shrink-0 px-1 py-1 text-xs font-semibold text-orange-700 hover:text-orange-800 sm:px-1.5 sm:text-sm"
                   contentClassName="gap-0"
                   pendingHintClassName="absolute right-0 top-1/2 -translate-y-1/2"
                 >
@@ -108,9 +109,10 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
                 </PendingLink>
               )}
             </div>
-            <div className="flex items-center gap-3 sm:gap-3">
+            {/* Guest + Sign out: auto column — always fully visible */}
+            <div className="flex shrink-0 items-center justify-end gap-2.5 sm:gap-3">
               {data?.user?.isGuest ? (
-                <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-orange-800">
+                <span className="stamp stamp-start shrink-0 text-[10px]">
                   Guest
                 </span>
               ) : (
@@ -167,7 +169,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
                 <span
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-md transition-colors sm:h-8 sm:w-8",
-                    active && "bg-[#3a3a3a] text-emerald-950 ring-1 ring-emerald-950/20",
+                    active && "bg-[#353535] text-emerald-950 ring-1 ring-emerald-950/20",
                   )}
                 >
                   <Icon

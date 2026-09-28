@@ -2,19 +2,18 @@
 
 import Link, { useLinkStatus } from "next/link";
 import type { ComponentProps, ReactNode } from "react";
-import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Compact brand pulse — no board/cork glyphs during nav pending. */
 function LinkPendingHint({ className }: { className?: string }) {
   const { pending } = useLinkStatus();
   return (
-    <LoaderCircle
+    <span
       aria-hidden
       className={cn(
-        "h-3 w-3 shrink-0 animate-spin text-current transition-opacity duration-150",
-        // Debounce flash on fast/prefetched navigations
+        "inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand shadow-[0_0_8px_rgba(192,38,255,0.55)] transition-opacity duration-150",
         pending
-          ? "opacity-100 [animation-delay:120ms] motion-reduce:opacity-100"
+          ? "animate-pulse opacity-100 [animation-delay:80ms] motion-reduce:opacity-100"
           : "opacity-0",
         className,
       )}
@@ -51,13 +50,13 @@ type PendingLinkProps = Omit<ComponentProps<typeof Link>, "children"> & {
   children: ReactNode;
   /** Extra classes applied to the inner pending wrapper (not the <a>). */
   contentClassName?: string;
-  /** Classes for the pending spinner (e.g. absolute corner on compact tabs). */
+  /** Classes for the pending pulse (e.g. absolute corner on compact tabs). */
   pendingHintClassName?: string;
 };
 
 /**
  * Next.js App Router Link with immediate pending feedback via useLinkStatus.
- * Shows a small spinner while navigation is in flight (before URL updates).
+ * Shows a brand purple pulse while navigation is in flight (before URL updates).
  */
 export function PendingLink({
   children,

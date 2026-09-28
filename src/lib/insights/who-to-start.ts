@@ -17,6 +17,7 @@ import { humanTrendSentence } from "@/lib/insights/trend-labels";
 import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
+const FLEX_POOL: PlayerPosition[] = ["RB", "WR", "TE"];
 
 export type WhoToStartVerdict =
   | "start_a"
@@ -65,6 +66,29 @@ export interface WhoToStartError {
 }
 
 export type WhoToStartComparison = WhoToStartResult | WhoToStartError;
+
+/** Positions allowed under a Start/Sit slot filter (FLEX = RB/WR/TE). */
+export function positionsForSlotFilter(
+  filter: PlayerPosition | "FLEX" | "ALL",
+): PlayerPosition[] | null {
+  if (filter === "ALL") return null;
+  if (filter === "FLEX") return [...FLEX_POOL];
+  return [filter];
+}
+
+export function isFlexEligible(position: PlayerPosition): boolean {
+  return FLEX_POOL.includes(position);
+}
+
+function positionsComparable(
+  a: PlayerPosition,
+  b: PlayerPosition,
+  flexMode: boolean,
+): boolean {
+  if (a === b) return true;
+  if (flexMode && isFlexEligible(a) && isFlexEligible(b)) return true;
+  return false;
+}
 
 function pool(league: LeagueData): FantasyPlayer[] {
   return [...league.teams.flatMap((t) => t.roster), ...league.freeAgents];
@@ -207,14 +231,16 @@ function verdictFromEdge(
 }
 
 /**
- * Compare two players at the same position for a weekly start call.
+ * Compare two players for a weekly start call.
  * Rule-based only — reuses defense matchups, trends, and form helpers.
+ * Set `flexMode` to allow RB/WR/TE cross-compares (FLEX slot).
  */
 export function compareWhoToStart(
   league: LeagueData,
   playerA: FantasyPlayer,
   playerB: FantasyPlayer,
   trends?: Map<number, PlayerTrendView> | Record<string, PlayerTrendView>,
+  flexMode = false,
 ): WhoToStartComparison {
   if (playerA.id === playerB.id) {
     return {
@@ -224,11 +250,13 @@ export function compareWhoToStart(
     };
   }
 
-  if (playerA.position !== playerB.position) {
+  if (!positionsComparable(playerA.position, playerB.position, flexMode)) {
     return {
       ok: false,
       code: "different_position",
-      message: `Same position only — ${playerA.name} is ${playerA.position} and ${playerB.name} is ${playerB.position}. Clear one pick and choose another ${playerA.position}.`,
+      message: flexMode
+        ? `FLEX compares RB / WR / TE only — ${playerA.name} is ${playerA.position} and ${playerB.name} is ${playerB.position}.`
+        : `Same position only — ${playerA.name} is ${playerA.position} and ${playerB.name} is ${playerB.position}. Clear one pick and choose another ${playerA.position}.`,
     };
   }
 
@@ -371,16 +399,18 @@ function toTrendMap(
   return map;
 }
 
-/** My Team same-position starters/bench as optional quick picks. */
+/** My Team same-position (or FLEX pool) starters/bench as optional quick picks. */
 export function samePositionSuggestions(
   team: FantasyTeam,
-  position: PlayerPosition,
+  position: PlayerPosition | "FLEX",
   excludeIds: Set<string> = new Set(),
 ): FantasyPlayer[] {
+  const allowed =
+    position === "FLEX" ? FLEX_POOL : ([position] as PlayerPosition[]);
   return [...team.roster]
     .filter(
       (p) =>
-        p.position === position &&
+        allowed.includes(p.position) &&
         p.slot !== "IR" &&
         !excludeIds.has(p.id),
     )

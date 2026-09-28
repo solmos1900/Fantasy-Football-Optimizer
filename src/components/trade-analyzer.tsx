@@ -22,6 +22,7 @@ import {
 import { chipValue } from "@/lib/insights/trade-value";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { Button } from "@/components/ui/button";
+import { PositionChip } from "@/components/position-chip";
 
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
@@ -38,12 +39,13 @@ const STEPS: { id: TradeStep; label: string }[] = [
   { id: "results", label: "Results" },
 ];
 
+/** Soft stamp variants — wash + border + tinted text. */
 const VERDICT_STYLE: Record<TradeVerdict, string> = {
-  accept: "bg-[#2f4a35] text-[#ececec]",
-  lean_accept: "bg-[#3d5c42] text-[#ececec]",
-  fair: "bg-[#3a3a3a] text-[#ececec]",
-  lean_reject: "bg-orange-500 text-white",
-  hard_reject: "bg-red-800 text-white",
+  accept: "stamp-success",
+  lean_accept: "stamp-success",
+  fair: "stamp-sit",
+  lean_reject: "stamp-warning",
+  hard_reject: "stamp-danger",
 };
 
 /** Tab bar clearance: icon row (~3.75rem) + max(0.75rem, safe-area) + optional install banner. */
@@ -145,8 +147,9 @@ function PlayerPickRow({
           <span className="truncate font-medium text-emerald-950">
             {player.name}
           </span>
+          <PositionChip position={player.position} />
           <span className="type-caption text-emerald-950/50">
-            {player.position} · {player.nflTeam}
+            {player.nflTeam}
           </span>
           {player.injuryStatus !== "ACTIVE" && (
             <span
@@ -248,9 +251,7 @@ function PlayerSearchPicker({
                 aria-label={`Remove ${player.name}`}
               >
                 <span className="truncate">{player.name}</span>
-                <span className="type-caption shrink-0 text-emerald-950/45">
-                  {player.position}
-                </span>
+                <PositionChip position={player.position} />
                 <X
                   className="h-3.5 w-3.5 shrink-0 text-emerald-950/50"
                   aria-hidden
@@ -333,8 +334,9 @@ function PlayerSearchPicker({
                         <span className="truncate font-medium text-emerald-950">
                           {player.name}
                         </span>
+                        <PositionChip position={player.position} />
                         <span className="type-caption text-emerald-950/50">
-                          {player.position} · {player.nflTeam}
+                          {player.nflTeam}
                         </span>
                         {blocked && (
                           <span className="type-caption text-orange-700">
@@ -521,25 +523,16 @@ function LeanResultsCard({
       className={cn(
         "animate-fade-up surface-card border-l-4 py-5 pl-4 pr-4",
         analysis.verdict === "hard_reject"
-          ? "border-l-red-700"
+          ? "border-l-danger"
           : analysis.verdict === "lean_reject"
-            ? "border-l-orange-500"
+            ? "border-l-warning"
             : analysis.verdict === "fair"
-              ? "border-l-stone-400"
-              : "border-l-emerald-600",
+              ? "border-l-[#797979]"
+              : "border-l-success",
       )}
     >
       <span
-        className={cn(
-          "stamp animate-stamp",
-          analysis.verdict === "hard_reject" ||
-            analysis.verdict === "lean_reject"
-            ? "stamp-start"
-            : analysis.verdict === "fair"
-              ? "stamp-flex"
-              : "stamp-sit",
-          VERDICT_STYLE[analysis.verdict],
-        )}
+        className={cn("stamp animate-stamp", VERDICT_STYLE[analysis.verdict])}
       >
         {analysis.verdictLabel}
       </span>

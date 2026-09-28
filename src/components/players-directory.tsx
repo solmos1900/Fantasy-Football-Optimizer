@@ -3,6 +3,10 @@
 import { useMemo, useState } from "react";
 import type { FantasyPlayer, LeagueData } from "@/lib/types";
 import { PlayerRow } from "@/components/player-row";
+import {
+  formatPositionLabel,
+  positionChipClassName,
+} from "@/components/position-chip";
 import { cn } from "@/lib/utils";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"] as const;
@@ -84,19 +88,36 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {POSITIONS.map((pos) => {
           const active = position === pos;
+          if (pos === "ALL") {
+            return (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => setPosition(pos)}
+                className={cn(
+                  "shrink-0 rounded px-2.5 py-1.5 text-[11px] font-bold tracking-wide transition",
+                  active
+                    ? "bg-emerald-950 text-emerald-50"
+                    : "bg-emerald-100 text-emerald-950/55 hover:bg-emerald-200 hover:text-emerald-950/80",
+                )}
+              >
+                ALL
+              </button>
+            );
+          }
           return (
             <button
               key={pos}
               type="button"
               onClick={() => setPosition(pos)}
               className={cn(
-                "shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-bold tracking-wide transition",
-                active
-                  ? "bg-emerald-950 text-emerald-50"
-                  : "bg-emerald-100 text-emerald-950/55 hover:bg-emerald-200 hover:text-emerald-950/80",
+                positionChipClassName(pos, "h-auto min-w-0 px-2.5 py-1.5 text-[11px] transition"),
+                !active && "opacity-55 hover:opacity-90",
+                active && "ring-1 ring-emerald-950/35",
               )}
+              aria-pressed={active}
             >
-              {pos}
+              {formatPositionLabel(pos)}
             </button>
           );
         })}

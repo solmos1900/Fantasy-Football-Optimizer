@@ -1,10 +1,9 @@
 import { auth } from "@/lib/auth";
 import { getLeagueDataForUser } from "@/lib/league/service";
-import { formatRecord } from "@/lib/utils";
-import { PlayerRow } from "@/components/player-row";
 import { SyncButton } from "@/components/sync-button";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { PendingLink } from "@/components/pending-link";
+import { LeagueStandings } from "@/components/league-standings";
 
 export default async function LeaguePage() {
   const session = await auth();
@@ -20,10 +19,6 @@ export default async function LeaguePage() {
       />
     );
   }
-
-  const standings = [...league.teams].sort(
-    (a, b) => a.standing - b.standing || b.pointsFor - a.pointsFor,
-  );
 
   return (
     <div className="space-y-8 sm:space-y-10">
@@ -45,46 +40,14 @@ export default async function LeaguePage() {
         <SyncButton />
       </div>
 
-      <section className="animate-fade-up-delay surface-card p-4 sm:p-5">
-        <h2 className="type-section mb-3 text-emerald-950">Standings</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-emerald-950/10 text-xs uppercase tracking-wider text-emerald-950/45">
-                <th className="py-2 pr-2 font-semibold">#</th>
-                <th className="py-2 pr-2 font-semibold">Team</th>
-                <th className="py-2 pr-2 font-semibold">Record</th>
-                <th className="py-2 pr-2 font-semibold">PF</th>
-                <th className="py-2 font-semibold">PA</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.map((t) => (
-                <tr
-                  key={t.id}
-                  className={`border-b border-emerald-950/5 ${t.isCurrentUser ? "bg-orange-50/60" : ""}`}
-                >
-                  <td className="py-2.5 pr-2 type-stat text-lg">
-                    {t.standing}
-                  </td>
-                  <td className="py-2.5 pr-2 font-medium">
-                    {t.name}
-                    {t.isCurrentUser && (
-                      <span className="ml-2 text-[10px] font-semibold uppercase text-orange-700">
-                        you
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2.5 pr-2">
-                    {formatRecord(t.wins, t.losses, t.ties)}
-                  </td>
-                  <td className="py-2.5 pr-2">{t.pointsFor.toFixed(1)}</td>
-                  <td className="py-2.5">{t.pointsAgainst.toFixed(1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <section className="animate-fade-up-delay surface-card p-3 sm:p-4">
+        <h2 className="type-section mb-1 px-1 text-emerald-950 sm:px-1.5">
+          Standings
+        </h2>
+        <p className="mb-2 px-1 text-sm text-emerald-950/50 sm:px-1.5">
+          Tap a team to view its roster.
+        </p>
+        <LeagueStandings teams={league.teams} />
       </section>
 
       <section className="animate-fade-up-delay-2">
@@ -115,27 +78,6 @@ export default async function LeaguePage() {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="type-section mb-4 text-emerald-950">Rosters</h2>
-        <div className="space-y-8">
-          {standings.map((t) => (
-            <div key={t.id}>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-emerald-950/50">
-                {t.name}
-              </h3>
-              <div>
-                {t.roster
-                  .filter((p) => p.isStarter)
-                  .slice(0, 9)
-                  .map((p) => (
-                    <PlayerRow key={p.id} player={p} />
-                  ))}
-              </div>
-            </div>
-          ))}
         </div>
       </section>
     </div>
