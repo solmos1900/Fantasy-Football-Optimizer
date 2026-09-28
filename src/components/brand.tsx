@@ -10,20 +10,24 @@ type BrandMarkProps = {
    */
   variant?: "app" | "hero";
   /**
-   * `dark` — white helmet on #0B0B0B with neon-purple GIQ + orbit (default / dark-first).
-   * `light` — dark helmet on #FFFFFF for light surfaces.
+   * `dark` — white helmet + neon-purple GIQ/orbit on transparent (default; charcoal UI).
+   * `light` — dark helmet + neon-purple GIQ/orbit on transparent (light surfaces).
    */
   tone?: "dark" | "light";
 };
 
-/** GIQ + neon-purple Helmet Orbit masters (lossless 1024 PNGs; Image uses unoptimized). */
+/**
+ * Transparent Helmet Orbit marks for in-app / landing UI.
+ * Opaque Recraft masters under `helmet-orbit-giq-*-1024.png` and `icon-*.png`
+ * stay reserved for favicon / PWA / apple-touch / maskable install assets.
+ */
 const MARK_SRC = {
-  dark: "/icons/helmet-orbit-giq-dark-1024.png",
-  light: "/icons/helmet-orbit-giq-light-1024.png",
+  dark: "/icons/helmet-orbit-mark-transparent-1024.png",
+  light: "/icons/helmet-orbit-mark-transparent-light-1024.png",
 } as const;
 
 /**
- * Helmet Orbit mark — GIQ + neon-purple orbit.
+ * Helmet Orbit mark — GIQ + neon-purple orbit, transparent background.
  * Served unoptimized so next/image does not requantize the silhouette
  * (lossy compression made Preview look crusty).
  */
