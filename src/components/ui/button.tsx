@@ -13,9 +13,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "border border-transparent bg-brand text-white shadow-sm hover:bg-brand/90 active:bg-brand/80 disabled:bg-brand/50",
   secondary:
-    "border border-[var(--border)] bg-[var(--surface)] text-white shadow-sm hover:bg-[#353535] active:bg-[#2a2a2a] disabled:opacity-50",
+    "border border-white/20 bg-[var(--surface)] text-white shadow-sm hover:bg-[#2a2a2a] active:bg-[#353535] disabled:opacity-50",
   ghost:
-    "border border-[var(--border)] bg-[var(--surface)] text-white shadow-sm hover:border-emerald-950/40 hover:bg-[#2a2a2a] active:bg-[#353535] disabled:opacity-50",
+    "border border-white/20 bg-[var(--surface)] text-white shadow-sm hover:border-white/35 hover:bg-[#2a2a2a] active:bg-[#353535] disabled:opacity-50",
   danger:
     "border border-transparent bg-danger text-white shadow-sm hover:bg-danger/90 active:bg-danger/80 disabled:bg-danger/50",
 };
