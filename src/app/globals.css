@@ -446,4 +446,68 @@ body::before {
     opacity: 1 !important;
     transform: none !important;
   }
+
+  .landing-brand-band__track {
+    animation: none;
+    justify-content: center;
+    width: 100%;
+    transform: none;
+  }
+}
+
+/*
+  Landing (/) only — lean Sanity-style graphics (CSS only).
+  Soft purple/blue radial wash + thin brand marquee band.
+  Do NOT reuse on dashboard / tab chrome (PWA first-paint / battery).
+*/
+.landing-hero-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 72% 16%,
+      color-mix(in srgb, var(--brand) 38%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 58% 42% at 12% 82%,
+      color-mix(in srgb, var(--info) 24%, transparent),
+      transparent 52%
+    );
+}
+
+.landing-brand-band {
+  position: relative;
+  z-index: 10;
+  margin-top: auto;
+  height: 2.5rem;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.landing-brand-band__track {
+  display: flex;
+  gap: 2.5rem;
+  white-space: nowrap;
+  width: max-content;
+  animation: landing-marquee 22s linear infinite;
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }

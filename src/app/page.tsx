@@ -9,13 +9,25 @@ import {
 import { PendingLink } from "@/components/pending-link";
 import { buttonVariants } from "@/components/ui/button";
 
+const LANDING_BAND_ITEMS = [
+  "Full-PPR · Redraft · Honest projections",
+  "Start / Sit locked",
+  "Live ESPN sync",
+  "Explainable trades",
+] as const;
+
 export default async function HomePage() {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
+  const bandLoop = [...LANDING_BAND_ITEMS, ...LANDING_BAND_ITEMS];
+
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]">
-      <LandingEntrance className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-28">
+      {/* Landing-only CSS wash — purple/blue radials, no images */}
+      <div className="landing-hero-wash" aria-hidden />
+
+      <LandingEntrance className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-16 pb-10">
         <LandingStage stage={1} className="mx-auto flex justify-center sm:mx-0 sm:justify-start">
           <BrandMark
             variant="hero"
@@ -63,6 +75,14 @@ export default async function HomePage() {
           </div>
         </LandingStage>
       </LandingEntrance>
+
+      <div className="landing-brand-band" aria-hidden>
+        <div className="landing-brand-band__track">
+          {bandLoop.map((item, i) => (
+            <span key={`${item}-${i}`}>{item}</span>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }
