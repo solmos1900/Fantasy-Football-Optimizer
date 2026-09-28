@@ -21,7 +21,7 @@ function labelTone(label: PlayerTrendLabel): string {
               : "Stable";
   switch (n) {
     case "Rising":
-      return "bg-[#2f4a35] text-[#ececec]";
+      return "bg-[#2f4a35] text-[#ffffff]";
     case "Fading":
     case "InjuryRisk":
       return "bg-orange-500 text-white";

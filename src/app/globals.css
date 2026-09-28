@@ -1,23 +1,26 @@
 @import "tailwindcss";
 
 /*
-  Option 15 — Dark charcoal
-  Solid #1c1c1c page, charcoal surfaces, light ink, burgundy stamps.
+  Sanity-inspired midnight — locked Gridiron IQ brand tokens.
+  Solid #0B0B0B page, elevated #212121 surfaces, neon purple accents.
   Emerald / orange Tailwind scales remapped so existing utilities
   stay readable on dark without a full class rewrite.
 */
 :root {
-  --background: #1c1c1c;
-  --foreground: #ececec;
-  --field: #c8c8c8;
-  --accent: #b8454b;
-  /* Cards / chrome slightly above page charcoal */
-  --surface: #2a2a2a;
-  --cork: #333333;
-  --cork-deep: #262626;
-  --kraft: #333333;
+  --background: #0b0b0b;
+  --foreground: #ffffff;
+  --field: #b9b9b9;
+  --accent: #c026ff;
+  /* Cards / chrome slightly above page black */
+  --surface: #212121;
+  --cork: #212121;
+  --cork-deep: #161616;
+  --kraft: #212121;
+  --border: #353535;
+  --muted: #b9b9b9;
+  --faint: #797979;
   --radius-control: 0.7rem;
-  --ring-focus: rgba(184, 69, 75, 0.4);
+  --ring-focus: rgba(192, 38, 255, 0.4);
 }
 
 @theme inline {
@@ -33,38 +36,38 @@
 
   /*
     Emerald scale inverted for dark UI:
-    - text-emerald-950 → light primary ink
+    - text-emerald-950 → white primary ink
     - bg-emerald-950 → light filled chips (pair with text-emerald-50, NEVER text-white)
     - emerald-50 → darkest wash (hovers / ink on light chips)
   */
-  --color-emerald-50: #232323;
-  --color-emerald-100: #2a2a2a;
-  --color-emerald-200: #3a3a3a;
-  --color-emerald-300: #5a5a5a;
-  --color-emerald-400: #8a8a8a;
-  --color-emerald-500: #a8a8a8;
-  --color-emerald-600: #c0c0c0;
-  --color-emerald-700: #d0d0d0;
-  --color-emerald-800: #e0e0e0;
-  --color-emerald-900: #e8e8e8;
-  --color-emerald-950: #ececec;
+  --color-emerald-50: #0b0b0b;
+  --color-emerald-100: #212121;
+  --color-emerald-200: #353535;
+  --color-emerald-300: #4a4a4a;
+  --color-emerald-400: #797979;
+  --color-emerald-500: #9a9a9a;
+  --color-emerald-600: #b9b9b9;
+  --color-emerald-700: #d4d4d4;
+  --color-emerald-800: #e8e8e8;
+  --color-emerald-900: #f5f5f5;
+  --color-emerald-950: #ffffff;
 
-  /* Burgundy / maroon ← orange (CTAs & stamps) — brighter for dark bg */
-  --color-orange-50: #2a1819;
-  --color-orange-100: #3d2022;
-  --color-orange-200: #5c2a2e;
-  --color-orange-300: #8a3a40;
-  --color-orange-400: #a8484d;
-  --color-orange-500: #b8454b;
-  --color-orange-600: #c45c61;
-  --color-orange-700: #d4a0a3;
-  --color-orange-800: #e0c0c2;
-  --color-orange-900: #f0d9da;
-  --color-orange-950: #f9f0f0;
+  /* Neon purple ← orange (CTAs & stamps) — Sanity brand lock #C026FF */
+  --color-orange-50: #1a0820;
+  --color-orange-100: #2a0f35;
+  --color-orange-200: #4a1a5c;
+  --color-orange-300: #7a28a0;
+  --color-orange-400: #a020d8;
+  --color-orange-500: #a81fe0;
+  --color-orange-600: #c026ff;
+  --color-orange-700: #d96aff;
+  --color-orange-800: #ecc0ff;
+  --color-orange-900: #f5e0ff;
+  --color-orange-950: #faf0ff;
 }
 
 /*
-  Full-viewport solid charcoal — no checker / grain / stripe overlays.
+  Full-viewport solid midnight — no checker / grain / stripe overlays.
 */
 html {
   background-color: var(--background);
@@ -98,7 +101,7 @@ textarea {
   font-size: 1rem;
 }
 
-/* Solid charcoal underlay (Safari rubber-band) */
+/* Solid midnight underlay (Safari rubber-band) */
 body::before {
   content: "";
   position: fixed;
@@ -113,17 +116,17 @@ body::before {
   background-color: var(--background);
 }
 
-/* Draft-board panel — dark charcoal with rivets (no tan cork / no grain) */
+/* Draft-board panel — elevated surface with rivets (no tan cork / no grain) */
 .cork-board {
   position: relative;
   border-radius: 0.75rem;
-  border: 2px solid var(--field);
+  border: 2px solid var(--border);
   background-color: var(--cork);
   background-image:
-    radial-gradient(circle at 0.8rem 0.8rem, #d8d4cc 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at calc(100% - 0.8rem) 0.8rem, #d8d4cc 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at 0.8rem calc(100% - 0.8rem), #d8d4cc 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at calc(100% - 0.8rem) calc(100% - 0.8rem), #d8d4cc 0 0.22rem, transparent 0.28rem);
+    radial-gradient(circle at 0.8rem 0.8rem, #b9b9b9 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at calc(100% - 0.8rem) 0.8rem, #b9b9b9 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at 0.8rem calc(100% - 0.8rem), #b9b9b9 0 0.22rem, transparent 0.28rem),
+    radial-gradient(circle at calc(100% - 0.8rem) calc(100% - 0.8rem), #b9b9b9 0 0.22rem, transparent 0.28rem);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 28px -14px rgba(0, 0, 0, 0.55);
@@ -202,16 +205,16 @@ body::before {
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #f0ede6;
-  box-shadow: inset 0 0 0 1px rgba(240, 237, 230, 0.2);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .stamp-start {
-  background: #b8454b;
+  background: #c026ff;
 }
 
 .stamp-sit {
-  background: #3a3a3a;
+  background: #353535;
 }
 
 .stamp-flex {
@@ -222,7 +225,7 @@ body::before {
 .field-input {
   width: 100%;
   border-radius: var(--radius-control);
-  border: 1.5px solid rgba(240, 237, 230, 0.16);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
   background: var(--surface);
   padding: 0.625rem 0.875rem;
   font-size: 1rem;
@@ -235,22 +238,22 @@ body::before {
 }
 
 .field-input:hover {
-  border-color: rgba(240, 237, 230, 0.28);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .field-input:focus-visible {
-  border-color: rgba(184, 69, 75, 0.7);
+  border-color: rgba(192, 38, 255, 0.7);
   box-shadow: 0 0 0 3px var(--ring-focus);
 }
 
 .field-input::placeholder {
-  color: rgba(240, 237, 230, 0.4);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* —— Card / surface grouping —— */
 .surface-card {
   border-radius: 0.85rem;
-  border: 1.5px solid rgba(240, 237, 230, 0.1);
+  border: 1.5px solid var(--border);
   background: var(--surface);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
@@ -271,8 +274,8 @@ body::before {
   width: 4.5rem;
   height: 1.05rem;
   transform: translateX(-50%) rotate(-2deg);
-  background: rgba(184, 69, 75, 0.55);
-  border: 1px solid rgba(240, 237, 230, 0.15);
+  background: rgba(192, 38, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   pointer-events: none;
 }

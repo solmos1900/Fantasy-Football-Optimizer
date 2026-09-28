@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Top route-progress strip (Retro Draft Board burgundy).
+ * Top route-progress strip (neon purple brand accent).
  * Shows immediately on in-app link clicks; clears when the URL commits.
  */
 export function NavigationProgress() {
@@ -65,7 +65,7 @@ export function NavigationProgress() {
     >
       <div
         className={cn(
-          "h-full w-full origin-left bg-orange-600 shadow-[0_0_8px_rgba(112,29,33,0.45)] transition-opacity duration-150",
+          "h-full w-full origin-left bg-orange-600 shadow-[0_0_8px_rgba(192,38,255,0.45)] transition-opacity duration-150",
           visible ? "animate-nav-progress opacity-100" : "scale-x-0 opacity-0",
         )}
       />

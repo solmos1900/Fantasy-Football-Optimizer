@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 import type { FantasyPlayer, PlayerPosition } from "@/lib/types";
 
-/** Subtle Gridiron-native slot colors — charcoal family + burgundy/kraft, not Sleeper rainbow. */
+/** Subtle Gridiron-native slot colors — midnight family + neon purple/kraft, not Sleeper rainbow. */
 function slotBadgeClass(slot: string): string {
   switch (formatStatusCode(slot)) {
     case "QB":

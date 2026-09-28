@@ -167,7 +167,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
                 <span
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-md transition-colors sm:h-8 sm:w-8",
-                    active && "bg-[#3a3a3a] text-emerald-950 ring-1 ring-emerald-950/20",
+                    active && "bg-[#353535] text-emerald-950 ring-1 ring-emerald-950/20",
                   )}
                 >
                   <Icon

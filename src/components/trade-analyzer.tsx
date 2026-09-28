@@ -39,9 +39,9 @@ const STEPS: { id: TradeStep; label: string }[] = [
 ];
 
 const VERDICT_STYLE: Record<TradeVerdict, string> = {
-  accept: "bg-[#2f4a35] text-[#ececec]",
-  lean_accept: "bg-[#3d5c42] text-[#ececec]",
-  fair: "bg-[#3a3a3a] text-[#ececec]",
+  accept: "bg-[#2f4a35] text-[#ffffff]",
+  lean_accept: "bg-[#3d5c42] text-[#ffffff]",
+  fair: "bg-[#353535] text-[#ffffff]",
   lean_reject: "bg-orange-500 text-white",
   hard_reject: "bg-red-800 text-white",
 };

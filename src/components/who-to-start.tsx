@@ -28,7 +28,7 @@ const VERDICT_STYLE: Record<WhoToStartVerdict, string> = {
   start_b: "bg-orange-600 text-white",
   lean_a: "bg-[#8a6a2f] text-white",
   lean_b: "bg-[#8a6a2f] text-white",
-  toss_up: "bg-[#333333] text-emerald-950 ring-1 ring-emerald-950/20",
+  toss_up: "bg-[#353535] text-emerald-950 ring-1 ring-emerald-950/20",
 };
 
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {

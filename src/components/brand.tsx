@@ -15,7 +15,7 @@ type BrandMarkProps = {
 const MARK_SRC = "/icons/helmet-orbit-mark-light-2048.png";
 
 /**
- * Helmet Orbit mark — cream on transparent for charcoal UI.
+ * Helmet Orbit mark — cream on transparent for midnight UI.
  * Served unoptimized so next/image does not requantize the silhouette
  * to an 8-bit palette (that made Preview look crusty).
  */

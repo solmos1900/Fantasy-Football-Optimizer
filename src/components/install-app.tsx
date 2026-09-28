@@ -245,7 +245,7 @@ export function InstallAppExperience() {
           role="region"
           aria-label="Install Gridiron IQ"
         >
-          <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl border border-emerald-950/15 bg-[#2a2a2a] px-3 py-3 text-emerald-950 shadow-lg">
+          <div className="mx-auto flex max-w-lg items-center gap-3 rounded-2xl border border-emerald-950/15 bg-[#212121] px-3 py-3 text-emerald-950 shadow-lg">
             <div className="min-w-0 flex-1">
               <p className="type-brand text-base text-emerald-950">
                 Install Gridiron IQ
@@ -330,7 +330,7 @@ export function InstallAppExperience() {
                 <ol className="space-y-4">
                   {SAFARI_STEPS.map((step) => (
                     <li key={step.title} className="flex gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#333333] text-emerald-950 ring-1 ring-emerald-950/15">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#353535] text-emerald-950 ring-1 ring-emerald-950/15">
                         <step.Icon className="h-5 w-5" />
                       </span>
                       <div className="min-w-0">
