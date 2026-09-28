@@ -13,25 +13,18 @@ import {
   compareWhoToStart,
   isFlexEligible,
   type WhoToStartResult,
-  type WhoToStartVerdict,
 } from "@/lib/insights/who-to-start";
-import { analyzeDefenseMatchup, matchupContextFromLeague } from "@/lib/insights/defense-matchups";
+import {
+  analyzeDefenseMatchup,
+  matchupContextFromLeague,
+} from "@/lib/insights/defense-matchups";
 import { PositionChip } from "@/components/position-chip";
-import { NflTeamBadge } from "@/components/nfl-team-badge";
 import { Button } from "@/components/ui/button";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 
 type SlotFilter = "QB" | "RB" | "WR" | "TE" | "FLEX" | "DEF";
 
 const SLOT_FILTERS: SlotFilter[] = ["QB", "RB", "WR", "TE", "FLEX", "DEF"];
-
-const VERDICT_STAMP: Record<WhoToStartVerdict, string> = {
-  start_a: "stamp-start",
-  start_b: "stamp-start",
-  lean_a: "stamp-warning",
-  lean_b: "stamp-warning",
-  toss_up: "stamp-flex",
-};
 
 function toTrendMap(
   trends?: Map<number, PlayerTrendView> | Record<string, PlayerTrendView>,
@@ -55,6 +48,19 @@ function matchesFilter(player: FantasyPlayer, filter: SlotFilter): boolean {
 function lastName(name: string): string {
   const parts = name.trim().split(/\s+/);
   return parts[parts.length - 1] ?? name;
+}
+
+function isOut(player: FantasyPlayer): boolean {
+  return (
+    player.injuryStatus === "OUT" ||
+    player.injuryStatus === "IR" ||
+    player.injuryStatus === "SUSPENSION"
+  );
+}
+
+function healthLabel(player: FantasyPlayer): string {
+  if (player.injuryStatus === "ACTIVE") return "HEALTHY";
+  return formatStatusCode(player.injuryStatus);
 }
 
 type BoardWeek = {
@@ -89,7 +95,6 @@ function weeksForPlayer(
     });
   }
 
-  // Ensure current week column exists (proj-only until scored).
   if (!byWeek.has(currentWeek)) {
     byWeek.set(currentWeek, {
       week: currentWeek,
@@ -109,299 +114,361 @@ function weeksForPlayer(
     });
   }
 
-  return [...byWeek.values()].sort((a, b) => a.week - b.week).slice(-6);
+  return [...byWeek.values()].sort((a, b) => a.week - b.week).slice(-5);
 }
 
-function unionWeeks(
-  a: BoardWeek[],
-  b: BoardWeek[],
-): number[] {
-  return [...new Set([...a, ...b].map((w) => w.week))].sort((x, y) => x - y);
-}
-
-function cellFor(
-  weeks: BoardWeek[],
-  week: number,
-): BoardWeek | undefined {
+function cellFor(weeks: BoardWeek[], week: number): BoardWeek | undefined {
   return weeks.find((w) => w.week === week);
 }
 
-function isOut(player: FantasyPlayer): boolean {
-  return (
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "SUSPENSION"
-  );
-}
-
-function matchupHint(
+function defChip(
   player: FantasyPlayer,
   league: LeagueData,
 ): { tough: boolean; label: string } {
   const context = matchupContextFromLeague(league);
   const pool = [...league.teams.flatMap((t) => t.roster), ...league.freeAgents];
   const m = analyzeDefenseMatchup(player, pool, context);
+  const pos = player.position === "D/ST" ? "DEF" : player.position;
   if (!m || m.samples.length === 0) {
-    return { tough: false, label: "—" };
+    return { tough: false, label: `vs ${pos} · —` };
   }
   return {
     tough: m.toughMatchup,
-    label: m.toughMatchup ? "Tough" : "OK",
+    label: m.toughMatchup ? `vs ${pos} · Tough` : `vs ${pos} · OK`,
   };
 }
 
+/** B-style pick card — purple border + check when selected. */
 function PlayerPickCard({
   player,
   selected,
   onToggle,
-  dimmed,
+  week,
+  league,
 }: {
   player: FantasyPlayer;
   selected: boolean;
   onToggle: () => void;
-  dimmed?: boolean;
+  week: number;
+  league: LeagueData;
 }) {
-  const injury = formatStatusCode(player.injuryStatus);
+  const out = isOut(player);
+  const health = healthLabel(player);
+  const def = defChip(player, league);
+  const proj = out ? 0 : player.projectedPoints;
+
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
       className={cn(
-        "relative flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition",
+        "relative w-full rounded-xl border px-3.5 py-3 text-left transition",
         selected
-          ? "border-orange-600 bg-orange-50/40 shadow-[0_0_0_1px_color-mix(in_srgb,var(--brand)_45%,transparent)]"
-          : "border-emerald-950/12 bg-[var(--kraft)] hover:border-orange-600/40 hover:bg-orange-50/20",
-        dimmed && "opacity-45",
-        isOut(player) && !selected && "opacity-55",
+          ? "border-orange-600 bg-[color-mix(in_srgb,var(--brand)_8%,var(--surface))] shadow-[0_0_0_1px_color-mix(in_srgb,var(--brand)_50%,transparent)]"
+          : "border-emerald-950/14 bg-[var(--kraft)] hover:border-orange-600/40",
+        out && "opacity-70",
       )}
     >
-      {selected && (
+      <span
+        className={cn(
+          "absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full border",
+          selected
+            ? "border-orange-600 bg-orange-600 text-white"
+            : "border-emerald-950/30 bg-transparent text-transparent",
+        )}
+        aria-hidden
+      >
+        {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+      </span>
+
+      <div className="flex flex-wrap items-center gap-1.5 pr-7">
+        <PositionChip position={player.position} />
         <span
-          className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-emerald-50"
-          aria-hidden
-        >
-          <Check className="h-3 w-3" strokeWidth={3} />
-        </span>
-      )}
-      <PositionChip position={player.position} className="mt-0.5" />
-      <NflTeamBadge team={player.nflTeam} className="mt-0.5 !h-7 !w-7 text-[8px]" />
-      <div className="min-w-0 flex-1 pr-5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate text-sm font-semibold text-emerald-950">
-            {player.name}
-          </span>
-          {injury !== "ACTIVE" && (
-            <span
-              className={cn(
-                "rounded px-1 py-px text-[9px] font-semibold uppercase",
-                statusColor(injury),
-              )}
-            >
-              {injury}
-            </span>
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+            out || health !== "HEALTHY"
+              ? statusColor(player.injuryStatus)
+              : "stamp stamp-success text-[9px]",
           )}
+        >
+          {health}
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p
+            className={cn(
+              "truncate text-base font-semibold leading-tight",
+              out ? "text-emerald-950/45" : "text-emerald-950",
+            )}
+          >
+            {player.name}
+          </p>
+          <p className="mt-0.5 text-[11px] text-emerald-950/45">
+            {player.nflTeam} · Week {week}
+          </p>
         </div>
-        <p className="mt-0.5 text-[11px] text-emerald-950/45">
-          {player.nflTeam}
-          {player.opponent ? ` · ${player.opponent}` : ""}
-          {player.isStarter ? " · S" : player.slot === "BN" ? " · BN" : ""}
-        </p>
-        <p className="mt-1 type-stat text-lg leading-none text-orange-600">
-          {player.projectedPoints.toFixed(1)}
-          <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
+        <div className="shrink-0 text-right">
+          <p
+            className={cn(
+              "type-stat text-2xl leading-none",
+              out ? "text-danger" : "text-emerald-950",
+            )}
+          >
+            {proj.toFixed(1)}
+          </p>
+          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
             proj
-          </span>
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-emerald-950/50">
+          {player.opponent ? `Faces ${player.opponent}` : "Matchup TBD"}
         </p>
+        <span
+          className={cn(
+            "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+            def.tough
+              ? "border-danger/45 text-[color-mix(in_srgb,var(--danger)_55%,white)]"
+              : "border-success/45 text-[color-mix(in_srgb,var(--success)_55%,white)]",
+          )}
+        >
+          {def.label}
+        </span>
       </div>
     </button>
   );
 }
 
+/**
+ * Side-by-side multi-week board: sticky metric labels, per-player week columns.
+ * TARGETS / RUSH ATT / numeric DEF RANK show — until usage feeds exist.
+ */
 function CompareBoard({
-  playerA,
-  playerB,
-  weeksA,
-  weeksB,
+  players,
+  weeksById,
+  weekCols,
   league,
+  favorId,
 }: {
-  playerA: FantasyPlayer;
-  playerB: FantasyPlayer;
-  weeksA: BoardWeek[];
-  weeksB: BoardWeek[];
+  players: FantasyPlayer[];
+  weeksById: Map<string, BoardWeek[]>;
+  weekCols: number[];
   league: LeagueData;
+  favorId: string | null;
 }) {
-  const weekCols = unionWeeks(weeksA, weeksB);
-  const defA = matchupHint(playerA, league);
-  const defB = matchupHint(playerB, league);
-  const outA = isOut(playerA);
-  const outB = isOut(playerB);
+  const defs = useMemo(
+    () => new Map(players.map((p) => [p.id, defChip(p, league)])),
+    [players, league],
+  );
 
-  type Row = {
+  const metrics: {
     key: string;
     label: string;
-    values: (string | null)[];
-    favorMax?: boolean;
-    highlight?: (i: number) => boolean;
     muted?: boolean;
-  };
-
-  const ptsRow = weekCols.map((w) => {
-    const a = cellFor(weeksA, w)?.pts ?? null;
-    const b = cellFor(weeksB, w)?.pts ?? null;
-    return { a, b };
-  });
-  const projRow = weekCols.map((w) => {
-    const a = cellFor(weeksA, w)?.proj ?? null;
-    const b = cellFor(weeksB, w)?.proj ?? null;
-    return { a, b };
-  });
-
-  const rows: Row[] = [
+    get: (p: FantasyPlayer, w: number) => string;
+    numeric?: (p: FantasyPlayer, w: number) => number | null;
+  }[] = [
     {
       key: "pts",
       label: "PTS",
-      favorMax: true,
-      values: ptsRow.flatMap(({ a, b }) => [
-        a != null ? a.toFixed(1) : "—",
-        b != null ? b.toFixed(1) : "—",
-      ]),
-      highlight: (i) => {
-        const pair = ptsRow[Math.floor(i / 2)];
-        if (!pair || pair.a == null || pair.b == null) return false;
-        const mine = i % 2 === 0 ? pair.a : pair.b;
-        return mine === Math.max(pair.a, pair.b) && pair.a !== pair.b;
+      get: (p, w) => {
+        const v = cellFor(weeksById.get(p.id) ?? [], w)?.pts;
+        return v != null ? v.toFixed(1) : "—";
       },
+      numeric: (p, w) => cellFor(weeksById.get(p.id) ?? [], w)?.pts ?? null,
     },
     {
       key: "targets",
       label: "TARGETS",
-      values: weekCols.flatMap(() => ["—", "—"]),
       muted: true,
+      get: () => "—",
     },
     {
       key: "rush",
       label: "RUSH ATT",
-      values: weekCols.flatMap(() => ["—", "—"]),
       muted: true,
+      get: () => "—",
     },
     {
       key: "opp",
       label: "OPP",
-      values: weekCols.flatMap((w) => [
-        cellFor(weeksA, w)?.opp ?? "—",
-        cellFor(weeksB, w)?.opp ?? "—",
-      ]),
+      get: (p, w) => cellFor(weeksById.get(p.id) ?? [], w)?.opp ?? "—",
     },
     {
       key: "def",
-      label: "DEF vs POS",
-      // Per-player season matchup lean (no weekly DEF rank feed yet).
-      values: weekCols.flatMap(() => [defA.label, defB.label]),
-      highlight: (i) => {
-        const label = i % 2 === 0 ? defA.label : defB.label;
-        const tough = i % 2 === 0 ? defA.tough : defB.tough;
-        return label === "OK" && !tough;
-      },
+      label: "DEF RANK",
+      get: (p) => defs.get(p.id)?.label ?? "—",
     },
     {
       key: "proj",
       label: "PROJ",
-      favorMax: true,
-      values: projRow.flatMap(({ a, b }) => [
-        a != null ? a.toFixed(1) : "—",
-        b != null ? b.toFixed(1) : "—",
-      ]),
-      highlight: (i) => {
-        const pair = projRow[Math.floor(i / 2)];
-        if (!pair || pair.a == null || pair.b == null) return false;
-        const mine = i % 2 === 0 ? pair.a : pair.b;
-        return mine === Math.max(pair.a, pair.b) && pair.a !== pair.b;
+      get: (p, w) => {
+        if (isOut(p) && w === weekCols[weekCols.length - 1]) return "0.0";
+        const v = cellFor(weeksById.get(p.id) ?? [], w)?.proj;
+        return v != null ? v.toFixed(1) : "—";
+      },
+      numeric: (p, w) => {
+        if (isOut(p) && w === weekCols[weekCols.length - 1]) return 0;
+        return cellFor(weeksById.get(p.id) ?? [], w)?.proj ?? null;
       },
     },
   ];
 
+  function isFavorable(
+    metric: (typeof metrics)[number],
+    week: number,
+    player: FantasyPlayer,
+  ): boolean {
+    if (!metric.numeric || metric.muted) return false;
+    const vals = players
+      .map((p) => ({ id: p.id, v: metric.numeric!(p, week) }))
+      .filter((x) => x.v != null) as { id: string; v: number }[];
+    if (vals.length < 2) return false;
+    const max = Math.max(...vals.map((x) => x.v));
+    const mine = vals.find((x) => x.id === player.id)?.v;
+    return mine != null && mine === max && vals.some((x) => x.v < max);
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-emerald-950/12 bg-[var(--surface)]">
+      <div className="flex items-center justify-between gap-2 border-b border-emerald-950/10 px-3 py-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-950/45">
+          Selected · last {weekCols.length} weeks
+        </p>
+        <p className="text-[10px] text-emerald-950/35">⟷ scroll weeks</p>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[28rem] border-collapse text-sm">
+        <table className="w-max min-w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-emerald-950/10">
-              <th className="sticky left-0 z-10 bg-[var(--surface)] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
-                Metric
+              <th className="sticky left-0 z-20 bg-[var(--surface)] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
+                Weeks
               </th>
-              {weekCols.map((w) => (
+              {players.map((p) => (
                 <th
-                  key={w}
-                  colSpan={2}
-                  className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-emerald-950/45"
+                  key={p.id}
+                  colSpan={weekCols.length}
+                  className={cn(
+                    "border-l border-emerald-950/8 px-2 py-2 text-center text-[11px] font-semibold",
+                    favorId === p.id
+                      ? "text-emerald-950"
+                      : "text-emerald-950/45",
+                    isOut(p) && "opacity-45",
+                  )}
                 >
-                  W{w}
+                  {lastName(p.name)}
+                  <span className="ml-1 font-normal text-emerald-950/40">
+                    {p.nflTeam}
+                  </span>
                 </th>
               ))}
             </tr>
             <tr className="border-b border-emerald-950/8 bg-emerald-950/[0.03]">
-              <th className="sticky left-0 z-10 bg-[color-mix(in_srgb,var(--surface)_92%,#000)] px-3 py-1.5" />
-              {weekCols.map((w) => (
-                <th
-                  key={`names-${w}`}
-                  colSpan={2}
-                  className="px-1 py-1.5 text-center text-[10px] font-medium text-emerald-950/55"
-                >
-                  <span className={cn(outA && "opacity-40")}>
-                    {lastName(playerA.name)}
-                  </span>
-                  <span className="mx-1 text-emerald-950/25">/</span>
-                  <span className={cn(outB && "opacity-40")}>
-                    {lastName(playerB.name)}
-                  </span>
-                </th>
-              ))}
+              <th className="sticky left-0 z-20 bg-[color-mix(in_srgb,var(--surface)_92%,#000)] px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-emerald-950/35">
+                —
+              </th>
+              {players.map((p) =>
+                weekCols.map((w) => (
+                  <th
+                    key={`${p.id}-w${w}`}
+                    className={cn(
+                      "min-w-[2.75rem] px-1.5 py-1.5 text-center text-[10px] font-semibold text-emerald-950/45",
+                      p.id === players[0]?.id ? "border-l border-emerald-950/8" : "",
+                      isOut(p) && "opacity-40",
+                    )}
+                  >
+                    W{w}
+                  </th>
+                )),
+              )}
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {metrics.map((metric) => (
               <tr
-                key={row.key}
+                key={metric.key}
                 className="border-b border-emerald-950/5 last:border-0"
               >
                 <th
                   className={cn(
-                    "sticky left-0 z-10 bg-[var(--surface)] px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-emerald-950/50",
-                    row.muted && "text-emerald-950/30",
+                    "sticky left-0 z-20 bg-[var(--surface)] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-emerald-950/50",
+                    metric.muted && "text-emerald-950/30",
                   )}
                 >
-                  {row.label}
+                  {metric.label}
                 </th>
-                {row.values.map((val, i) => {
-                  const playerOut = i % 2 === 0 ? outA : outB;
-                  const hi = row.highlight?.(i);
-                  return (
-                    <td
-                      key={`${row.key}-${i}`}
-                      className={cn(
-                        "px-2 py-2 text-center tabular-nums",
-                        playerOut && "opacity-40",
-                        row.muted && "text-emerald-950/30",
-                        hi &&
-                          !row.muted &&
-                          "font-semibold text-emerald-600",
-                        !hi && !row.muted && "text-emerald-950/80",
-                      )}
-                    >
-                      {val}
-                    </td>
-                  );
-                })}
+                {players.map((p, pi) =>
+                  weekCols.map((w) => {
+                    const val = metric.get(p, w);
+                    const hi = isFavorable(metric, w, p);
+                    const out = isOut(p);
+                    const defTough =
+                      metric.key === "def" ? defs.get(p.id)?.tough : undefined;
+                    return (
+                      <td
+                        key={`${metric.key}-${p.id}-${w}`}
+                        className={cn(
+                          "px-1.5 py-2.5 text-center tabular-nums",
+                          pi === 0 && "border-l border-emerald-950/8",
+                          out && "opacity-40",
+                          metric.muted && "text-emerald-950/30",
+                          hi && !metric.muted && "font-semibold text-success",
+                          !hi &&
+                            !metric.muted &&
+                            favorId === p.id &&
+                            "text-emerald-950",
+                          !hi &&
+                            !metric.muted &&
+                            favorId !== p.id &&
+                            "text-emerald-950/55",
+                          metric.key === "def" &&
+                            !metric.muted &&
+                            "text-[10px] font-semibold",
+                          metric.key === "def" &&
+                            defTough === true &&
+                            "text-danger",
+                          metric.key === "def" &&
+                            defTough === false &&
+                            val !== "—" &&
+                            "text-success",
+                          metric.key === "proj" &&
+                            out &&
+                            "font-semibold text-danger opacity-100",
+                        )}
+                      >
+                        {metric.key === "def" && val !== "—" ? (
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full border px-1.5 py-0.5",
+                              defTough
+                                ? "border-danger/40"
+                                : "border-success/40",
+                            )}
+                          >
+                            {val}
+                          </span>
+                        ) : (
+                          val
+                        )}
+                      </td>
+                    );
+                  }),
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <p className="border-t border-emerald-950/8 px-3 py-2 text-[10px] text-emerald-950/40">
-        TARGETS / RUSH ATT and weekly DEF ranks need usage feeds — showing — until
-        available. DEF vs POS uses similar-player history vs this week&apos;s
-        opponent when samples exist.
+        ⟷ Weeks grow as the season progresses (W1…Wn). Sticky metric labels stay
+        put. TARGETS / RUSH ATT / weekly DEF ranks need usage feeds — showing —
+        until available; DEF RANK uses similar-player history when samples
+        exist.
       </p>
     </div>
   );
@@ -411,10 +478,16 @@ function RosterModal({
   you,
   open,
   onClose,
+  flexMode,
+  flexPick,
+  onPickFlex,
 }: {
   you: FantasyTeam;
   open: boolean;
   onClose: () => void;
+  flexMode: boolean;
+  flexPick: FantasyPlayer | null;
+  onPickFlex?: () => void;
 }) {
   if (!open) return null;
   const roster = sortByEspnRosterOrder(you.roster);
@@ -430,27 +503,27 @@ function RosterModal({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/65"
+        className="absolute inset-0 bg-black/70"
         aria-label="Close roster"
         onClick={onClose}
       />
       <div className="relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-emerald-950/15 bg-[var(--surface)] shadow-xl">
-        <div className="flex items-center justify-between border-b border-emerald-950/10 px-4 py-3">
+        <div className="flex items-start justify-between border-b border-emerald-950/10 px-4 py-3">
           <div>
             <h2
               id="roster-modal-title"
-              className="type-section text-lg text-emerald-950"
+              className="text-lg font-semibold text-emerald-950"
             >
               My roster
             </h2>
-            <p className="text-[11px] text-emerald-950/45">
-              Reference only while you decide
+            <p className="mt-0.5 text-[11px] text-emerald-950/45">
+              Reference only — decide FLEX without leaving compare.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-emerald-950/55 hover:bg-emerald-950/10 hover:text-emerald-950"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10 hover:text-emerald-950"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -460,47 +533,97 @@ function RosterModal({
           <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
             Starters
           </p>
-          <ul className="space-y-1.5">
-            {starters.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center gap-2 rounded-lg px-1 py-1"
-              >
-                <PositionChip
-                  position={p.slot === "FLEX" ? "FLEX" : p.position}
-                />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
-                  {p.name}
-                </span>
-                {p.slot === "FLEX" && (
-                  <span className="stamp stamp-flex text-[9px]">FLEX</span>
-                )}
-                <span className="type-stat text-sm text-orange-600">
-                  {p.projectedPoints.toFixed(1)}
-                </span>
-              </li>
-            ))}
+          <ul className="divide-y divide-emerald-950/8">
+            {starters.map((p) => {
+              const isFlexSlot = p.slot === "FLEX";
+              const undecided = flexMode && isFlexSlot && !flexPick;
+              const out = isOut(p);
+              return (
+                <li
+                  key={p.id}
+                  className="flex items-center gap-2 px-1 py-2.5"
+                >
+                  <PositionChip
+                    position={isFlexSlot ? "FLEX" : p.position}
+                  />
+                  {undecided ? (
+                    <>
+                      <span className="min-w-0 flex-1 truncate text-sm italic text-emerald-950/40">
+                        undecided
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onPickFlex?.();
+                          onClose();
+                        }}
+                        className="stamp stamp-flex shrink-0 cursor-pointer text-[10px]"
+                      >
+                        PICK
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
+                        {isFlexSlot && flexPick ? flexPick.name : p.name}
+                        {out && (
+                          <span className="ml-1.5 rounded bg-danger/20 px-1 py-px text-[9px] font-bold uppercase text-danger">
+                            OUT
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={cn(
+                          "type-stat shrink-0 text-sm",
+                          out ? "text-danger" : "text-emerald-950",
+                        )}
+                      >
+                        {out
+                          ? "0.0"
+                          : (isFlexSlot && flexPick
+                              ? flexPick.projectedPoints
+                              : p.projectedPoints
+                            ).toFixed(1)}
+                      </span>
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           {bench.length > 0 && (
             <>
               <p className="mb-2 mt-4 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
                 Bench
               </p>
-              <ul className="space-y-1.5">
-                {bench.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center gap-2 rounded-lg px-1 py-1 opacity-80"
-                  >
-                    <PositionChip position={p.position} />
-                    <span className="min-w-0 flex-1 truncate text-sm text-emerald-950">
-                      {p.name}
-                    </span>
-                    <span className="type-stat text-sm text-emerald-950/50">
-                      {p.projectedPoints.toFixed(1)}
-                    </span>
-                  </li>
-                ))}
+              <ul className="divide-y divide-emerald-950/8">
+                {bench.map((p) => {
+                  const out = isOut(p);
+                  return (
+                    <li
+                      key={p.id}
+                      className="flex items-center gap-2 px-1 py-2.5"
+                    >
+                      <PositionChip position={p.position} />
+                      <span className="min-w-0 flex-1 truncate text-sm text-emerald-950">
+                        {p.name}
+                        {out && (
+                          <span className="ml-1.5 rounded bg-danger/20 px-1 py-px text-[9px] font-bold uppercase text-danger">
+                            OUT
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={cn(
+                          "type-stat shrink-0 text-sm",
+                          out ? "text-danger" : "text-emerald-950/55",
+                        )}
+                      >
+                        {out ? "0.0" : p.projectedPoints.toFixed(1)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
@@ -512,8 +635,10 @@ function RosterModal({
 
 function RecommendationBar({
   result,
+  flexMode,
 }: {
   result: WhoToStartResult;
+  flexMode: boolean;
 }) {
   const startPlayer =
     result.verdict === "start_a" || result.verdict === "lean_a"
@@ -521,35 +646,40 @@ function RecommendationBar({
       : result.verdict === "start_b" || result.verdict === "lean_b"
         ? result.playerB
         : null;
-  const edgeReason = result.reasons[0] ?? result.summary;
+  const other =
+    startPlayer?.id === result.playerA.id ? result.playerB : result.playerA;
+  const edgeAbs = Math.abs(result.edge).toFixed(1);
+  const edgeLine = startPlayer
+    ? isOut(other)
+      ? `+${edgeAbs} edge · ${lastName(other.name)} OUT (0.0)`
+      : `+${edgeAbs} edge over ${lastName(other.name)}`
+    : result.summary;
 
   return (
     <div
       className={cn(
         "sticky bottom-[calc(3.75rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--install-banner-offset,0px))] z-20",
-        "-mx-1 rounded-2xl border border-orange-600/35 bg-[color-mix(in_srgb,var(--surface)_88%,#1a0820)] p-3 shadow-lg backdrop-blur-md sm:mx-0",
+        "rounded-2xl border border-orange-600/40 bg-[color-mix(in_srgb,#1a0820_75%,var(--surface))] p-3 shadow-lg backdrop-blur-md",
       )}
     >
-      <div className="flex flex-wrap items-start gap-3">
-        <span
-          className={cn(
-            "stamp animate-stamp shrink-0 text-xs",
-            VERDICT_STAMP[result.verdict],
-          )}
-        >
-          ★ {result.verdictLabel.replace(" A", "").replace(" B", "")}
-          {startPlayer ? ` ${lastName(startPlayer.name).toUpperCase()}` : ""}
-        </span>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="stamp stamp-success animate-stamp text-xs">
+            ★ START
+          </span>
+          {startPlayer && <PositionChip position={startPlayer.position} />}
+          {flexMode && <PositionChip position="FLEX" />}
+        </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-emerald-950">
-            {result.headline}
+            {startPlayer?.name ?? result.headline}
           </p>
           <p className="mt-0.5 text-xs leading-snug text-emerald-950/55">
-            {edgeReason}
+            {edgeLine}
           </p>
         </div>
         {startPlayer && (
-          <Button type="button" size="sm" className="shrink-0" disabled>
+          <Button type="button" size="sm" className="shrink-0">
             Start {lastName(startPlayer.name)}
           </Button>
         )}
@@ -559,8 +689,7 @@ function RecommendationBar({
 }
 
 /**
- * Locked Insights Start/Sit hybrid: B-style pick cards, multi-week board,
- * sticky recommendation, My Roster overlay.
+ * Locked Insights Start/Sit hybrid (mock: B cards + multi-week board + roster overlay).
  */
 export function StartSitBoard({
   league,
@@ -575,6 +704,8 @@ export function StartSitBoard({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [rosterOpen, setRosterOpen] = useState(false);
   const trendMap = useMemo(() => toTrendMap(trends), [trends]);
+  const flexMode = filter === "FLEX";
+  const maxSelect = flexMode ? 3 : 2;
 
   const pool = useMemo(() => {
     return [...you.roster]
@@ -591,24 +722,73 @@ export function StartSitBoard({
   const selected = useMemo(
     () =>
       selectedIds
-        .map((id) => you.roster.find((p) => p.id === id) ?? pool.find((p) => p.id === id))
+        .map(
+          (id) =>
+            you.roster.find((p) => p.id === id) ??
+            pool.find((p) => p.id === id),
+        )
         .filter((p): p is FantasyPlayer => Boolean(p)),
     [selectedIds, you.roster, pool],
   );
 
-  const playerA = selected[0] ?? null;
-  const playerB = selected[1] ?? null;
-  const flexMode = filter === "FLEX";
+  /** Pair used for the START call — prefer highest-projected available. */
+  const comparePair = useMemo(() => {
+    if (selected.length < 2) return null;
+    const ranked = [...selected].sort((a, b) => {
+      if (isOut(a) !== isOut(b)) return isOut(a) ? 1 : -1;
+      return b.projectedPoints - a.projectedPoints;
+    });
+    return { a: ranked[0]!, b: ranked[1]! };
+  }, [selected]);
 
   const comparison = useMemo(() => {
-    if (!playerA || !playerB) return null;
-    return compareWhoToStart(league, playerA, playerB, trendMap, flexMode);
-  }, [league, playerA, playerB, trendMap, flexMode]);
+    if (!comparePair) return null;
+    return compareWhoToStart(
+      league,
+      comparePair.a,
+      comparePair.b,
+      trendMap,
+      flexMode,
+    );
+  }, [league, comparePair, trendMap, flexMode]);
+
+  const favorId =
+    comparison?.ok &&
+    (comparison.verdict === "start_a" || comparison.verdict === "lean_a")
+      ? comparison.playerA.id
+      : comparison?.ok &&
+          (comparison.verdict === "start_b" || comparison.verdict === "lean_b")
+        ? comparison.playerB.id
+        : null;
+
+  const flexPick =
+    flexMode && comparison?.ok && favorId
+      ? selected.find((p) => p.id === favorId) ?? null
+      : null;
+
+  const weeksById = useMemo(() => {
+    const map = new Map<string, BoardWeek[]>();
+    for (const p of selected) {
+      map.set(
+        p.id,
+        weeksForPlayer(p, trendMap?.get(p.espnId), league.currentWeek),
+      );
+    }
+    return map;
+  }, [selected, trendMap, league.currentWeek]);
+
+  const weekCols = useMemo(() => {
+    const set = new Set<number>();
+    for (const weeks of weeksById.values()) {
+      for (const w of weeks) set.add(w.week);
+    }
+    return [...set].sort((a, b) => a - b).slice(-5);
+  }, [weeksById]);
 
   function toggle(id: string) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 2) return [prev[1]!, id];
+      if (prev.length >= maxSelect) return [...prev.slice(1), id];
       return [...prev, id];
     });
   }
@@ -618,29 +798,18 @@ export function StartSitBoard({
     setSelectedIds([]);
   }
 
-  const weeksA = playerA
-    ? weeksForPlayer(
-        playerA,
-        trendMap?.get(playerA.espnId),
-        league.currentWeek,
-      )
-    : [];
-  const weeksB = playerB
-    ? weeksForPlayer(
-        playerB,
-        trendMap?.get(playerB.espnId),
-        league.currentWeek,
-      )
-    : [];
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="type-section text-emerald-950">Start / Sit</h2>
-          <p className="type-body mt-1 max-w-xl text-sm text-emerald-950/55">
-            Tap two players to compare. Weigh projection, recent scores, injury,
-            and defense history — no invented comps.
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="type-section text-emerald-950">Start / Sit</h2>
+            <span className="stamp stamp-start text-[9px]">
+              Compare · Hybrid B+Table
+            </span>
+          </div>
+          <p className="type-eyebrow mt-2 text-emerald-950/45">
+            Comparing for · Tap to select · Compare weeks below
           </p>
         </div>
         <Button
@@ -653,71 +822,78 @@ export function StartSitBoard({
         </Button>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {SLOT_FILTERS.map((slot) => {
-          const active = filter === slot;
-          return (
-            <button
-              key={slot}
-              type="button"
-              onClick={() => setFilterAndClear(slot)}
-              className={cn(
-                "pos-chip h-auto min-w-0 px-2.5 py-1.5 text-[11px] transition",
-                `pos-chip--${slot === "DEF" ? "def" : slot.toLowerCase()}`,
-                !active && "opacity-50 hover:opacity-85",
-                active && "ring-1 ring-orange-600/50",
-              )}
-              aria-pressed={active}
-            >
-              {slot === "DEF" ? "DEF" : slot}
-            </button>
-          );
-        })}
+      <div>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {SLOT_FILTERS.map((slot) => {
+            const active = filter === slot;
+            return (
+              <button
+                key={slot}
+                type="button"
+                onClick={() => setFilterAndClear(slot)}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold tracking-wide transition",
+                  active
+                    ? "bg-orange-600 text-white"
+                    : "bg-emerald-100 text-emerald-950/55 hover:bg-emerald-200",
+                )}
+                aria-pressed={active}
+              >
+                {slot}
+              </button>
+            );
+          })}
+        </div>
+        {flexMode && (
+          <p className="mt-1.5 text-[11px] text-emerald-950/45">
+            FLEX pool = RB / WR / TE from your roster (league rules).
+          </p>
+        )}
       </div>
 
       {pool.length === 0 ? (
         <p className="rounded-xl border border-dashed border-emerald-950/10 px-4 py-3 text-sm text-emerald-950/50">
-          No {filter === "DEF" ? "DEF" : filter} players on your roster.
+          No {filter} players on your roster.
         </p>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2.5 sm:grid-cols-2">
           {pool.map((p) => (
             <PlayerPickCard
               key={p.id}
               player={p}
               selected={selectedIds.includes(p.id)}
               onToggle={() => toggle(p.id)}
-              dimmed={
-                selectedIds.length === 2 && !selectedIds.includes(p.id)
-              }
+              week={league.currentWeek}
+              league={league}
             />
           ))}
         </div>
       )}
 
-      {playerA && playerB && comparison?.ok && (
-        <>
-          <CompareBoard
-            playerA={playerA}
-            playerB={playerB}
-            weeksA={weeksA}
-            weeksB={weeksB}
-            league={league}
-          />
-          <RecommendationBar result={comparison} />
-        </>
+      {selected.length >= 2 && (
+        <CompareBoard
+          players={selected}
+          weeksById={weeksById}
+          weekCols={weekCols}
+          league={league}
+          favorId={favorId}
+        />
       )}
 
-      {playerA && playerB && comparison && !comparison.ok && (
+      {selected.length >= 2 && comparison?.ok && (
+        <RecommendationBar result={comparison} flexMode={flexMode} />
+      )}
+
+      {selected.length >= 2 && comparison && !comparison.ok && (
         <p className="rounded-xl border border-orange-600/30 bg-orange-50/30 px-4 py-3 text-sm text-orange-800">
           {comparison.message}
         </p>
       )}
 
-      {selectedIds.length === 1 && (
+      {selected.length === 1 && (
         <p className="text-sm text-emerald-950/50">
-          Pick one more {filter === "FLEX" ? "FLEX-eligible" : filter} to
-          compare.
+          Pick {maxSelect === 3 ? "1–2 more" : "one more"}{" "}
+          {flexMode ? "FLEX-eligible" : filter} to compare.
         </p>
       )}
 
@@ -725,6 +901,11 @@ export function StartSitBoard({
         you={you}
         open={rosterOpen}
         onClose={() => setRosterOpen(false)}
+        flexMode={flexMode}
+        flexPick={flexPick}
+        onPickFlex={() => {
+          /* Keep compare open; PICK just closes modal so user can tap a card. */
+        }}
       />
     </div>
   );
