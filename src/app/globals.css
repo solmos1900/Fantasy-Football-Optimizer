@@ -2,15 +2,26 @@
 
 /*
   Sanity-inspired midnight — locked Gridiron IQ brand tokens.
-  Solid #0B0B0B page, elevated #212121 surfaces, neon purple accents.
-  Emerald / orange Tailwind scales remapped so existing utilities
-  stay readable on dark without a full class rewrite.
+  Solid #0B0B0B page, elevated #212121 surfaces, neon purple brand.
+  Semantic success/danger/warning/info sit alongside brand (do not
+  replace --brand). Emerald / orange Tailwind scales remapped so
+  existing utilities stay readable on dark without a full class rewrite.
 */
 :root {
   --background: #0b0b0b;
   --foreground: #ffffff;
   --field: #b9b9b9;
-  --accent: #c026ff;
+  /* Primary brand — CTAs, START stamps, active nav, focus */
+  --brand: #c026ff;
+  --accent: var(--brand);
+  /* Semantic status (chips / trade verdicts / trend labels) */
+  --success: #22c55e;
+  --danger: #ff2222;
+  --warning: #f59e0b;
+  --info: #0084f8;
+  /* Neon flourishes (sparingly — prefer readable semantic above) */
+  --neon-green: #45ff00;
+  --neon-yellow: #fdfe00;
   /* Cards / chrome slightly above page black */
   --surface: #212121;
   --cork: #212121;
@@ -27,7 +38,12 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-field: var(--field);
+  --color-brand: var(--brand);
   --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-surface: var(--surface);
   --color-cork: var(--cork);
   --color-kraft: var(--kraft);
@@ -209,16 +225,38 @@ body::before {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
+/* START / brand action — primary purple, not success green */
 .stamp-start {
-  background: #c026ff;
+  background: var(--brand);
 }
 
 .stamp-sit {
-  background: #353535;
+  background: var(--border);
 }
 
+/* FLEX / toss-up / lean caution */
 .stamp-flex {
-  background: #8a6a2f;
+  background: var(--warning);
+  color: #0b0b0b;
+  box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.15);
+}
+
+.stamp-success {
+  background: var(--success);
+}
+
+.stamp-danger {
+  background: var(--danger);
+}
+
+.stamp-warning {
+  background: var(--warning);
+  color: #0b0b0b;
+  box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.15);
+}
+
+.stamp-info {
+  background: var(--info);
 }
 
 /* —— Shared form control surface —— */

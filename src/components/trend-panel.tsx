@@ -21,12 +21,12 @@ function labelTone(label: PlayerTrendLabel): string {
               : "Stable";
   switch (n) {
     case "Rising":
-      return "bg-[#2f4a35] text-[#ffffff]";
-    case "Fading":
+      return "bg-success text-white";
     case "InjuryRisk":
-      return "bg-orange-500 text-white";
+      return "bg-danger text-white";
+    case "Fading":
     case "BoomBust":
-      return "bg-amber-700 text-white";
+      return "bg-warning text-[#0b0b0b]";
     case "Thin":
       return "bg-emerald-950/10 text-emerald-950/60";
     default:

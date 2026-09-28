@@ -23,11 +23,12 @@ export type TrendsProp =
   | Record<string, PlayerTrendView>
   | undefined;
 
+/** START = brand purple; lean = warning; toss-up = muted chrome. */
 const VERDICT_STYLE: Record<WhoToStartVerdict, string> = {
-  start_a: "bg-orange-600 text-white",
-  start_b: "bg-orange-600 text-white",
-  lean_a: "bg-[#8a6a2f] text-white",
-  lean_b: "bg-[#8a6a2f] text-white",
+  start_a: "bg-brand text-white",
+  start_b: "bg-brand text-white",
+  lean_a: "bg-warning text-[#0b0b0b]",
+  lean_b: "bg-warning text-[#0b0b0b]",
   toss_up: "bg-[#353535] text-emerald-950 ring-1 ring-emerald-950/20",
 };
 
