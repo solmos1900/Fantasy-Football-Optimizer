@@ -537,7 +537,8 @@ function RosterModal({
             {starters.map((p) => {
               const isFlexSlot = p.slot === "FLEX";
               const undecided = flexMode && isFlexSlot && !flexPick;
-              const out = isOut(p);
+              const display = isFlexSlot && flexPick ? flexPick : p;
+              const out = isOut(display);
               return (
                 <li
                   key={p.id}
@@ -565,7 +566,7 @@ function RosterModal({
                   ) : (
                     <>
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
-                        {isFlexSlot && flexPick ? flexPick.name : p.name}
+                        {display.name}
                         {out && (
                           <span className="ml-1.5 rounded bg-danger/20 px-1 py-px text-[9px] font-bold uppercase text-danger">
                             OUT
@@ -578,12 +579,7 @@ function RosterModal({
                           out ? "text-danger" : "text-emerald-950",
                         )}
                       >
-                        {out
-                          ? "0.0"
-                          : (isFlexSlot && flexPick
-                              ? flexPick.projectedPoints
-                              : p.projectedPoints
-                            ).toFixed(1)}
+                        {out ? "0.0" : display.projectedPoints.toFixed(1)}
                       </span>
                     </>
                   )}
