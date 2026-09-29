@@ -267,7 +267,7 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `${message} Set ESPN_COOKIE_ENCRYPTION_KEY in Vercel (Production) to the same key used when cookies were encrypted — Project → Settings → Environment Variables — then redeploy and Sync again.`,
+      `${message} Then set ESPN_COOKIE_ENCRYPTION_KEY in Vercel → Project → Settings → Environment Variables (Production), redeploy, and Sync again — or reconnect the league with fresh SWID + espn_s2.`,
     );
   }
 
