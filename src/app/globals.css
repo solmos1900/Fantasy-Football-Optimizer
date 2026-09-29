@@ -132,17 +132,13 @@ body::before {
   background-color: var(--background);
 }
 
-/* Draft-board panel — elevated surface with rivets (no tan cork / no grain) */
+/* Elevated panel — midnight surface (no tan cork / no corner rivets) */
 .cork-board {
   position: relative;
   border-radius: 0.75rem;
   border: 2px solid var(--border);
   background-color: var(--cork);
-  background-image:
-    radial-gradient(circle at 0.8rem 0.8rem, #b9b9b9 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at calc(100% - 0.8rem) 0.8rem, #b9b9b9 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at 0.8rem calc(100% - 0.8rem), #b9b9b9 0 0.22rem, transparent 0.28rem),
-    radial-gradient(circle at calc(100% - 0.8rem) calc(100% - 0.8rem), #b9b9b9 0 0.22rem, transparent 0.28rem);
+  background-image: none;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
     0 8px 28px -14px rgba(0, 0, 0, 0.55);
