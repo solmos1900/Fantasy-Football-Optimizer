@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
 import { cn, formatStatusCode, statusColor } from "@/lib/utils";
 import type {
@@ -532,7 +533,9 @@ function RosterPlayerRow({
 /**
  * My roster reference overlay.
  * Mobile: bottom sheet (same pattern as install guide).
- * Desktop: right-side panel — avoids a skinny centered card on wide viewports.
+ * Desktop: full-height right drawer — avoids a skinny centered card on wide viewports.
+ * Portaled to document.body so ancestor transforms cannot trap `position: fixed`
+ * (same reason as StickyStepActions in trade-analyzer).
  */
 function RosterModal({
   you,
@@ -549,12 +552,32 @@ function RosterModal({
   flexPick: FantasyPlayer | null;
   onPickFlex?: () => void;
 }) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  if (!open || !mounted) return null;
+
   const roster = sortByEspnRosterOrder(you.roster);
   const starters = roster.filter((p) => p.isStarter);
   const bench = roster.filter((p) => !p.isStarter && p.slot !== "IR");
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-end justify-center sm:items-stretch sm:justify-end"
       role="dialog"
@@ -569,15 +592,17 @@ function RosterModal({
       />
       <div
         className={cn(
-          "surface-card relative z-10 flex w-full flex-col overflow-hidden",
+          "relative z-10 flex w-full flex-col overflow-hidden border border-emerald-950/15 bg-[var(--surface)]",
+          "shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_10px_28px_-14px_rgba(0,0,0,0.45)]",
           /* Mobile bottom sheet */
-          "max-h-[min(85dvh,40rem)] rounded-t-2xl rounded-b-none border-b-0",
-          /* Desktop: full-height reference drawer anchored to the right */
-          "sm:h-full sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0 sm:shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.7)]",
+          "max-h-[min(85dvh,40rem)] rounded-t-2xl border-b-0",
+          /* Desktop: edge-to-edge right drawer (override any card radius) */
+          "sm:h-dvh sm:max-h-none sm:w-full sm:max-w-md sm:!rounded-none sm:border-y-0 sm:border-r-0",
+          "sm:shadow-[-24px_0_48px_-20px_rgba(0,0,0,0.75)]",
         )}
       >
         <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-emerald-950/15 sm:hidden" />
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-emerald-950/10 px-4 py-3 sm:pt-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-emerald-950/10 px-4 py-3 sm:pt-5">
           <div className="min-w-0">
             <h2
               id="roster-modal-title"
@@ -598,7 +623,7 @@ function RosterModal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:pb-5">
           <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
             Starters
           </p>
@@ -647,7 +672,8 @@ function RosterModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
