@@ -128,8 +128,7 @@ export default async function PlayerDetailPage({
         </div>
       </div>
 
-      <section className="animate-fade-up-delay cork-board tape-card p-4 sm:p-5">
-        <div className="surface-card p-4 sm:p-5">
+      <section className="animate-fade-up-delay surface-card p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
@@ -165,7 +164,6 @@ export default async function PlayerDetailPage({
             </li>
           ))}
         </ul>
-        </div>
       </section>
 
       <section className="animate-fade-up-delay-2">

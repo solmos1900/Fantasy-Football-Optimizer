@@ -59,7 +59,6 @@ export default async function DashboardPage() {
 
       <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10">
         <section className="animate-fade-up-delay space-y-8">
-          <div className="cork-board p-3 sm:p-4">
           <div className="surface-card p-5">
             <h2 className="type-section text-emerald-950">Your team</h2>
             {team && (
@@ -109,7 +108,6 @@ export default async function DashboardPage() {
                 </PendingLink>
               </div>
             )}
-          </div>
           </div>
 
           <div className="surface-card p-5">
