@@ -474,6 +474,66 @@ function CompareBoard({
   );
 }
 
+function RosterPlayerRow({
+  position,
+  name,
+  proj,
+  out,
+  undecided,
+  onPick,
+}: {
+  position: string;
+  name?: string;
+  proj?: number;
+  out?: boolean;
+  undecided?: boolean;
+  onPick?: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-2 px-1 py-2.5">
+      <PositionChip position={position} />
+      {undecided ? (
+        <>
+          <span className="min-w-0 flex-1 truncate text-sm italic text-emerald-950/40">
+            undecided
+          </span>
+          <button
+            type="button"
+            onClick={onPick}
+            className="stamp stamp-flex shrink-0 cursor-pointer text-[10px]"
+          >
+            PICK
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
+            {name}
+            {out && (
+              <span className="ml-1.5 rounded bg-danger/20 px-1 py-px text-[9px] font-bold uppercase text-danger">
+                OUT
+              </span>
+            )}
+          </span>
+          <span
+            className={cn(
+              "type-stat shrink-0 text-sm",
+              out ? "text-danger" : "text-emerald-950/90",
+            )}
+          >
+            {out ? "0.0" : (proj ?? 0).toFixed(1)}
+          </span>
+        </>
+      )}
+    </li>
+  );
+}
+
+/**
+ * My roster reference overlay.
+ * Mobile: bottom sheet (same pattern as install guide).
+ * Desktop: right-side panel — avoids a skinny centered card on wide viewports.
+ */
 function RosterModal({
   you,
   open,
@@ -496,40 +556,49 @@ function RosterModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center sm:items-stretch sm:justify-end"
       role="dialog"
       aria-modal="true"
       aria-labelledby="roster-modal-title"
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
         aria-label="Close roster"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-emerald-950/15 bg-[var(--surface)] shadow-xl">
-        <div className="flex items-start justify-between border-b border-emerald-950/10 px-4 py-3">
-          <div>
+      <div
+        className={cn(
+          "surface-card relative z-10 flex w-full flex-col overflow-hidden",
+          /* Mobile bottom sheet */
+          "max-h-[min(85dvh,40rem)] rounded-t-2xl rounded-b-none border-b-0",
+          /* Desktop: full-height reference drawer anchored to the right */
+          "sm:h-full sm:max-h-none sm:w-full sm:max-w-md sm:rounded-none sm:border-y-0 sm:border-r-0 sm:shadow-[-20px_0_40px_-20px_rgba(0,0,0,0.7)]",
+        )}
+      >
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-emerald-950/15 sm:hidden" />
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-emerald-950/10 px-4 py-3 sm:pt-4">
+          <div className="min-w-0">
             <h2
               id="roster-modal-title"
               className="text-lg font-semibold text-emerald-950"
             >
               My roster
             </h2>
-            <p className="mt-0.5 text-[11px] text-emerald-950/45">
+            <p className="mt-0.5 text-[11px] leading-snug text-emerald-950/45">
               Reference only — decide FLEX without leaving compare.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10 hover:text-emerald-950"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10 hover:text-emerald-950"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="overflow-y-auto px-3 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:pb-4">
           <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
             Starters
           </p>
@@ -540,50 +609,18 @@ function RosterModal({
               const display = isFlexSlot && flexPick ? flexPick : p;
               const out = isOut(display);
               return (
-                <li
+                <RosterPlayerRow
                   key={p.id}
-                  className="flex items-center gap-2 px-1 py-2.5"
-                >
-                  <PositionChip
-                    position={isFlexSlot ? "FLEX" : p.position}
-                  />
-                  {undecided ? (
-                    <>
-                      <span className="min-w-0 flex-1 truncate text-sm italic text-emerald-950/40">
-                        undecided
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onPickFlex?.();
-                          onClose();
-                        }}
-                        className="stamp stamp-flex shrink-0 cursor-pointer text-[10px]"
-                      >
-                        PICK
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
-                        {display.name}
-                        {out && (
-                          <span className="ml-1.5 rounded bg-danger/20 px-1 py-px text-[9px] font-bold uppercase text-danger">
-                            OUT
-                          </span>
-                        )}
-                      </span>
-                      <span
-                        className={cn(
-                          "type-stat shrink-0 text-sm",
-                          out ? "text-danger" : "text-emerald-950",
-                        )}
-                      >
-                        {out ? "0.0" : display.projectedPoints.toFixed(1)}
-                      </span>
-                    </>
-                  )}
-                </li>
+                  position={isFlexSlot ? "FLEX" : p.position}
+                  name={display.name}
+                  proj={display.projectedPoints}
+                  out={out}
+                  undecided={undecided}
+                  onPick={() => {
+                    onPickFlex?.();
+                    onClose();
+                  }}
+                />
               );
             })}
           </ul>
@@ -596,28 +633,13 @@ function RosterModal({
                 {bench.map((p) => {
                   const out = isOut(p);
                   return (
-                    <li
+                    <RosterPlayerRow
                       key={p.id}
-                      className="flex items-center gap-2 px-1 py-2.5"
-                    >
-                      <PositionChip position={p.position} />
-                      <span className="min-w-0 flex-1 truncate text-sm text-emerald-950">
-                        {p.name}
-                        {out && (
-                          <span className="ml-1.5 rounded bg-danger/20 px-1 py-px text-[9px] font-bold uppercase text-danger">
-                            OUT
-                          </span>
-                        )}
-                      </span>
-                      <span
-                        className={cn(
-                          "type-stat shrink-0 text-sm",
-                          out ? "text-danger" : "text-emerald-950/55",
-                        )}
-                      >
-                        {out ? "0.0" : p.projectedPoints.toFixed(1)}
-                      </span>
-                    </li>
+                      position={p.position}
+                      name={p.name}
+                      proj={p.projectedPoints}
+                      out={out}
+                    />
                   );
                 })}
               </ul>
