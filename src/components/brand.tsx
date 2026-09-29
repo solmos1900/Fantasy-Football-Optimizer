@@ -18,8 +18,9 @@ type BrandMarkProps = {
 
 /**
  * Transparent Helmet Orbit marks for in-app / landing UI.
- * Opaque Recraft masters under `helmet-orbit-giq-*-1024.png` and `icon-*.png`
- * stay reserved for favicon / PWA / apple-touch / maskable install assets.
+ * Opaque full-bleed masters under `helmet-orbit-giq-*-1024.png` and `icon-*.png`
+ * (solid black/white, no matte) are reserved for favicon / PWA / apple-touch /
+ * maskable install assets. Regenerate via `scripts/regenerate-app-icons.py`.
  */
 const MARK_SRC = {
   dark: "/icons/helmet-orbit-mark-transparent-1024.png",
