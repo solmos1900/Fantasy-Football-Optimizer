@@ -597,7 +597,7 @@ function RosterModal({
           /* Mobile bottom sheet */
           "max-h-[min(85dvh,40rem)] rounded-t-2xl border-b-0",
           /* Desktop: edge-to-edge right drawer (override any card radius) */
-          "sm:h-dvh sm:max-h-none sm:w-full sm:max-w-md sm:!rounded-none sm:border-y-0 sm:border-r-0",
+          "sm:h-dvh sm:max-h-none sm:w-full sm:max-w-lg sm:!rounded-none sm:border-y-0 sm:border-r-0",
           "sm:shadow-[-24px_0_48px_-20px_rgba(0,0,0,0.75)]",
         )}
       >
