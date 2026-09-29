@@ -57,6 +57,16 @@ function isCurrentDemoShape(league: LeagueData): boolean {
   );
 }
 
+/** Prefer DB lastSyncedAt when hydrating a cached ESPN payload for the UI. */
+export function applyConnectionLastSyncedAt(
+  cached: LeagueData,
+  connectionLastSyncedAt: Date | null | undefined,
+): LeagueData {
+  const lastSyncedAt =
+    connectionLastSyncedAt?.toISOString() ?? cached.lastSyncedAt;
+  return { ...cached, lastSyncedAt };
+}
+
 export async function getUserLeagueConnection(userId: string) {
   try {
     return await prisma.leagueConnection.findFirst({
@@ -88,7 +98,7 @@ export async function getLeagueDataForUser(userId: string): Promise<LeagueData |
           return applyDemoOwnerDisplayName(cached, ownerName);
         }
       } else {
-        return cached;
+        return applyConnectionLastSyncedAt(cached, connection.lastSyncedAt);
       }
     } catch {
       // fall through
@@ -177,6 +187,8 @@ export async function connectEspnLeague(
     teamId?: number;
     swid?: string;
     espnS2?: string;
+    /** Explicit Sync league — bypass Next Data Cache on ESPN reads. */
+    bypassCache?: boolean;
   },
 ): Promise<LeagueData> {
   const creds: EspnCredentials = {
@@ -187,7 +199,9 @@ export async function connectEspnLeague(
     espnS2: input.espnS2?.trim() || undefined,
   };
 
-  const league = await fetchEspnLeague(creds);
+  const league = await fetchEspnLeague(creds, {
+    bypassCache: Boolean(input.bypassCache),
+  });
 
   if (input.teamId) {
     league.userTeamId = input.teamId;
@@ -243,11 +257,26 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
   }
 
   // Decrypt only for the ESPN fetch path; next write re-encrypts at rest.
+  // Missing/wrong ESPN_COOKIE_ENCRYPTION_KEY fails closed here — surface that
+  // to the client instead of leaving Last sync frozen on a silent failure.
+  let swid: string | undefined;
+  let espnS2: string | undefined;
+  try {
+    swid = decryptEspnCookie(connection.espnSwid) ?? undefined;
+    espnS2 = decryptEspnCookie(connection.espnS2) ?? undefined;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `${message} Then set ESPN_COOKIE_ENCRYPTION_KEY in Vercel → Project → Settings → Environment Variables (Production), redeploy, and Sync again — or reconnect the league with fresh SWID + espn_s2.`,
+    );
+  }
+
   return connectEspnLeague(userId, {
     leagueId: connection.leagueId,
     season: connection.season,
     teamId: connection.teamId ?? undefined,
-    swid: decryptEspnCookie(connection.espnSwid) ?? undefined,
-    espnS2: decryptEspnCookie(connection.espnS2) ?? undefined,
+    swid,
+    espnS2,
+    bypassCache: true,
   });
 }

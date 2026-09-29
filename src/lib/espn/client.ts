@@ -76,11 +76,20 @@ function cookieHeader(swid?: string, espnS2?: string): string | undefined {
   return parts.length ? parts.join("; ") : undefined;
 }
 
+export type EspnFetchOptions = {
+  /**
+   * When true (explicit Sync league), skip Next's Data Cache so we always hit
+   * ESPN and rewrite lastSyncedAt. Background/live polls may keep revalidate.
+   */
+  bypassCache?: boolean;
+};
+
 async function espnFetch(
   path: string,
   creds: EspnCredentials,
   params: Record<string, string | string[]> = {},
   headers: Record<string, string> = {},
+  options: EspnFetchOptions = {},
 ): Promise<unknown> {
   const url = new URL(`${ESPN_BASE}${path}`);
   for (const [key, value] of Object.entries(params)) {
@@ -98,7 +107,9 @@ async function espnFetch(
       ...(cookie ? { Cookie: cookie } : {}),
       ...headers,
     },
-    next: { revalidate: 60 },
+    ...(options.bypassCache
+      ? { cache: "no-store" as const }
+      : { next: { revalidate: 60 } }),
   });
 
   if (!res.ok) {
@@ -239,12 +250,21 @@ function mapTeam(
   };
 }
 
-export async function fetchEspnLeague(creds: EspnCredentials): Promise<LeagueData> {
+export async function fetchEspnLeague(
+  creds: EspnCredentials,
+  options: EspnFetchOptions = {},
+): Promise<LeagueData> {
   const path = `/seasons/${creds.season}/segments/0/leagues/${creds.leagueId}`;
 
-  const raw = (await espnFetch(path, creds, {
-    view: ["mTeam", "mRoster", "mMatchup", "mSettings", "mStandings"],
-  })) as Record<string, unknown>;
+  const raw = (await espnFetch(
+    path,
+    creds,
+    {
+      view: ["mTeam", "mRoster", "mMatchup", "mSettings", "mStandings"],
+    },
+    {},
+    options,
+  )) as Record<string, unknown>;
 
   const status = (raw.status as Record<string, number> | undefined) ?? {};
   const settings = (raw.settings as { name?: string } | undefined) ?? {};
@@ -276,7 +296,12 @@ export async function fetchEspnLeague(creds: EspnCredentials): Promise<LeagueDat
 
   let freeAgents: FantasyPlayer[] = [];
   try {
-    freeAgents = await fetchEspnFreeAgents(creds, scoringPeriodId);
+    freeAgents = await fetchEspnFreeAgents(
+      creds,
+      scoringPeriodId,
+      50,
+      options,
+    );
   } catch {
     freeAgents = [];
   }
@@ -372,6 +397,7 @@ export async function fetchEspnFreeAgents(
   creds: EspnCredentials,
   scoringPeriodId: number,
   limit = 50,
+  options: EspnFetchOptions = {},
 ): Promise<FantasyPlayer[]> {
   const path = `/seasons/${creds.season}/segments/0/leagues/${creds.leagueId}`;
   const filter = {
@@ -388,6 +414,7 @@ export async function fetchEspnFreeAgents(
     creds,
     { view: "kona_player_info", scoringPeriodId: String(scoringPeriodId) },
     { "x-fantasy-filter": JSON.stringify(filter) },
+    options,
   )) as { players?: Record<string, unknown>[] };
 
   return (raw.players ?? []).map((entry) => mapPlayer(entry, scoringPeriodId));

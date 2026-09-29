@@ -137,6 +137,15 @@ Private ESPN leagues need `SWID` + `espn_s2` cookies from fantasy.espn.com while
 
 Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Set `ESPN_COOKIE_ENCRYPTION_KEY` before connecting private ESPN leagues. Set `CRON_SECRET` so the daily guest/session cleanup cron can run (`vercel.json` → `/api/cron/cleanup`). Build runs `prisma generate && prisma migrate deploy && next build`.
 
+**If “Sync league” leaves Last sync stuck:** private-league sync decrypts stored SWID / espn_s2. Without a valid `ESPN_COOKIE_ENCRYPTION_KEY` in **Vercel → Project → Settings → Environment Variables** (Production), sync fails closed and the header stays on the last successful write. Fix:
+
+1. Generate once: `openssl rand -base64 32`
+2. Add `ESPN_COOKIE_ENCRYPTION_KEY` for Production (and Preview if you test there)
+3. Redeploy (env changes need a new deployment)
+4. Open the app → **Sync league** — on success, Last sync updates; on failure, the button now shows the API error instead of a silent stale date
+
+If cookies were encrypted with a different key, either restore that key or reconnect the league (paste fresh SWID + espn_s2 on `/connect`).
+
 **Storage note:** Vercel **Function Storage** (Hobby ~10 GB) is *deployment* function-bundle retention — not your Neon database. Guest cleanup below frees **Postgres** rows. To reduce Function Storage, shorten the project’s [Deployment Retention Policy](https://vercel.com/docs/deployment-storage) and delete old unused deployments in the dashboard.
 
 ---
@@ -154,6 +163,7 @@ Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and 
 | `npx tsx scripts/verify-guest-entry.ts` | Guest/demo path regression (no DB) |
 | `npx tsx scripts/verify-ephemeral-cleanup.ts` | Guest TTL helpers + cleanup route guards (no DB) |
 | `npm run verify:cookie-crypto` | ESPN cookie encrypt-at-rest unit checks |
+| `npm run verify:sync-freshness` | Sync lastSyncedAt overlay + cookie fail-closed guards |
 
 ---
 
