@@ -32,6 +32,12 @@ function hasAppTabBar(pathname: string | null) {
   );
 }
 
+/** Landing + login already expose install CTAs — skip the soft iOS banner there. */
+function isMarketingInstallRoute(pathname: string | null) {
+  if (!pathname) return false;
+  return pathname === "/" || pathname === "/login";
+}
+
 type GuideMode = "safari-steps" | "open-safari" | "generic";
 
 function detectGuideMode(): GuideMode {
@@ -128,7 +134,7 @@ export function InstallHowToLink({
       onClick={() => openInstallGuide()}
       className={
         className ??
-        "text-sm font-semibold text-orange-700 underline-offset-2 hover:underline"
+        "inline-flex min-h-11 items-center px-1 text-sm font-semibold text-orange-700 underline underline-offset-2 hover:text-orange-600"
       }
     >
       {children}
@@ -183,11 +189,6 @@ export function InstallAppExperience() {
     const standaloneNow = isStandaloneDisplay();
     setStandalone(standaloneNow);
     setMode(detectGuideMode());
-    // Soft banner for iPhone/iPad browser sessions only; desktop uses hero / How to install.
-    const showBanner =
-      !standaloneNow && isIosDevice() && !wasInstallDismissed();
-    setBannerVisible(showBanner);
-    setInstallBannerOffset(showBanner);
     setReady(true);
 
     function onOpen() {
@@ -201,6 +202,23 @@ export function InstallAppExperience() {
       setInstallBannerOffset(false);
     };
   }, []);
+
+  // Soft banner for in-app iPhone/iPad browser sessions only.
+  // Landing/login use hero / How to install — keep the banner off so it cannot
+  // cover those CTAs (fixed bottom overlay previously blocked login taps).
+  useEffect(() => {
+    if (!ready || standalone) {
+      setBannerVisible(false);
+      setInstallBannerOffset(false);
+      return;
+    }
+    const showBanner =
+      isIosDevice() &&
+      !wasInstallDismissed() &&
+      !isMarketingInstallRoute(pathname);
+    setBannerVisible(showBanner);
+    setInstallBannerOffset(showBanner);
+  }, [ready, standalone, pathname]);
 
   function closeSheet() {
     setSheetOpen(false);
