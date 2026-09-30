@@ -54,9 +54,16 @@ export default async function LoginPage({
           />
         </div>
 
-        <p className="type-caption mt-6 text-center text-emerald-950/50">
-          Want a Home Screen icon? <InstallHowToLink />
-        </p>
+        <div className="mt-6 flex justify-center">
+          <InstallHowToLink
+            className="inline-flex min-h-11 max-w-full flex-wrap items-center justify-center gap-x-1 rounded-lg px-3 py-2 text-center text-sm text-emerald-950/55 underline-offset-2 hover:bg-white/5 hover:text-emerald-950/80"
+          >
+            <span>Want a Home Screen icon?</span>
+            <span className="font-semibold text-orange-700 underline">
+              How to install
+            </span>
+          </InstallHowToLink>
+        </div>
       </div>
     </main>
   );

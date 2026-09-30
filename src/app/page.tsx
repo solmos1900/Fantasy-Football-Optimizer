@@ -81,7 +81,7 @@ export default async function HomePage() {
                 Continue as Guest
               </PendingLink>
             </div>
-            <InstallHowToLink className="min-h-11 px-1 text-sm font-semibold text-emerald-950/70 underline-offset-2 hover:text-brand hover:underline self-center sm:self-start" />
+            <InstallHowToLink className="inline-flex min-h-11 items-center self-center px-1 text-sm font-semibold text-emerald-950/70 underline underline-offset-2 hover:text-brand sm:self-start" />
           </div>
         </LandingStage>
       </LandingEntrance>
