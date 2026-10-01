@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
@@ -133,11 +133,11 @@ function StatTile({
   label: string;
 }) {
   return (
-    <div className="min-w-0 rounded-lg border border-emerald-950/12 bg-[color-mix(in_srgb,var(--kraft)_55%,var(--surface))] px-2 py-2 text-center">
-      <p className="type-stat text-lg leading-none text-emerald-950 sm:text-xl">
+    <div className="min-w-0 rounded-md border border-emerald-950/10 bg-emerald-950/[0.04] px-1.5 py-1.5 text-center">
+      <p className="type-stat text-base leading-none text-emerald-950 sm:text-lg">
         {value}
       </p>
-      <p className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-emerald-950/45">
+      <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-emerald-950/45">
         {label}
       </p>
     </div>
@@ -179,18 +179,18 @@ function GameLogTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-emerald-950/10">
-      <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+    <div className="overflow-x-auto rounded-lg border border-emerald-950/10">
+      <table className="w-full min-w-[28rem] border-collapse text-left text-[13px]">
         <thead>
           <tr className="border-b border-emerald-950/10 bg-emerald-950/[0.03]">
             {cols.map((col) => (
               <th
                 key={col}
                 className={cn(
-                  "px-2 py-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/45",
+                  "px-1.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-950/45",
                   col === "FPTS" &&
                     "sticky right-0 z-10 bg-[color-mix(in_srgb,var(--brand)_14%,var(--surface))] text-orange-700",
-                  col === "WK" && "w-10",
+                  col === "WK" && "w-8",
                 )}
               >
                 {col}
@@ -214,7 +214,7 @@ function GameLogTable({
                   <td
                     key={col}
                     className={cn(
-                      "px-2 py-2 tabular-nums",
+                      "px-1.5 py-1.5 tabular-nums",
                       isFpts &&
                         "sticky right-0 z-10 bg-[color-mix(in_srgb,var(--brand)_12%,var(--surface))] font-semibold text-emerald-950",
                       col === "OPP" && "text-emerald-950/70",
@@ -285,17 +285,19 @@ function InsightsFeed({
   }
 
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-2">
       {cards.map((c) => (
         <li
           key={`${c.eyebrow}-${c.title}`}
-          className="rounded-xl border border-emerald-950/10 bg-[color-mix(in_srgb,var(--kraft)_40%,var(--surface))] px-3 py-2.5"
+          className="rounded-lg border border-emerald-950/10 bg-emerald-950/[0.03] px-2.5 py-2"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-950/40">
             {c.eyebrow}
           </p>
-          <p className="mt-1 text-sm font-semibold text-emerald-950">{c.title}</p>
-          <p className="mt-1 text-xs leading-relaxed text-emerald-950/60">
+          <p className="mt-0.5 text-sm font-semibold leading-snug text-emerald-950">
+            {c.title}
+          </p>
+          <p className="mt-0.5 text-xs leading-snug text-emerald-950/60">
             {c.body}
           </p>
           {c.href && (
@@ -303,7 +305,7 @@ function InsightsFeed({
               href={c.href}
               target="_blank"
               rel="noreferrer"
-              className="mt-1.5 inline-block text-xs font-semibold text-orange-700 hover:text-orange-600"
+              className="mt-1 inline-block text-xs font-semibold text-orange-700 hover:text-orange-600"
             >
               Read source →
             </a>
@@ -361,6 +363,20 @@ export function PlayerDetailSheet({
     }
   }
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+    // close is stable enough for mount lifecycle
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const headerMeta = (
     <div className="flex flex-wrap items-center gap-1.5">
       <PositionChip position={player.position} />
@@ -388,7 +404,7 @@ export function PlayerDetailSheet({
   );
 
   const yearTabs = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {(
         [
           ["current", String(league.season)],
@@ -403,7 +419,7 @@ export function PlayerDetailSheet({
             type="button"
             onClick={() => setYear(id)}
             className={cn(
-              "rounded-full px-3 py-1 text-[11px] font-bold tracking-wide transition",
+              "rounded-md px-2.5 py-0.5 text-[11px] font-bold tracking-wide transition",
               active
                 ? "bg-orange-600 text-white"
                 : "border border-emerald-950/20 text-emerald-950/55 hover:border-orange-600/40 hover:text-emerald-950",
@@ -463,30 +479,30 @@ export function PlayerDetailSheet({
         aria-labelledby="player-sheet-title"
         className="relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-emerald-950/15 bg-[var(--surface)] shadow-2xl sm:hidden"
       >
-        <div className="flex items-center justify-center pt-2">
-          <span className="h-1 w-10 rounded-full bg-emerald-950/25" aria-hidden />
+        <div className="flex items-center justify-center pt-1.5">
+          <span className="h-1 w-9 rounded-full bg-emerald-950/25" aria-hidden />
         </div>
-        <div className="flex items-start justify-between gap-3 px-4 pb-2 pt-1">
+        <div className="flex items-start justify-between gap-2 px-3 pb-1.5 pt-0.5">
           <div className="min-w-0">
             <h1
               id="player-sheet-title"
-              className="truncate text-xl font-semibold tracking-tight text-emerald-950"
+              className="truncate text-lg font-semibold tracking-tight text-emerald-950"
             >
               {player.name}
             </h1>
-            <div className="mt-1.5">{headerMeta}</div>
+            <div className="mt-1">{headerMeta}</div>
           </div>
           <button
             type="button"
             onClick={close}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-4 gap-1.5 px-4 pb-3">
+        <div className="grid grid-cols-4 gap-1 px-3 pb-2">
           <StatTile value={ranks.posRankLabel} label="Pos rank" />
           <StatTile value={ranks.overallLabel} label="Overall" />
           <StatTile
@@ -499,14 +515,14 @@ export function PlayerDetailSheet({
           />
         </div>
 
-        <div className="flex border-b border-emerald-950/10 bg-emerald-950/[0.03] px-2">
+        <div className="flex border-b border-emerald-950/10 bg-emerald-950/[0.03] px-1">
           {(["logs", "insights"] as const).map((id) => (
             <button
               key={id}
               type="button"
               onClick={() => setTab(id)}
               className={cn(
-                "flex-1 py-2.5 text-center text-sm font-semibold capitalize transition",
+                "flex-1 py-2 text-center text-sm font-semibold capitalize transition",
                 tab === id
                   ? "border-b-2 border-orange-600 text-emerald-950"
                   : "text-emerald-950/45",
@@ -517,9 +533,9 @@ export function PlayerDetailSheet({
           ))}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
           {tab === "logs" ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {yearTabs}
               {year !== "current" ? (
                 <p className="text-sm text-emerald-950/50">
@@ -556,7 +572,7 @@ export function PlayerDetailSheet({
           )}
         </div>
 
-        <div className="border-t border-emerald-950/10 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="border-t border-emerald-950/10 px-3 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {actions}
         </div>
       </div>
@@ -568,37 +584,37 @@ export function PlayerDetailSheet({
         aria-labelledby="player-board-title"
         className="relative z-10 hidden max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-emerald-950/15 bg-[var(--surface)] shadow-2xl sm:flex"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-emerald-950/10 px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-emerald-950/10 px-4 py-3">
           <div className="min-w-0">
             <h1
               id="player-board-title"
-              className="text-2xl font-semibold tracking-tight text-emerald-950"
+              className="text-xl font-semibold tracking-tight text-emerald-950"
             >
               {player.name}
             </h1>
-            <div className="mt-2">{headerMeta}</div>
+            <div className="mt-1.5">{headerMeta}</div>
           </div>
-          <div className="flex shrink-0 items-start gap-2">
-            <div className="hidden rounded-lg border border-emerald-950/12 bg-emerald-950/[0.04] px-2.5 py-1.5 text-center md:block">
-              <p className="text-sm font-semibold text-emerald-950">
+          <div className="flex shrink-0 items-start gap-1.5">
+            <div className="hidden rounded-md border border-emerald-950/12 bg-emerald-950/[0.04] px-2 py-1 text-center md:block">
+              <p className="text-sm font-semibold leading-none text-emerald-950">
                 {player.percentOwned.toFixed(0)}%
               </p>
-              <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-950/45">
+              <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-emerald-950/45">
                 Rostered
               </p>
             </div>
-            <div className="hidden rounded-lg border border-emerald-950/12 bg-emerald-950/[0.04] px-2.5 py-1.5 text-center md:block">
-              <p className="text-sm font-semibold text-emerald-950">
+            <div className="hidden rounded-md border border-emerald-950/12 bg-emerald-950/[0.04] px-2 py-1 text-center md:block">
+              <p className="text-sm font-semibold leading-none text-emerald-950">
                 {player.percentStarted.toFixed(0)}%
               </p>
-              <p className="text-[9px] font-semibold uppercase tracking-wider text-emerald-950/45">
+              <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-emerald-950/45">
                 Started
               </p>
             </div>
             <button
               type="button"
               onClick={close}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-950/15 text-emerald-950/55 hover:bg-emerald-950/10"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
@@ -607,8 +623,8 @@ export function PlayerDetailSheet({
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1.65fr_1fr]">
-          <div className="min-h-0 overflow-y-auto border-b border-emerald-950/10 p-5 lg:border-b-0 lg:border-r">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="min-h-0 overflow-y-auto border-b border-emerald-950/10 p-4 lg:border-b-0 lg:border-r">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               {yearTabs}
             </div>
             {year !== "current" ? (
@@ -622,7 +638,7 @@ export function PlayerDetailSheet({
             ) : (
               <>
                 <GameLogTable rows={showLogs} />
-                <p className="mt-2 text-[10px] text-emerald-950/35">
+                <p className="mt-1.5 text-[10px] text-emerald-950/35">
                   Usage columns (ATT, RUSH, TAR, …) reserved — FPTS from
                   ESPN/demo. Sticky purple wash marks fantasy points.
                 </p>
@@ -630,8 +646,8 @@ export function PlayerDetailSheet({
             )}
           </div>
 
-          <div className="flex min-h-0 flex-col overflow-hidden p-5">
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-emerald-950/40">
+          <div className="flex min-h-0 flex-col overflow-hidden p-4">
+            <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-emerald-950/40">
               Latest insights
             </p>
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -641,7 +657,7 @@ export function PlayerDetailSheet({
                 currentWeek={league.currentWeek}
               />
             </div>
-            <div className="mt-4 border-t border-emerald-950/10 pt-3">
+            <div className="mt-3 border-t border-emerald-950/10 pt-2.5">
               {actions}
             </div>
           </div>
