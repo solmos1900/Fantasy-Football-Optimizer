@@ -8,20 +8,20 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String             @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?            @unique
   emailVerified DateTime?
   image         String?
   /// bcrypt hash for email/password credentials (null for OAuth / guest)
   passwordHash  String?
   /// Temporary try-without-account session user
-  isGuest       Boolean   @default(false)
+  isGuest       Boolean            @default(false)
   accounts      Account[]
   sessions      Session[]
   leagues       LeagueConnection[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 model Account {
@@ -59,39 +59,44 @@ model VerificationToken {
 }
 
 model LeagueConnection {
-  id              String   @id @default(cuid())
-  userId          String
-  leagueId        String
-  season          Int
-  teamId          Int?
-  leagueName      String?
-  isDemo          Boolean  @default(false)
-  espnSwid        String?
-  espnS2          String?
-  lastSyncedAt    DateTime?
-  cachedPayload   String?  // JSON snapshot of normalized league data
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String      @id @default(cuid())
+  userId        String
+  leagueId      String
+  season        Int
+  teamId        Int?
+  leagueName    String?
+  isDemo        Boolean     @default(false)
+  espnSwid      String?
+  espnS2        String?
+  lastSyncedAt  DateTime?
+  /// Current-season app snapshot (JSON). Multi-season history lives in Espn* tables.
+  cachedPayload String?
+  /// Optional link to EspnLeague once history exists; null is fine for existing rows.
+  espnLeagueId  String?
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  espnLeague    EspnLeague? @relation(fields: [espnLeagueId], references: [espnLeagueId], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@unique([userId, leagueId, season])
   @@index([userId])
+  @@index([espnLeagueId])
 }
 
 /// Canonical player identity (ESPN id keyed). Week stats + trends hang off this.
 model Player {
-  id            String               @id @default(cuid())
-  espnId        Int                  @unique
+  id           String                @id @default(cuid())
+  espnId       Int                   @unique
   /// String form of ESPN id for brief compatibility / cross-system maps
-  espnPlayerId  String?
-  sleeperId     String?
-  name          String
-  position      String
-  nflTeam       String?
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  weekStats     PlayerWeekStat[]
-  trends        PlayerTrendSnapshot[]
+  espnPlayerId String?
+  sleeperId    String?
+  name         String
+  position     String
+  nflTeam      String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  weekStats    PlayerWeekStat[]
+  trends       PlayerTrendSnapshot[]
 
   @@index([position, nflTeam])
 }
@@ -189,24 +194,336 @@ model PlayerTrendSnapshot {
 
 /// Defense weekly fantasy points allowed by position/role (for matchup SOS).
 model DefenseWeekAllow {
-  id              String   @id @default(cuid())
-  defenseAbbrev   String
+  id               String   @id @default(cuid())
+  defenseAbbrev    String
   /// Alias for research brief `nflTeam`
-  nflTeam         String?
-  season          Int
-  week            Int
-  position        String
+  nflTeam          String?
+  season           Int
+  week             Int
+  position         String
   /// Alias for research brief `vsPosition`
-  vsPosition      String?
-  role            String?
-  pointsAllowed   Float
+  vsPosition       String?
+  role             String?
+  pointsAllowed    Float
   pointsAllowedPpr Float?
-  rankVsPos       Int?
-  samplePlayer    String?
-  source          String   @default("espn")
-  createdAt       DateTime @default(now())
+  rankVsPos        Int?
+  samplePlayer     String?
+  source           String   @default("espn")
+  createdAt        DateTime @default(now())
 
   @@unique([defenseAbbrev, season, week, position, role])
   @@index([defenseAbbrev, season])
   @@index([nflTeam, season, week])
+}
+
+// ── ESPN multi-season history (Track 1 / PR A) ───────────────────────────────
+// Cookies (espnSwid / espnS2) stay ONLY on LeagueConnection — never here.
+// Sync writers land in PR B; these tables are empty until then.
+// cachedPayload remains the current-season UX snapshot; Espn* = queryable facts.
+
+/// Stable league identity across seasons (one ESPN leagueId).
+model EspnLeague {
+  id           String   @id @default(cuid())
+  espnLeagueId String   @unique
+  displayName  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  seasons     EspnSeason[]
+  members     EspnMember[]
+  connections LeagueConnection[]
+}
+
+model EspnSeason {
+  id                  String   @id @default(cuid())
+  espnLeagueId        String
+  season              Int
+  leagueName          String?
+  teamCount           Int?
+  scoringType         String?
+  playoffTeamCount    Int?
+  regularSeasonLength Int?
+  matchupPeriodCount  Int?
+  finalScoringPeriod  Int?
+  rosterSlotCounts    Json?
+  scoringSettings     Json?
+  draftType           String?
+  settingsRaw         Json?
+  updatedAt           DateTime @updatedAt
+
+  league       EspnLeague          @relation(fields: [espnLeagueId], references: [espnLeagueId], onDelete: Cascade)
+  teams        EspnTeam[]
+  matchups     EspnMatchup[]
+  rosterSlots  EspnRosterSlot[]
+  draftPicks   EspnDraftPick[]
+  transactions EspnTransaction[]
+  champion     EspnSeasonChampion?
+  trades       EspnTrade[]
+
+  @@unique([espnLeagueId, season])
+  @@index([season])
+}
+
+model EspnMember {
+  id              String   @id @default(cuid())
+  espnLeagueId    String
+  memberId        String
+  displayName     String?
+  firstName       String?
+  lastName        String?
+  firstSeenSeason Int?
+  lastSeenSeason  Int?
+  updatedAt       DateTime @updatedAt
+
+  league       EspnLeague        @relation(fields: [espnLeagueId], references: [espnLeagueId], onDelete: Cascade)
+  teamsPrimary EspnTeam[]        @relation("TeamPrimaryOwner")
+  teamOwners   EspnTeamOwner[]
+  record       EspnMemberRecord?
+
+  @@unique([espnLeagueId, memberId])
+  @@index([memberId])
+}
+
+model EspnTeam {
+  id                String   @id @default(cuid())
+  espnLeagueId      String
+  season            Int
+  teamId            Int
+  memberId          String?
+  teamName          String?
+  location          String?
+  nickname          String?
+  abbrev            String?
+  logoUrl           String?
+  wins              Int?
+  losses            Int?
+  ties              Int?
+  pointsFor         Float?
+  pointsAgainst     Float?
+  playoffSeed       Int?
+  finalRank         Int?
+  regularSeasonRank Int?
+  waiverRank        Int?
+  updatedAt         DateTime @updatedAt
+
+  seasonRef    EspnSeason       @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+  primaryOwner EspnMember?      @relation("TeamPrimaryOwner", fields: [espnLeagueId, memberId], references: [espnLeagueId, memberId])
+  owners       EspnTeamOwner[]
+  rosterSlots  EspnRosterSlot[]
+
+  @@unique([espnLeagueId, season, teamId])
+  @@index([espnLeagueId, memberId])
+}
+
+model EspnTeamOwner {
+  espnLeagueId String
+  season       Int
+  teamId       Int
+  memberId     String
+
+  team   EspnTeam   @relation(fields: [espnLeagueId, season, teamId], references: [espnLeagueId, season, teamId], onDelete: Cascade)
+  member EspnMember @relation(fields: [espnLeagueId, memberId], references: [espnLeagueId, memberId], onDelete: Cascade)
+
+  @@id([espnLeagueId, season, teamId, memberId])
+}
+
+/// Opportunistic ESPN player dimension (NOT the app Player table).
+/// Fact tables also denormalize playerName so rows stay readable without FK.
+model EspnHistoryPlayer {
+  espnPlayerId      BigInt   @id
+  fullName          String?
+  defaultPositionId Int?
+  position          String?
+  proTeamId         Int?
+  proTeam           String?
+  /// Optional link into app Player when known
+  appPlayerId       String?
+  updatedAt         DateTime @updatedAt
+
+  @@index([fullName])
+}
+
+model EspnMatchup {
+  id              String   @id @default(cuid())
+  espnLeagueId    String
+  season          Int
+  espnMatchupId   Int
+  /// matchupPeriodId — NOT always NFL week
+  week            Int?
+  homeTeamId      Int?
+  awayTeamId      Int?
+  homeScore       Float?
+  awayScore       Float?
+  homeTiebreak    Float?
+  awayTiebreak    Float?
+  winner          String?
+  playoffTierType String?
+  isBye           Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+
+  seasonRef EspnSeason @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+
+  @@unique([espnLeagueId, season, espnMatchupId])
+  @@index([espnLeagueId, season, week])
+  @@index([espnLeagueId, season, playoffTierType])
+}
+
+model EspnRosterSlot {
+  id              String   @id @default(cuid())
+  espnLeagueId    String
+  season          Int
+  /// scoringPeriodId (NFL week)
+  week            Int
+  teamId          Int
+  espnPlayerId    BigInt
+  playerName      String?
+  lineupSlotId    Int?
+  lineupSlot      String?
+  started         Boolean?
+  actualPoints    Float?
+  projectedPoints Float?
+  position        String?
+  proTeamId       Int?
+  updatedAt       DateTime @updatedAt
+
+  seasonRef EspnSeason @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+  team      EspnTeam   @relation(fields: [espnLeagueId, season, teamId], references: [espnLeagueId, season, teamId], onDelete: Cascade)
+
+  @@unique([espnLeagueId, season, week, teamId, espnPlayerId])
+  @@index([espnPlayerId])
+  @@index([espnLeagueId, season, week, teamId, started])
+}
+
+model EspnDraftPick {
+  id               String   @id @default(cuid())
+  espnLeagueId     String
+  season           Int
+  overallPick      Int
+  round            Int?
+  roundPick        Int?
+  teamId           Int?
+  espnPlayerId     BigInt?
+  playerName       String?
+  bidAmount        Float?
+  keeper           Boolean?
+  nominatingTeamId Int?
+  autoDraftType    String?
+  updatedAt        DateTime @updatedAt
+
+  seasonRef EspnSeason @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+
+  @@unique([espnLeagueId, season, overallPick])
+  @@index([espnLeagueId, season, teamId])
+}
+
+model EspnTransaction {
+  id                   String    @id @default(cuid())
+  espnLeagueId         String
+  season               Int
+  transactionId        String
+  itemIndex            Int
+  type                 String?
+  status               String?
+  executionType        String?
+  itemType             String?
+  teamId               Int?
+  fromTeamId           Int?
+  toTeamId             Int?
+  espnPlayerId         BigInt?
+  playerName           String?
+  bidAmount            Float?
+  scoringPeriod        Int?
+  proposedAt           DateTime?
+  processedAt          DateTime?
+  hasItems             Boolean   @default(true)
+  memberId             String?
+  relatedTransactionId String?
+  isPending            Boolean?
+  fromLineupSlotId     Int?
+  toLineupSlotId       Int?
+  isKeeper             Boolean?
+  updatedAt            DateTime  @updatedAt
+
+  seasonRef EspnSeason @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+
+  @@unique([espnLeagueId, season, transactionId, itemIndex])
+  @@index([espnLeagueId, season, teamId])
+  @@index([espnLeagueId, season, type])
+  @@index([espnLeagueId, season, status])
+  @@index([espnPlayerId])
+}
+
+model EspnSeasonChampion {
+  espnLeagueId     String
+  season           Int
+  championshipWeek Int?
+  championTeamId   Int?
+  champion         String?
+  championMember   String?
+  championScore    Float?
+  runnerUpTeamId   Int?
+  runnerUp         String?
+  runnerUpMember   String?
+  runnerUpScore    Float?
+  updatedAt        DateTime @updatedAt
+
+  seasonRef EspnSeason @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+
+  @@id([espnLeagueId, season])
+}
+
+model EspnTrade {
+  espnLeagueId  String
+  season        Int
+  transactionId String
+  itemIndex     Int
+  week          Int?
+  processedAt   DateTime?
+  fromTeamId    Int?
+  fromTeam      String?
+  toTeamId      Int?
+  toTeam        String?
+  espnPlayerId  BigInt?
+  playerName    String?
+  updatedAt     DateTime  @updatedAt
+
+  seasonRef EspnSeason @relation(fields: [espnLeagueId, season], references: [espnLeagueId, season], onDelete: Cascade)
+
+  @@id([espnLeagueId, season, transactionId, itemIndex])
+}
+
+model EspnMemberRecord {
+  espnLeagueId       String
+  memberId           String
+  displayName        String?
+  seasons            Int?
+  wins               Int?
+  losses             Int?
+  ties               Int?
+  winPct             Float?
+  pointsFor          Float?
+  pointsAgainst      Float?
+  titles             Int?
+  runnerUpFinishes   Int?
+  playoffAppearances Int?
+  bestFinish         Int?
+  updatedAt          DateTime @updatedAt
+
+  member EspnMember @relation(fields: [espnLeagueId, memberId], references: [espnLeagueId, memberId], onDelete: Cascade)
+
+  @@id([espnLeagueId, memberId])
+}
+
+/// Optional raw ESPN JSON archive for re-parse without re-fetch.
+model EspnRawResponse {
+  id           String   @id @default(cuid())
+  espnLeagueId String
+  season       Int
+  view         String
+  week         Int?
+  body         Json
+  fetchedAt    DateTime @default(now())
+
+  @@unique([espnLeagueId, season, view, week])
+  @@index([espnLeagueId, season])
 }
