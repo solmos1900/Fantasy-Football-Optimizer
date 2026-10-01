@@ -235,11 +235,9 @@ function Section({
   const shown = items.slice(0, limit);
   return (
     <section className="space-y-4">
-      <div className="cork-board p-3 sm:p-4">
-        <div className="surface-card px-4 py-3 sm:px-5">
-          <h2 className="type-section text-emerald-950">{title}</h2>
-          <p className="type-caption mt-1 text-emerald-950/55">{description}</p>
-        </div>
+      <div className="surface-card px-4 py-3 sm:px-5">
+        <h2 className="type-section text-emerald-950">{title}</h2>
+        <p className="type-caption mt-1 text-emerald-950/55">{description}</p>
       </div>
       {shown.length === 0 ? (
         <p className="rounded-xl border border-dashed border-emerald-950/10 bg-[color-mix(in_srgb,var(--kraft)_40%,var(--surface))] px-4 py-3 text-sm text-emerald-950/50">
@@ -366,22 +364,20 @@ export default async function InsightsPage() {
       )}
 
       <section className="space-y-4">
-        <div className="cork-board p-3 sm:p-4">
-          <div className="surface-card flex flex-wrap items-end justify-between gap-3 px-4 py-3 sm:px-5">
-            <div>
-              <h2 className="type-section text-emerald-950">Trade ideas</h2>
-              <p className="type-caption mt-1 text-emerald-950/55">
-                Fair full-PPR packages that help both sides — or open the Trade
-                Analyzer to grade any deal.
-              </p>
-            </div>
-            <PendingLink
-              href="/trades"
-              className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800"
-            >
-              Trade Analyzer →
-            </PendingLink>
+        <div className="surface-card flex flex-wrap items-end justify-between gap-3 px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="type-section text-emerald-950">Trade ideas</h2>
+            <p className="type-caption mt-1 text-emerald-950/55">
+              Fair full-PPR packages that help both sides — or open the Trade
+              Analyzer to grade any deal.
+            </p>
           </div>
+          <PendingLink
+            href="/trades"
+            className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800"
+          >
+            Trade Analyzer →
+          </PendingLink>
         </div>
         {bundle.trades.length === 0 ? (
           <p className="type-body text-emerald-950/50">
