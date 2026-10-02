@@ -49,6 +49,7 @@ After you enter, you pick how to get data: **Load demo league** or **Connect ESP
 | Guest demo | In-app **labeled demo** seed (weeks limited to finished ones). Demo comps are tagged Demo |
 | News / injuries | ESPN public news feeds + roster injury flags — never invented |
 | Trends (projected vs actual) | Saved in Postgres when you sync or open Insights, for that league connection |
+| Usage (targets, shares, snaps) | [nflverse](https://github.com/nflverse) open data (CC-BY) via cron/CLI ingest — see [DATA_SOURCES.md](DATA_SOURCES.md) |
 
 **Honesty rules**
 
@@ -56,6 +57,7 @@ After you enter, you pick how to get data: **Load demo league** or **Connect ESP
 - No made-up named-player week or point comps for live leagues.
 - When the sample is thin, the UI says so and shows an empty state.
 - Prior-season lines include the year so they are not mixed up with this season.
+- Usage columns stay null until nflverse (or another disclosed source) fills them — never invented.
 
 ---
 
@@ -128,14 +130,14 @@ Open [http://localhost:3000](http://localhost:3000) → **Continue as Guest** (d
 | `AUTH_GOOGLE_*` / `AUTH_GITHUB_*` | Optional | OAuth (email + Guest work without them) |
 | `DEFAULT_ESPN_SEASON` / `NEXT_PUBLIC_DEFAULT_SEASON` | Optional | Season year defaults |
 | `ESPN_COOKIE_ENCRYPTION_KEY` | Required in prod for private leagues | AES-256-GCM key for SWID / espn_s2 at rest (`openssl rand -base64 32`) |
-| `CRON_SECRET` | Required for cron cleanup | Bearer token for `GET /api/cron/cleanup` (Vercel Cron sends it automatically when set) |
+| `CRON_SECRET` | Required for cron jobs | Bearer token for `/api/cron/cleanup` and `/api/cron/nflverse-usage` (Vercel Cron sends it automatically when set) |
 | `GUEST_SESSION_TTL_HOURS` | Optional (default `24`) | Abandoned guest users + their league rows are deleted after this TTL |
 
 Private ESPN leagues need `SWID` + `espn_s2` cookies from fantasy.espn.com while logged in — paste them in Connect. Treat cookies like passwords; they are **encrypted at rest** (AES-256-GCM) on `LeagueConnection`. See `.env.example`. **Never commit secrets.**
 
 ### Vercel
 
-Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Set `ESPN_COOKIE_ENCRYPTION_KEY` before connecting private ESPN leagues. Set `CRON_SECRET` so the daily guest/session cleanup cron can run (`vercel.json` → `/api/cron/cleanup`). Build runs `prisma generate && prisma migrate deploy && next build`.
+Production needs `AUTH_SECRET`, `DATABASE_URL` (pooled Neon URL preferred), and usually `AUTH_URL` + `AUTH_TRUST_HOST=true`. Set `ESPN_COOKIE_ENCRYPTION_KEY` before connecting private ESPN leagues. Set `CRON_SECRET` so Vercel crons can run (`vercel.json` → `/api/cron/cleanup`, `/api/cron/nflverse-usage`). Build runs `prisma generate && prisma migrate deploy && next build`.
 
 **If “Sync league” leaves Last sync stuck:** private-league sync decrypts stored SWID / espn_s2. Without a valid `ESPN_COOKIE_ENCRYPTION_KEY` in **Vercel → Project → Settings → Environment Variables** (Production), sync fails closed and the header stays on the last successful write. Fix:
 
@@ -164,6 +166,8 @@ If cookies were encrypted with a different key, either restore that key or recon
 | `npx tsx scripts/verify-ephemeral-cleanup.ts` | Guest TTL helpers + cleanup route guards (no DB) |
 | `npm run verify:cookie-crypto` | ESPN cookie encrypt-at-rest unit checks |
 | `npm run verify:sync-freshness` | Sync lastSyncedAt overlay + cookie fail-closed guards |
+| `npm run verify:nflverse` | nflverse mapper + cron wiring guards (no DB) |
+| `npm run ingest:nflverse -- --season 2026 --week 3` | Backfill nflverse usage into `PlayerWeekStat` |
 
 ---
 
@@ -181,14 +185,16 @@ src/lib/insights/trade-*.ts     Chip helpers, suggestions, interactive grader
 src/lib/insights/who-to-start.ts  Same-position start comparison
 src/lib/insights/defense-matchups.ts  Finished-week comps only
 src/lib/insights/trends.ts      Proj vs actual persistence (live ESPN only)
+src/lib/nflverse/*              nflverse usage fetch / crosswalk / upsert
 src/app/api/cron/cleanup        Daily Vercel Cron purge
+src/app/api/cron/nflverse-usage Tue/Wed nflverse usage ingest (one week)
 src/app/api/guest/end-session   Immediate guest wipe on Sign out
 src/app/(app)/*                 Authenticated pages (dashboard, team, …)
 ```
 
 Pages: `/` (marketing), `/login`, `/dashboard`, `/team`, `/league`, `/players`, `/insights`, `/trades`, `/connect`.
 
-Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections-and-trends.md), [docs/ephemeral-cleanup.md](docs/ephemeral-cleanup.md).
+Deeper notes for contributors: [docs/projections-and-trends.md](docs/projections-and-trends.md), [docs/ephemeral-cleanup.md](docs/ephemeral-cleanup.md), [docs/nflverse-usage.md](docs/nflverse-usage.md), [DATA_SOURCES.md](DATA_SOURCES.md).
 
 ---
 
