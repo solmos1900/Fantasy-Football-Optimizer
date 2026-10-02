@@ -114,6 +114,21 @@ async function upsertUsageBatch(
   let n = 0;
   for (const { espnId, playerId, mapped } of items) {
     const usage = usageFieldsForWrite(mapped);
+    // Core week-stat fields always refresh; snapShare only when the optional
+    // snap_counts join succeeded (never wipe a prior snap with null).
+    const updateUsage: Record<string, number | null> = {
+      targets: usage.targets,
+      receptions: usage.receptions,
+      carries: usage.carries,
+      rushingAttempts: usage.rushingAttempts,
+      rushingYards: usage.rushingYards,
+      receivingYards: usage.receivingYards,
+      targetShare: usage.targetShare,
+      airYards: usage.airYards,
+    };
+    if (usage.snapShare != null) {
+      updateUsage.snapShare = usage.snapShare;
+    }
     await prisma.playerWeekStat.upsert({
       where: {
         espnId_season_week_leagueId: {
@@ -150,8 +165,7 @@ async function upsertUsageBatch(
         nflTeam: mapped.nflTeam,
         opponent: mapped.opponent,
         source: NFLVERSE_SOURCE,
-        // Refresh usage from nflverse on the league-agnostic row
-        ...usage,
+        ...updateUsage,
         // Never clobber PPR on update either
       },
     });
