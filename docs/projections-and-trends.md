@@ -32,7 +32,7 @@ Contributors map those ideas to Prisma models `Player`, `PlayerWeekStat`, `Playe
 | **ESPN public scoreboard** | Opponent labels for finished weeks in defense comps (no API key) |
 | **Demo seed** | Guest/demo recent weeks only (labeled Demo; never used for live ESPN leagues) |
 | **Heuristic** | Fill missing past projections; marked `source=heuristic` so you can tell |
-| **nflverse** | Reserved usage fields — free feed when wired; not driving product yet |
+| **nflverse** | Usage proxies (targets, carries, shares, …) on `leagueId=""` rows — see `docs/DATA_SOURCES.md` (CC BY 4.0) |
 | **FantasyPros / SportsDataIO** | Paid commercial only — **not** integrated; never scrape or fake those labels |
 | **Sleeper** | Free non-commercial — do not ship commercial Sleeper use without a license |
 

@@ -12,6 +12,8 @@
     "verify:cleanup": "tsx scripts/verify-ephemeral-cleanup.ts",
     "verify:cookie-crypto": "tsx scripts/verify-cookie-crypto.ts",
     "verify:sync-freshness": "tsx scripts/verify-sync-freshness.ts",
+    "verify:nflverse": "tsx scripts/verify-nflverse-usage.ts",
+    "ingest:nflverse": "tsx scripts/ingest-nflverse-usage.ts",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:push": "prisma db push",

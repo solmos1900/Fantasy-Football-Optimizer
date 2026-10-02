@@ -89,6 +89,8 @@ model Player {
   espnId       Int                   @unique
   /// String form of ESPN id for brief compatibility / cross-system maps
   espnPlayerId String?
+  /// NFL GSIS id (nflverse `player_id` / `gsis_id`), e.g. 00-0033873
+  gsisId       String?
   sleeperId    String?
   name         String
   position     String
@@ -99,6 +101,8 @@ model Player {
   trends       PlayerTrendSnapshot[]
 
   @@index([position, nflTeam])
+  @@index([gsisId])
+  @@index([sleeperId])
 }
 
 /// Weekly projected vs actual PPR + optional usage proxies (research: PlayerWeekStat).
