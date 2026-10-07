@@ -45,6 +45,13 @@ if (googleOAuthConfigured) {
     Google({
       clientId: googleId!,
       clientSecret: googleSecret!,
+      // Always show Google's account picker so sign-out → sign-in does not
+      // silently reuse the previously chosen Google account.
+      authorization: {
+        params: {
+          prompt: "select_account",
+        },
+      },
       // Personal single-owner app: allow Google to link to an existing
       // email/password User with the same verified email.
       allowDangerousEmailAccountLinking: true,
