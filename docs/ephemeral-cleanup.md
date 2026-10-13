@@ -25,10 +25,10 @@ Guest cleanup below targets **Postgres**. It does not lower the Function Storage
 
 ## What we stop writing
 
-- Demo leagues no longer persist `PlayerWeekStat` / `PlayerTrendSnapshot` (in-memory trends only).
-- Guest demo connections skip storing `cachedPayload` (seed regenerates).
+- Fabricated in-memory seed (`leagueId` `demo-league`) never persists `PlayerWeekStat` / `PlayerTrendSnapshot`.
+- Guests and signed-in users without a league use the **no-league NFL player pool** (DB-first + ≤12 min ESPN public projection/injury TTL). There is no shared owner-league demo path.
 
-Live ESPN sync for **signed-in** users is unchanged.
+Live ESPN sync for **signed-in** users who connect a league is unchanged.
 
 ## Configure on Vercel
 

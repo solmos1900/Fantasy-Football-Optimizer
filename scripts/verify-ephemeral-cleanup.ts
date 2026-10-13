@@ -40,6 +40,14 @@ const cleanupCron = vercelJson.crons.find((c) => c.path === "/api/cron/cleanup")
 assert.ok(cleanupCron, "vercel.json must schedule /api/cron/cleanup");
 assert.match(cleanupCron.schedule, /^\S+ \S+ \S+ \S+ \S+$/);
 
+const nflverseCrons = vercelJson.crons.filter(
+  (c) => c.path === "/api/cron/nflverse-usage",
+);
+assert.ok(
+  nflverseCrons.length >= 2,
+  "nflverse cron should run after MNF (Tue) and again Wed for late publishes",
+);
+
 const cronRoute = fs.readFileSync(
   path.join(process.cwd(), "src/app/api/cron/cleanup/route.ts"),
   "utf8",
@@ -58,12 +66,19 @@ const trends = fs.readFileSync(
   path.join(process.cwd(), "src/lib/insights/trends.ts"),
   "utf8",
 );
-assert.match(trends, /if \(league\.isDemo\)/);
+assert.match(trends, /leagueId === "demo-league"/);
+
+const service = fs.readFileSync(
+  path.join(process.cwd(), "src/lib/league/service.ts"),
+  "utf8",
+);
+assert.doesNotMatch(service, /getFreshDemoSourceLeague/);
+assert.doesNotMatch(service, /connectDemoLeague/);
 
 if (prev === undefined) delete process.env.GUEST_SESSION_TTL_HOURS;
 else process.env.GUEST_SESSION_TTL_HOURS = prev;
 
 console.log("verify-ephemeral-cleanup: ok");
 console.log(
-  `  defaultTtl=${DEFAULT_GUEST_TTL_HOURS}h cron=${cleanupCron.schedule} payloadCap=${CACHED_PAYLOAD_MAX_CHARS}`,
+  `  defaultTtl=${DEFAULT_GUEST_TTL_HOURS}h cron=${cleanupCron.schedule} nflverseCrons=${nflverseCrons.length} payloadCap=${CACHED_PAYLOAD_MAX_CHARS}`,
 );

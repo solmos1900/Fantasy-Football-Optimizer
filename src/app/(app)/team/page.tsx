@@ -15,7 +15,7 @@ export default async function TeamPage() {
     return (
       <EmptyLeagueConnect
         title="My Team"
-        message="Load a demo league or connect ESPN to view your roster, starters, and bench."
+        message="Connect an ESPN league to unlock your roster, starters, and bench."
       />
     );
   }

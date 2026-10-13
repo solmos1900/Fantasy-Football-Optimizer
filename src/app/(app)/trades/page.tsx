@@ -5,9 +5,9 @@ import {
   enrichPlayersWithSnapshots,
   loadTrendMap,
 } from "@/lib/insights/trends";
+import { getNoLeaguePlayerPool } from "@/lib/players/pool";
 import { TradesHub } from "@/components/trades-hub";
-import { EmptyLeagueConnect } from "@/components/empty-league-connect";
-import type { FantasyPlayer, PlayerTrendView } from "@/lib/types";
+import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 
 export default async function TradesPage({
   searchParams,
@@ -25,11 +25,40 @@ export default async function TradesPage({
     : null;
   const params = await searchParams;
 
+  const initialTool =
+    params.tool === "who-to-start" || params.tool === "start"
+      ? "who-to-start"
+      : "analyzer";
+
+  // ── No league: full NFL player pool (DB-first + short TTL refresh) ──
   if (!rawLeague) {
+    const pool = await getNoLeaguePlayerPool();
+    const phantomYou: FantasyTeam = {
+      id: 0,
+      name: "Side A",
+      abbrev: "A",
+      ownerName: session?.user?.name ?? "You",
+      wins: 0,
+      losses: 0,
+      ties: 0,
+      pointsFor: 0,
+      pointsAgainst: 0,
+      standing: 0,
+      roster: [],
+      isCurrentUser: true,
+    };
+
     return (
-      <EmptyLeagueConnect
-        title="Trades"
-        message="Load a demo league or connect ESPN to grade trades and decide who to start with your 1QB full-PPR data."
+      <TradesHub
+        league={pool.contextLeague}
+        you={phantomYou}
+        partners={[]}
+        poolPlayers={pool.players}
+        trends={pool.trends}
+        isDemo={false}
+        noLeague
+        freshness={pool.freshness}
+        initialTool={initialTool}
       />
     );
   }
@@ -62,13 +91,11 @@ export default async function TradesPage({
     ? params.get.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  // Plain object so trends survive RSC → client serialization (Map does not).
   const trendsByEspnId: Record<string, PlayerTrendView> = {};
   for (const [espnId, trend] of trendMap) {
     trendsByEspnId[String(espnId)] = trend;
   }
 
-  // Dedupe league + FA universe by player id for search corpus.
   const poolById = new Map<string, FantasyPlayer>();
   for (const team of league.teams) {
     for (const player of team.roster) {
@@ -78,11 +105,6 @@ export default async function TradesPage({
   for (const player of league.freeAgents) {
     if (!poolById.has(player.id)) poolById.set(player.id, player);
   }
-
-  const initialTool =
-    params.tool === "who-to-start" || params.tool === "start"
-      ? "who-to-start"
-      : "analyzer";
 
   return (
     <TradesHub
@@ -96,7 +118,8 @@ export default async function TradesPage({
       }
       initialGiveIds={giveIds}
       initialReceiveIds={receiveIds}
-      isDemo={league.isDemo}
+      isDemo={false}
+      noLeague={false}
       initialTool={initialTool}
     />
   );

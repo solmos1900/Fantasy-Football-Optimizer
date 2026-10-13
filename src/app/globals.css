@@ -468,6 +468,22 @@ body::before {
   animation: stamp-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
 }
 
+/* Connect-guide slide — quiet retro draft-board motion (no flash). */
+@keyframes onboarding-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.onboarding-slide {
+  animation: onboarding-slide-in 0.35s ease-out both;
+}
+
 @keyframes nav-progress {
   0% {
     transform: scaleX(0.08);

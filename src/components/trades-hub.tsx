@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import type { FantasyPlayer, FantasyTeam, LeagueData, PlayerTrendView } from "@/lib/types";
 import { TradeAnalyzer, type TrendsProp } from "@/components/trade-analyzer";
 import { WhoToStart } from "@/components/who-to-start";
+import { PoolFreshnessBanner } from "@/components/pool-freshness-banner";
+import type { PlayerPoolFreshness } from "@/lib/players/pool";
 
 export type TradesTool = "analyzer" | "who-to-start";
 
@@ -18,6 +20,8 @@ export function TradesHub({
   initialGiveIds,
   initialReceiveIds,
   isDemo,
+  noLeague = false,
+  freshness,
   initialTool = "analyzer",
 }: {
   league: LeagueData;
@@ -29,6 +33,9 @@ export function TradesHub({
   initialGiveIds?: string[];
   initialReceiveIds?: string[];
   isDemo?: boolean;
+  /** True when the user has no ESPN league — free-pool tools only. */
+  noLeague?: boolean;
+  freshness?: PlayerPoolFreshness;
   initialTool?: TradesTool;
 }) {
   const [tool, setTool] = useState<TradesTool>(initialTool);
@@ -37,22 +44,34 @@ export function TradesHub({
     if (tool === "who-to-start") {
       return {
         title: "Who to Start",
-        body: "Same-position start call — pick two players, get START A / START B (or a lean) with plain-English reasons from projection, form, injury, and matchup.",
+        body: noLeague
+          ? "Same-position start call across the NFL player pool — pick any two players. Uses full PPR until you connect a league."
+          : "Same-position start call — pick two players, get START A / START B (or a lean) with plain-English reasons from projection, form, injury, and matchup.",
       };
     }
     return {
       title: "Trade Analyzer",
-      body: "Build a trade in three steps: pick what you give, pick what you get, then see a short verdict — reason, value difference, and who wins the deal.",
+      body: noLeague
+        ? "Compare any NFL players side vs side (full PPR). Connect a league to unlock team-trade packages against league mates."
+        : "Build a trade in three steps: pick what you give, pick what you get, then see a short verdict — reason, value difference, and who wins the deal.",
     };
-  }, [tool]);
+  }, [tool, noLeague]);
 
   return (
     <div className="space-y-8">
-      <div className="animate-fade-up">
+      <div className="animate-fade-up space-y-3">
         <h1 className="type-page text-emerald-950">{copy.title}</h1>
-        <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          {copy.body}
-        </p>
+        <p className="type-body max-w-2xl text-emerald-950/65">{copy.body}</p>
+        {noLeague && freshness && <PoolFreshnessBanner freshness={freshness} />}
+        {noLeague && (!poolPlayers || poolPlayers.length === 0) && (
+          <p
+            role="status"
+            className="rounded-xl border border-orange-600/30 bg-orange-50/40 px-3 py-2 text-sm text-orange-800"
+          >
+            No player stats are available yet. Check back after the next data
+            refresh — we never invent points.
+          </p>
+        )}
       </div>
 
       <div
@@ -100,6 +119,7 @@ export function TradesHub({
           initialGiveIds={initialGiveIds}
           initialReceiveIds={initialReceiveIds}
           isDemo={isDemo}
+          forceFreeMode={noLeague}
         />
       ) : (
         <WhoToStart
@@ -108,6 +128,7 @@ export function TradesHub({
           poolPlayers={poolPlayers}
           trends={trends}
           isDemo={isDemo}
+          noLeague={noLeague}
         />
       )}
     </div>

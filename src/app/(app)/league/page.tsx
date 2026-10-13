@@ -15,7 +15,7 @@ export default async function LeaguePage() {
     return (
       <EmptyLeagueConnect
         title="League"
-        message="Load a demo league or connect ESPN to see standings, matchups, and every roster."
+        message="Connect an ESPN league to unlock standings, matchups, and every roster."
       />
     );
   }

@@ -20,7 +20,7 @@ export default async function DashboardPage() {
       <EmptyLeagueConnect
         className="animate-fade-up"
         title={`Welcome${session?.user?.name ? `, ${session.user.name.split(" ")[0]}` : ""}`}
-        message="Choose how to get your league — load the seeded demo or connect ESPN to unlock your dashboard, roster, and insights."
+        message="Connect an ESPN league to unlock your dashboard, roster, and insights. Trade Analyzer and Who to Start still work without a league on the full NFL player pool (full PPR)."
       >
         <p className="type-caption mt-4 text-emerald-950/50">
           On iPhone? <InstallHowToLink /> for a Home Screen shortcut.

@@ -271,7 +271,7 @@ export default async function InsightsPage() {
     return (
       <EmptyLeagueConnect
         title="Insights"
-        message="Load a demo league or connect ESPN to unlock start/sit, trades, waivers, news, and defense matchup history."
+        message="Connect an ESPN league to unlock start/sit, waivers, news, and defense matchup history for your roster. Trade Analyzer and Who to Start work without a league."
       />
     );
   }
@@ -323,11 +323,6 @@ export default async function InsightsPage() {
           </PendingLink>
           .
         </p>
-        {league.isDemo && (
-          <p className="type-eyebrow mt-3 text-orange-700">
-            Demo league data — guest-friendly
-          </p>
-        )}
       </div>
 
       {you && (

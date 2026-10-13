@@ -4,7 +4,8 @@
  * - Fetches official nflverse-data release CSVs over HTTPS (Node/TS only)
  * - Crosswalks GSIS → ESPN via players.csv
  * - Upserts Player.gsisId and PlayerWeekStat usage columns in batches
- * - Never writes projectedPpr / actualPpr (ESPN sync owns those)
+ * - Writes full-PPR actualPpr on leagueId="" rows from real box-score columns
+ *   (ESPN sync still owns league-scoped PPR; merge never overwrites it)
  * - Null beats fake: only real nflverse fields
  */
 
@@ -147,12 +148,11 @@ async function upsertUsageBatch(
         season: mapped.season,
         week: mapped.week,
         scoringFormat: "PPR",
-        // PPR left null — ESPN sync owns league scoring
         projectedPpr: null,
-        actualPpr: null,
+        actualPpr: mapped.actualPpr,
         projectionDelta: null,
         projectionSource: null,
-        actualSource: null,
+        actualSource: mapped.actualPpr != null ? "nflverse_ppr" : null,
         opponent: mapped.opponent,
         source: NFLVERSE_SOURCE,
         leagueId: NFLVERSE_LEAGUE_ID,
@@ -166,7 +166,10 @@ async function upsertUsageBatch(
         opponent: mapped.opponent,
         source: NFLVERSE_SOURCE,
         ...updateUsage,
-        // Never clobber PPR on update either
+        // League-agnostic rows: refresh computed full-PPR from box score.
+        ...(mapped.actualPpr != null
+          ? { actualPpr: mapped.actualPpr, actualSource: "nflverse_ppr" }
+          : {}),
       },
     });
     n += 1;

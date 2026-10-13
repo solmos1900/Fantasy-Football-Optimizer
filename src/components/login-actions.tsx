@@ -130,8 +130,9 @@ export function LoginActions({
             {pending ? "Working…" : "Continue as Guest"}
           </Button>
           <p className="type-caption leading-relaxed text-emerald-950/50">
-            Guest mode creates a temporary session so you can connect ESPN or
-            load the demo league without an account. UI labels you as Guest.
+            Guest mode creates a temporary session so you can try Trade
+            Analyzer and Who to Start on the NFL player pool, or connect ESPN,
+            without an account. UI labels you as Guest.
           </p>
         </div>
 

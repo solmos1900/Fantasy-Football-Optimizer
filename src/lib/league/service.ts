@@ -1,8 +1,4 @@
 import { prisma } from "@/lib/db";
-import {
-  applyDemoOwnerDisplayName,
-  createDemoLeague,
-} from "@/lib/demo/seed";
 import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
 import {
   decryptEspnCookie,
@@ -12,49 +8,12 @@ import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
 
 async function persistTrendsSafe(league: LeagueData): Promise<void> {
-  // Demo seed is fully regenerable in-memory — skip Neon writes (shared
-  // leagueId "demo-league" would only churn upserts for every guest visit).
-  if (league.isDemo) return;
   try {
     await refreshProjectionTrends(league);
   } catch (err) {
     // Trends are best-effort — never block sync if Neon is briefly unavailable
     console.error("[trends] refresh failed", err);
   }
-}
-
-async function userFlags(userId: string): Promise<{
-  name: string | null;
-  isGuest: boolean;
-}> {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, isGuest: true },
-    });
-    return { name: user?.name ?? null, isGuest: Boolean(user?.isGuest) };
-  } catch (err) {
-    console.error("[league] userFlags failed", err);
-    return { name: null, isGuest: false };
-  }
-}
-
-async function demoOwnerDisplayName(userId: string): Promise<string | null> {
-  const { name } = await userFlags(userId);
-  return name;
-}
-
-/** Current demo season shape — stale caches from older seeds are rebuilt. */
-const DEMO_SCORING_PERIOD = 3;
-
-function isCurrentDemoShape(league: LeagueData): boolean {
-  return (
-    league.isDemo === true &&
-    Number(league.scoringPeriodId) === DEMO_SCORING_PERIOD &&
-    Number(league.currentWeek) === DEMO_SCORING_PERIOD &&
-    Array.isArray(league.teams) &&
-    league.teams.length > 0
-  );
 }
 
 /** Prefer DB lastSyncedAt when hydrating a cached ESPN payload for the UI. */
@@ -70,7 +29,7 @@ export function applyConnectionLastSyncedAt(
 export async function getUserLeagueConnection(userId: string) {
   try {
     return await prisma.leagueConnection.findFirst({
-      where: { userId },
+      where: { userId, isDemo: false },
       orderBy: { updatedAt: "desc" },
     });
   } catch (err) {
@@ -80,103 +39,26 @@ export async function getUserLeagueConnection(userId: string) {
   }
 }
 
-export async function getLeagueDataForUser(userId: string): Promise<LeagueData | null> {
+export async function getLeagueDataForUser(
+  userId: string,
+): Promise<LeagueData | null> {
   const connection = await getUserLeagueConnection(userId);
   if (!connection) return null;
 
-  const ownerName = connection.isDemo
-    ? await demoOwnerDisplayName(userId)
-    : null;
+  // Ignore legacy demo / seed rows — product path is ESPN only.
+  if (connection.isDemo) return null;
 
   if (connection.cachedPayload) {
     try {
       const cached = JSON.parse(connection.cachedPayload) as LeagueData;
-      if (connection.isDemo) {
-        // Pre–week-3 demo caches (and any corrupt payload) can blow up Insights /
-        // defense comps after the completed-week-only change. Rebuild instead.
-        if (isCurrentDemoShape(cached)) {
-          return applyDemoOwnerDisplayName(cached, ownerName);
-        }
-      } else {
-        return applyConnectionLastSyncedAt(cached, connection.lastSyncedAt);
-      }
+      if (cached.isDemo || cached.leagueId === "demo-league") return null;
+      return applyConnectionLastSyncedAt(cached, connection.lastSyncedAt);
     } catch {
       // fall through
     }
   }
 
-  if (connection.isDemo) {
-    const demo = createDemoLeague(connection.teamId ?? 1, {
-      ownerDisplayName: ownerName,
-    });
-    const { isGuest } = await userFlags(userId);
-    // Guests: keep a slim connection row (no JSON blob). Seed regenerates fast.
-    // Signed-in demo users: cache payload so Insights stays snappy offline of seed changes.
-    if (!isGuest) {
-      try {
-        await prisma.leagueConnection.update({
-          where: { id: connection.id },
-          data: {
-            cachedPayload: JSON.stringify(demo),
-            lastSyncedAt: new Date(),
-            leagueName: demo.name,
-          },
-        });
-      } catch (err) {
-        console.error("[league] failed to persist rebuilt demo cache", err);
-      }
-    } else if (connection.leagueName !== demo.name) {
-      try {
-        await prisma.leagueConnection.update({
-          where: { id: connection.id },
-          data: { leagueName: demo.name, lastSyncedAt: new Date() },
-        });
-      } catch (err) {
-        console.error("[league] failed to touch guest demo connection", err);
-      }
-    }
-    await persistTrendsSafe(demo);
-    return demo;
-  }
-
   return null;
-}
-
-export async function connectDemoLeague(userId: string): Promise<LeagueData> {
-  const { name: ownerName, isGuest } = await userFlags(userId);
-  const demo = createDemoLeague(1, { ownerDisplayName: ownerName });
-  // Guests skip cachedPayload — wipe on session end; avoid storing demo JSON per visit.
-  const payload = isGuest ? null : JSON.stringify(demo);
-  await prisma.leagueConnection.upsert({
-    where: {
-      userId_leagueId_season: {
-        userId,
-        leagueId: demo.leagueId,
-        season: demo.season,
-      },
-    },
-    update: {
-      isDemo: true,
-      teamId: 1,
-      leagueName: demo.name,
-      espnSwid: null,
-      espnS2: null,
-      cachedPayload: payload,
-      lastSyncedAt: new Date(),
-    },
-    create: {
-      userId,
-      leagueId: demo.leagueId,
-      season: demo.season,
-      teamId: 1,
-      leagueName: demo.name,
-      isDemo: true,
-      cachedPayload: payload,
-      lastSyncedAt: new Date(),
-    },
-  });
-  await persistTrendsSafe(demo);
-  return demo;
 }
 
 export async function connectEspnLeague(
@@ -253,12 +135,12 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
   }
 
   if (connection.isDemo) {
-    return connectDemoLeague(userId);
+    throw new Error(
+      "Demo leagues are no longer supported. Connect an ESPN league instead.",
+    );
   }
 
   // Decrypt only for the ESPN fetch path; next write re-encrypts at rest.
-  // Missing/wrong ESPN_COOKIE_ENCRYPTION_KEY fails closed here — surface that
-  // to the client instead of leaving Last sync frozen on a silent failure.
   let swid: string | undefined;
   let espnS2: string | undefined;
   try {
