@@ -21,12 +21,33 @@ export default async function InsightsPreviewPage() {
   }
 
   const pool = await getNoLeaguePlayerPool();
-  // Take a balanced 15-man "roster" from real pool projections/usage.
+
+  // Prefer real players who currently show teammate-injury Opp chips
+  // (e.g. Josh Downs / Tyler Warren ← Alec Pierce IND IR) so QA screenshots
+  // exercise the feature without fabricating status.
+  const preferNames = new Set([
+    "Josh Downs",
+    "Tyler Warren",
+    "Ashton Dulin",
+    "Woody Marks",
+    "Troy Franklin",
+  ]);
+  const pick = (
+    pos: "QB" | "RB" | "WR" | "TE",
+    n: number,
+  ) => {
+    const all = pool.players.filter((p) => p.position === pos);
+    const preferred = all.filter((p) => preferNames.has(p.name));
+    const rest = all.filter((p) => !preferNames.has(p.name));
+    return [...preferred, ...rest].slice(0, n);
+  };
+
+  // Balanced 15-man "roster" from real pool (usage/projections — no fabricated stats).
   const byPos = {
-    QB: pool.players.filter((p) => p.position === "QB").slice(0, 2),
-    RB: pool.players.filter((p) => p.position === "RB").slice(0, 4),
-    WR: pool.players.filter((p) => p.position === "WR").slice(0, 5),
-    TE: pool.players.filter((p) => p.position === "TE").slice(0, 2),
+    QB: pick("QB", 2),
+    RB: pick("RB", 4),
+    WR: pick("WR", 5),
+    TE: pick("TE", 2),
   };
   const roster = [
     ...byPos.QB.map((p, i) => ({
