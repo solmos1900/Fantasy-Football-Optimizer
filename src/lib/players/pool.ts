@@ -11,6 +11,12 @@ import { detectLatestNflverseWeek, ingestNflverseUsage } from "@/lib/nflverse";
 import { NFLVERSE_LEAGUE_ID, NFLVERSE_SOURCE } from "@/lib/nflverse/map";
 import { fetchEspnPublicSkillPlayers } from "@/lib/players/espn-public";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
+import { fetchEspnScoreboard } from "@/lib/espn/client";
+import {
+  parseEspnScoreboard,
+  scheduleMapWithByes,
+  formatOpponentLabel,
+} from "@/lib/espn/scoreboard";
 import { defaultEspnSeason } from "@/lib/season";
 import type {
   FantasyPlayer,
@@ -342,17 +348,36 @@ async function loadPlayersFromDb(options: {
   for (const p of players) {
     const rows = byEspn.get(p.espnId) ?? [];
     const current = rows.find((r) => r.week === options.currentWeek);
-    const recentWeeks: WeeklyScore[] = rows
-      .filter((r) => r.week >= 1 && r.week <= options.statsThroughWeek)
-      .filter((r) => r.actualPpr != null || r.projectedPpr != null)
+    // One row per week — prefer ESPN-public actuals when both sources exist.
+    const byWeek = new Map<number, (typeof rows)[number]>();
+    for (const r of rows) {
+      if (r.week < 1 || r.week > options.statsThroughWeek) continue;
+      if (r.actualPpr == null && r.projectedPpr == null) continue;
+      const prev = byWeek.get(r.week);
+      if (!prev) {
+        byWeek.set(r.week, r);
+        continue;
+      }
+      const prefer =
+        r.actualSource === "espn_public" && prev.actualSource !== "espn_public"
+          ? r
+          : prev.actualPpr == null && r.actualPpr != null
+            ? r
+            : prev;
+      byWeek.set(r.week, prefer);
+    }
+    const recentWeeks: WeeklyScore[] = [...byWeek.values()]
       .map((r) => ({
         week: r.week,
-        points: r.actualPpr ?? 0,
+        points:
+          r.actualPpr != null && Number.isFinite(r.actualPpr)
+            ? Math.round(r.actualPpr * 10) / 10
+            : 0,
         projectedPoints: r.projectedPpr ?? undefined,
         opponent: r.opponent ?? undefined,
       }))
       .sort((a, b) => b.week - a.week)
-      .slice(0, 6);
+      .slice(0, 8);
 
     // Prefer players that have at least some signal.
     if (
@@ -495,6 +520,25 @@ export async function getNoLeaguePlayerPool(options?: {
         .filter(Boolean)
         .join(" ");
     }
+  }
+
+  // Stamp real opponents / BYE for the upcoming (current) week.
+  try {
+    const board = await fetchEspnScoreboard(weekSnap.currentWeek, season);
+    const parsed = parseEspnScoreboard(
+      board as Parameters<typeof parseEspnScoreboard>[0],
+    );
+    const schedule = scheduleMapWithByes(
+      parsed.byTeam,
+      parsed.eventCount,
+      players.map((p) => p.nflTeam),
+    );
+    players = players.map((p) => {
+      const opponent = formatOpponentLabel(p.nflTeam, schedule);
+      return opponent ? { ...p, opponent } : p;
+    });
+  } catch {
+    // Leave opponents unset rather than inventing matchups.
   }
 
   const freshness: PlayerPoolFreshness = {

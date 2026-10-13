@@ -51,9 +51,18 @@ export async function fetchNflWeekSnapshot(
     latestCompletedWeek = Math.max(0, currentWeek - 1);
   }
 
+  // After MNF (every game final), ESPN may still label the board as week N.
+  // Advance the "current" week to N+1 so projections / matchups target the
+  // upcoming slate while statsThroughWeek stays at the finished week.
+  const boardWeek =
+    Number.isFinite(currentWeek) && currentWeek > 0 ? currentWeek : 1;
+  const displayCurrentWeek = allCurrentWeekFinal
+    ? boardWeek + 1
+    : boardWeek;
+
   return {
     season,
-    currentWeek: Number.isFinite(currentWeek) && currentWeek > 0 ? currentWeek : 1,
+    currentWeek: displayCurrentWeek,
     latestCompletedWeek,
     allCurrentWeekFinal,
     eventCount: events.length,

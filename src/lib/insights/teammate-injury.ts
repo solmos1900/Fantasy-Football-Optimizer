@@ -10,6 +10,9 @@
  * - Opp ↓  when a competitor is ACTIVE after a stored prior OUT/IR/DOUBTFUL
  *          (returning volume)
  *
+ * Chip labels always use full name + NFL team
+ * (e.g. "Opp ↑ David Montgomery (HOU) D") — never WR2/RB1/last-name.
+ *
  * Volume proxy = last-3 avg target share (WR/TE) or carry share (RB)
  * from nflverse; if last-3 has <2 usable weeks (IR / early exit), use
  * season-to-date average. Null share → detail shows "—" (never guess).
@@ -22,6 +25,7 @@
 
 import { prisma } from "@/lib/db";
 import { NFLVERSE_LEAGUE_ID } from "@/lib/nflverse/map";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { formatStatusCode } from "@/lib/utils";
 import type {
   FantasyPlayer,
@@ -45,7 +49,7 @@ export type TeammateInjuryDirection = "up" | "down";
 
 export type TeammateInjuryImpact = {
   direction: TeammateInjuryDirection;
-  /** Short chip e.g. "Opp ↑ WR2 OUT" */
+  /** Chip e.g. "Opp ↑ David Montgomery (HOU) OUT" */
   label: string;
   tone: "good" | "warn" | "bad" | "info";
   teammateName: string;
@@ -94,14 +98,6 @@ export function isVolumeCompetitor(
     return true;
   }
   return false;
-}
-
-function roleTag(position: PlayerPosition, rankAmong: number): string {
-  if (position === "RB") return rankAmong <= 1 ? "RB1" : `RB${rankAmong}`;
-  if (position === "WR") return rankAmong <= 1 ? "WR1" : `WR${rankAmong}`;
-  if (position === "TE") return rankAmong <= 1 ? "TE1" : `TE${rankAmong}`;
-  if (position === "QB") return rankAmong <= 1 ? "QB1" : `QB${rankAmong}`;
-  return position;
 }
 
 function shortStatus(status: InjuryStatus): string {
@@ -319,21 +315,12 @@ export async function buildTeammateInjuryIndex(options: {
   });
   const carryTotals = await teamCarryTotals(options.season, through);
 
-  // Rank players on each team by projection for WR2/RB1 labels
   const byTeam = new Map<string, PoolPlayer[]>();
   for (const p of players) {
     const list = byTeam.get(p.nflTeam) ?? [];
     list.push(p);
     byTeam.set(p.nflTeam, list);
   }
-
-  const rankOnTeam = (p: PoolPlayer): number => {
-    const mates = (byTeam.get(p.nflTeam) ?? [])
-      .filter((m) => m.position === p.position)
-      .sort((a, b) => b.projectedPoints - a.projectedPoints);
-    const idx = mates.findIndex((m) => m.espnId === p.espnId);
-    return idx >= 0 ? idx + 1 : 1;
-  };
 
   for (const teamPlayers of byTeam.values()) {
     // Candidates who create vacated volume
@@ -436,11 +423,11 @@ export async function buildTeammateInjuryIndex(options: {
                   10,
               ) / 10;
 
-        const role = roleTag(tm.position, rankOnTeam(tm));
+        const who = formatPlayerLabel(tm.name, tm.nflTeam);
         const label =
           ev.direction === "up"
-            ? `Opp ↑ ${role} ${shortStatus(tm.injuryStatus)}`
-            : `Opp ↓ ${role} back`;
+            ? `Opp ↑ ${who} ${shortStatus(tm.injuryStatus)}`
+            : `Opp ↓ ${who} back`;
 
         const shareLabel =
           share3wk == null
@@ -453,8 +440,8 @@ export async function buildTeammateInjuryIndex(options: {
 
         const detail =
           ev.direction === "up"
-            ? `${tm.name} ${shortStatus(tm.injuryStatus)} · ${shareLabel} vacated · your cut ${allocLabel}`
-            : `${tm.name} back (${shortStatus(ev.prior ?? "OUT")}→${shortStatus(tm.injuryStatus)}) · ${shareLabel} returns · your cut ${allocLabel}`;
+            ? `${who} ${shortStatus(tm.injuryStatus)} · ${shareLabel} vacated · your cut ${allocLabel}`
+            : `${who} back (${shortStatus(ev.prior ?? "OUT")}→${shortStatus(tm.injuryStatus)}) · ${shareLabel} returns · your cut ${allocLabel}`;
 
         // Skip QUESTIONABLE vacated unless share is meaningful — still allow OUT/IR/D
         if (
@@ -485,7 +472,7 @@ export async function buildTeammateInjuryIndex(options: {
         if (ev.direction === "up" && tm.injuryStatus === "QUESTIONABLE") {
           impact.tone = "info";
           impact.chipDelta = Math.round(impact.chipDelta * 0.35 * 10) / 10;
-          impact.label = `Opp ↑ ${role} Q`;
+          impact.label = `Opp ↑ ${who} Q`;
         }
 
         const list = byEspnId.get(p.espnId) ?? [];

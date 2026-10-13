@@ -29,14 +29,14 @@ Gridiron IQ only stores stats we can attribute. **Null beats fake** — missing 
 | UI field | Source | Notes |
 |---------|--------|-------|
 | Weekly PPR points (completed weeks) | ESPN league sync → `PlayerWeekStat` (`leagueId` = league) | Real 0 kept; missing → DNP / — (never fake 0) |
-| Current-week **Proj (Sleeper)** | Sleeper public projections API | When feed returns empty shells → **—** (never relabel ESPN as Sleeper) |
+| Current-week **Proj (Sleeper)** | `api.sleeper.app/projections/nfl/{season}/{week}` → `stats.pts_ppr` | Not `/v1/projections` (empty shells). Bye / missing → **—** (never relabel ESPN as Sleeper) |
 | Injury / status chips | ESPN roster `injuryStatus` | Q/D/O/IR semantic colors |
 | Bye cells | ESPN public scoreboard (`BYE` opponent) | |
 | Target share / snap % / air yards | nflverse → `PlayerWeekStat` (`leagueId=""`) | Air-yards **share** = player airYards / team week sum |
 | Routes % / RZ touches | nflverse columns when present | Currently often null → **—** |
 | Matchup chip (`vs DAL 28th`) | nflverse actualPpr joined by opponent × position, last 4 completed weeks, ranked 1–32 | Tertiles tough/avg/soft; no Vegas |
 | Waiver watch opportunity | nflverse targets+carries last 2 weeks among league free agents | |
-| Teammate injury Opp ↑ / Opp ↓ | ESPN injuries feed (status) + nflverse target/carry share | Share = last-3 avg when ≥2 usable weeks, else season-to-date (IR/early exit). Vacated × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus` in `gameScriptNote`. Null share → — |
+| Teammate injury Opp ↑ / Opp ↓ | ESPN injuries feed (status) + nflverse target/carry share | Labels: full name + team (`Opp ↑ David Montgomery (HOU) D`) — never WR2/RB1. Share = last-3 avg when ≥2 usable weeks, else season-to-date. Vacated × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus`. Null share → — |
 | Freshness label | Same pattern as no-league tools | `Stats through Week N · updated X min ago` |
 
 ## Not integrated

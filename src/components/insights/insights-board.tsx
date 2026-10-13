@@ -11,6 +11,7 @@ import { PlayerSignalRow } from "@/components/insights/player-signal-row";
 import { WeekAxisLegend } from "@/components/insights/week-points-strip";
 import type { InsightsSignalsBundle } from "@/lib/insights/roster-signals";
 import { formatUpdatedHm } from "@/lib/insights/format-null";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import type { FantasyTeam } from "@/lib/types";
 
@@ -19,14 +20,18 @@ function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
   if (pulse.rising.length) {
     bits.push({
       label: "↑",
-      names: pulse.rising.map((p) => p.name.split(" ").pop()).join(", "),
+      names: pulse.rising
+        .map((p) => formatPlayerLabel(p.name, p.nflTeam))
+        .join(", "),
       tone: "text-success",
     });
   }
   if (pulse.fading.length) {
     bits.push({
       label: "↓",
-      names: pulse.fading.map((p) => p.name.split(" ").pop()).join(", "),
+      names: pulse.fading
+        .map((p) => formatPlayerLabel(p.name, p.nflTeam))
+        .join(", "),
       tone: "text-warning",
     });
   }
@@ -34,7 +39,10 @@ function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
     bits.push({
       label: "!",
       names: pulse.atRisk
-        .map((p) => `${p.name.split(" ").pop()} ${p.reason}`)
+        .map(
+          (p) =>
+            `${formatPlayerLabel(p.name, p.nflTeam)} ${p.reason}`,
+        )
         .join(", "),
       tone: "text-danger",
     });
@@ -148,7 +156,7 @@ function RosterDialog({
                 >
                   <PositionChip position={p.slot === "FLEX" ? "FLEX" : p.position} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
-                    {p.name}
+                    {formatPlayerLabel(p.name, p.nflTeam)}
                   </span>
                   {p.injuryStatus !== "ACTIVE" && (
                     <span
@@ -193,7 +201,7 @@ function RosterDialog({
                     >
                       <PositionChip position={p.position} />
                       <span className="min-w-0 flex-1 truncate text-sm text-emerald-950/80">
-                        {p.name}
+                        {formatPlayerLabel(p.name, p.nflTeam)}
                       </span>
                       <span className="type-stat w-10 text-right text-sm tabular-nums text-[#C026FF]">
                         {proj == null ? "—" : proj.toFixed(1)}
@@ -336,7 +344,7 @@ export function InsightsBoard({
               >
                 <PositionChip position={w.position} />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-emerald-950">
-                  {w.player.name}
+                  {formatPlayerLabel(w.player.name, w.player.nflTeam)}
                 </span>
                 <span className="text-[10px] text-emerald-950/45">
                   {w.reason}

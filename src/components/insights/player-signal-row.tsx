@@ -12,6 +12,7 @@ import type {
   UsageMetric,
 } from "@/lib/insights/roster-signals";
 import { dashNull, dashSharePct } from "@/lib/insights/format-null";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 import type { DvpChip } from "@/lib/insights/defense-vs-position";
 
 function trendTone(label: PlayerSignal["trend"]["label"]): string {
@@ -160,7 +161,10 @@ export function PlayerSignalRow({
           <div className="flex flex-wrap items-center gap-1.5">
             <PositionChip position={signal.player.position} />
             <h3 className="truncate text-sm font-semibold text-emerald-950">
-              {signal.player.name}
+              {formatPlayerLabel(
+                signal.player.name,
+                signal.player.nflTeam,
+              )}
             </h3>
             {status.show && (
               <span
@@ -187,8 +191,7 @@ export function PlayerSignalRow({
             </span>
           </div>
           <p className="mt-0.5 text-[11px] text-emerald-950/45">
-            {signal.player.nflTeam}
-            {signal.player.isStarter ? " · START" : " · BN"}
+            {signal.player.isStarter ? "START" : "BN"}
             {" · "}
             3wk {dashNull(t.avg3)} · szn {dashNull(t.seasonAvg)}
             {t.pctDelta != null

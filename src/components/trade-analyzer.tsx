@@ -566,7 +566,7 @@ function LeanResultsCard({
                       imp.tone === "info" && "border-info/40 text-info",
                     )}
                   >
-                    {row.playerName.split(" ").pop()} · {imp.label}
+                    {imp.label}
                   </button>
                 );
               }),

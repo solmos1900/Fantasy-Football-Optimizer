@@ -16,18 +16,28 @@ import {
   dvpForPlayer,
   type DvpChip,
 } from "@/lib/insights/defense-vs-position";
-import { fetchSleeperProjections } from "@/lib/sleeper/projections";
+import {
+  fetchSleeperProjections,
+  sleeperProjForPlayer,
+} from "@/lib/sleeper/projections";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
 import type { PlayerPoolFreshness } from "@/lib/players/pool";
 import {
   applyInjuryReport,
   fetchEspnInjuryReport,
 } from "@/lib/espn/injuries";
+import { fetchEspnScoreboard } from "@/lib/espn/client";
+import {
+  parseEspnScoreboard,
+  scheduleMapWithByes,
+  formatOpponentLabel,
+} from "@/lib/espn/scoreboard";
 import {
   buildTeammateInjuryIndex,
   serializeTeammateInjuryIndex,
   type TeammateInjuryImpact,
 } from "@/lib/insights/teammate-injury";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 import type {
   FantasyPlayer,
   FantasyTeam,
@@ -97,9 +107,14 @@ export type PlayerSignal = {
 };
 
 export type RosterPulse = {
-  rising: { name: string; espnId: number }[];
-  fading: { name: string; espnId: number }[];
-  atRisk: { name: string; espnId: number; reason: string }[];
+  rising: { name: string; espnId: number; nflTeam: string }[];
+  fading: { name: string; espnId: number; nflTeam: string }[];
+  atRisk: {
+    name: string;
+    espnId: number;
+    nflTeam: string;
+    reason: string;
+  }[];
 };
 
 export type WaiverWatchItem = {
@@ -319,37 +334,53 @@ function weekCellsForPlayer(options: {
   player: FantasyPlayer;
   currentWeek: number;
   sleeperProj: number | null;
-  /** nflverse rows — opponent/BYE hints only; ESPN owns PPR points. */
+  /** Latest fully finished week — played cells stop here. */
+  statsThroughWeek: number;
+  /** nflverse rows — opponent/BYE hints only; ESPN/nflverse PPR owns points. */
   usageRows?: UsageWeekRow[];
 }): WeekPointCell[] {
-  const { player, currentWeek, sleeperProj, usageRows = [] } = options;
+  const {
+    player,
+    currentWeek,
+    sleeperProj,
+    statsThroughWeek,
+    usageRows = [],
+  } = options;
   const byWeek = new Map<number, { pts: number | null; opp?: string }>();
 
+  // Seed from nflverse/ESPN PlayerWeekStat (usage rows) — single source for
+  // completed-week PPR so strips stay consistent across renders.
   for (const u of usageRows) {
-    if (u.week < 1 || u.week >= currentWeek) continue;
+    if (u.week < 1 || u.week > statsThroughWeek) continue;
+    const pts =
+      u.actualPpr != null && Number.isFinite(u.actualPpr)
+        ? Math.round(u.actualPpr * 10) / 10
+        : null;
     byWeek.set(u.week, {
-      pts: null,
+      pts,
       opp: u.opponent ?? undefined,
     });
   }
 
+  // League-synced recentWeeks override when present (true ESPN league scoring).
   for (const w of player.recentWeeks ?? []) {
-    if (w.week < 1 || w.week >= currentWeek) continue;
-    // ESPN league points are source of truth — keep real 0; null stays null.
+    if (w.week < 1 || w.week > statsThroughWeek) continue;
     const pts =
       typeof w.points === "number" && Number.isFinite(w.points)
-        ? w.points
+        ? Math.round(w.points * 10) / 10
         : null;
     const prev = byWeek.get(w.week);
+    // Prefer explicit league points; keep usage pts when recent week lacks them.
     byWeek.set(w.week, {
-      pts,
+      pts: pts ?? prev?.pts ?? null,
       opp: w.opponent ?? prev?.opp,
     });
   }
 
   const cells: WeekPointCell[] = [];
   for (let week = 1; week <= currentWeek; week++) {
-    if (week === currentWeek) {
+    if (week > statsThroughWeek) {
+      // Current / future slate: Sleeper proj or BYE
       const bye = (player.opponent ?? "").toUpperCase() === "BYE";
       if (bye) {
         cells.push({ week, kind: "bye", value: null });
@@ -373,7 +404,7 @@ function weekCellsForPlayer(options: {
       cells.push({ week, kind: "played", value: known.pts });
       continue;
     }
-    // Completed week with no ESPN score → DNP / missing (never fake 0)
+    // Completed week with no score → DNP / missing (never fake 0)
     cells.push({ week, kind: "dnp", value: null });
   }
   return cells;
@@ -456,7 +487,7 @@ function rosterLevelChips(
       id: "bye-conflict",
       label: "Bye conflict",
       tone: "warn",
-      detail: `${byeStarters.length} starters on bye: ${byeStarters.map((p) => p.name).join(", ")}`,
+      detail: `${byeStarters.length} starters on bye: ${byeStarters.map((p) => formatPlayerLabel(p.name, p.nflTeam)).join(", ")}`,
     });
   }
 
@@ -495,10 +526,18 @@ function rosterLevelChips(
 function buildPulse(signals: PlayerSignal[]): RosterPulse {
   const rising = signals
     .filter((s) => s.trend.label === "Rising")
-    .map((s) => ({ name: s.player.name, espnId: s.player.espnId }));
+    .map((s) => ({
+      name: s.player.name,
+      espnId: s.player.espnId,
+      nflTeam: s.player.nflTeam,
+    }));
   const fading = signals
     .filter((s) => s.trend.label === "Fading")
-    .map((s) => ({ name: s.player.name, espnId: s.player.espnId }));
+    .map((s) => ({
+      name: s.player.name,
+      espnId: s.player.espnId,
+      nflTeam: s.player.nflTeam,
+    }));
   const atRisk = signals
     .filter(
       (s) =>
@@ -509,6 +548,7 @@ function buildPulse(signals: PlayerSignal[]): RosterPulse {
     .map((s) => ({
       name: s.player.name,
       espnId: s.player.espnId,
+      nflTeam: s.player.nflTeam,
       reason: isOutish(s.status)
         ? s.status
         : s.status === "QUESTIONABLE"
@@ -575,12 +615,16 @@ export async function buildRosterInsightsSignals(
   league: LeagueData,
   team: FantasyTeam,
 ): Promise<InsightsSignalsBundle> {
-  const currentWeek = league.scoringPeriodId || league.currentWeek;
   const weekSnap = await fetchNflWeekSnapshot(league.season).catch(() => null);
-  const statsThroughWeek = Math.min(
-    currentWeek - 1,
-    weekSnap?.latestCompletedWeek ?? currentWeek - 1,
-  );
+  // Prefer live NFL snapshot: after MNF, currentWeek advances to the upcoming
+  // slate while latestCompletedWeek stays on the finished week.
+  const currentWeek =
+    weekSnap?.currentWeek ??
+    league.scoringPeriodId ??
+    league.currentWeek;
+  const statsThroughWeek =
+    weekSnap?.latestCompletedWeek ??
+    Math.max(0, currentWeek - 1);
 
   const roster = team.roster.filter((p) => p.slot !== "IR");
   const espnIds = roster.map((p) => p.espnId);
@@ -621,20 +665,43 @@ export async function buildRosterInsightsSignals(
     contextEspn.add(p.espnId);
   }
 
-  const [usageMap, dvpMap, sleeper, injuryReport] = await Promise.all([
-    loadUsageByEspn({
-      season: league.season,
-      throughWeek: Math.max(statsThroughWeek, 0),
-      espnIds: [...contextEspn],
-    }),
-    buildDefenseVsPositionMap({
-      season: league.season,
-      throughWeek: Math.max(statsThroughWeek, 0),
-      lookback: 4,
-    }),
-    fetchSleeperProjections({ season: league.season, week: currentWeek }),
-    fetchEspnInjuryReport(),
-  ]);
+  const [usageMap, dvpMap, sleeper, injuryReport, scoreboardRaw] =
+    await Promise.all([
+      loadUsageByEspn({
+        season: league.season,
+        throughWeek: Math.max(statsThroughWeek, 0),
+        espnIds: [...contextEspn],
+      }),
+      buildDefenseVsPositionMap({
+        season: league.season,
+        throughWeek: Math.max(statsThroughWeek, 0),
+        lookback: 4,
+      }),
+      fetchSleeperProjections({ season: league.season, week: currentWeek }),
+      fetchEspnInjuryReport(),
+      fetchEspnScoreboard(currentWeek, league.season).catch(() => null),
+    ]);
+
+  // Stamp real opponents / BYE for the projection week (never leave vs —).
+  const parsedBoard = scoreboardRaw
+    ? parseEspnScoreboard(
+        scoreboardRaw as Parameters<typeof parseEspnScoreboard>[0],
+      )
+    : null;
+  const schedule = parsedBoard
+    ? scheduleMapWithByes(
+        parsedBoard.byTeam,
+        parsedBoard.eventCount,
+        contextPlayers.map((p) => p.nflTeam),
+      )
+    : null;
+
+  const withOpponent = (p: FantasyPlayer): FantasyPlayer => {
+    if (!schedule) return p;
+    const label = formatOpponentLabel(p.nflTeam, schedule);
+    if (!label) return p;
+    return { ...p, opponent: label };
+  };
 
   const injuredContext = applyInjuryReport(contextPlayers, injuryReport);
   // Prefer roster's own ESPN fantasy injury when present (source of truth for owned players)
@@ -659,14 +726,16 @@ export async function buildRosterInsightsSignals(
   const weekAxis = Array.from({ length: currentWeek }, (_, i) => i + 1);
   const updatedAt = sleeper.fetchedAt || league.lastSyncedAt;
 
-  const signals: PlayerSignal[] = roster.map((player) => {
-    const sleeperProj = sleeper.byEspnId.get(player.espnId) ?? null;
+  const signals: PlayerSignal[] = roster.map((rawPlayer) => {
+    const player = withOpponent(rawPlayer);
+    const sleeperProj = sleeperProjForPlayer(sleeper, player);
     const usageRows = usageMap.get(player.espnId) ?? [];
     const weeks = weekCellsForPlayer({
       player,
       currentWeek,
       sleeperProj,
       usageRows,
+      statsThroughWeek: Math.max(statsThroughWeek, 0),
     });
     const playedVals = weeks
       .filter((c) => c.kind === "played" && c.value != null)
@@ -724,29 +793,40 @@ export async function buildRosterInsightsSignals(
     Math.max(statsThroughWeek, 0),
   );
 
-  const coverageUpdated =
-    (
-      await prisma.playerWeekStat.findFirst({
-        where: {
-          season: league.season,
-          leagueId: NFLVERSE_LEAGUE_ID,
-          week: Math.max(statsThroughWeek, 0) || undefined,
-        },
-        orderBy: { updatedAt: "desc" },
-        select: { updatedAt: true },
-      })
-    )?.updatedAt?.toISOString() ?? null;
+  const through = Math.max(statsThroughWeek, 0);
+  const coverage =
+    through > 0
+      ? await prisma.playerWeekStat.aggregate({
+          where: {
+            season: league.season,
+            leagueId: NFLVERSE_LEAGUE_ID,
+            week: through,
+            actualPpr: { not: null },
+          },
+          _count: true,
+          _max: { updatedAt: true },
+        })
+      : { _count: 0, _max: { updatedAt: null } };
+  const coverageUpdated = coverage._max.updatedAt?.toISOString() ?? null;
+  const latestWeekMissing = through > 0 && coverage._count < 25;
 
   const freshness: PlayerPoolFreshness = {
     season: league.season,
     currentWeek,
-    statsThroughWeek: Math.max(statsThroughWeek, 0),
+    statsThroughWeek: through,
     statsUpdatedAt: coverageUpdated,
     projectionsUpdatedAt: sleeper.emptyFeed ? null : sleeper.fetchedAt,
-    latestWeekMissing: statsThroughWeek > 0 && !coverageUpdated,
-    warning: sleeper.emptyFeed
-      ? "Sleeper projections unavailable — Proj cells show — (not ESPN relabeled)."
-      : null,
+    latestWeekMissing,
+    warning: [
+      sleeper.emptyFeed
+        ? "Sleeper projections unavailable — Proj cells show — (not ESPN relabeled)."
+        : null,
+      latestWeekMissing
+        ? `Week ${through} completed-week stats are thin or missing — not treating older weeks as current.`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
     scoringLabel: "Full PPR",
   };
 
