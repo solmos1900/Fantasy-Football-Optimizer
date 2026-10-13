@@ -41,17 +41,33 @@ export function WalkthroughVideo({
       return;
     }
 
-    void fetch(url, { method: "HEAD", cache: "no-store" })
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 2500);
+
+    void fetch(url, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: controller.signal,
+    })
       .then((res) => {
         if (cancelled) return;
-        setStatus(res.ok ? "ready" : "missing");
+        // Zero-byte stubs (or missing) must show the honest placeholder — never
+        // pretends a walkthrough exists.
+        const length = Number(res.headers.get("content-length") ?? "0");
+        const ok = res.ok && length > 0;
+        setStatus(ok ? "ready" : "missing");
       })
       .catch(() => {
         if (!cancelled) setStatus("missing");
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
       });
 
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
     };
   }, [src]);
 

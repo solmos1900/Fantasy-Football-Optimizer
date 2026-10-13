@@ -142,6 +142,12 @@ export function ConnectGuide({ open, onDismiss }: Props) {
   }
 
   function onPointerDown(e: ReactPointerEvent) {
+    // Ignore swipes that start on buttons/inputs so Next/Skip stay reliable.
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, a, input, textarea, video")) {
+      touchStartX.current = null;
+      return;
+    }
     touchStartX.current = e.clientX;
   }
 
