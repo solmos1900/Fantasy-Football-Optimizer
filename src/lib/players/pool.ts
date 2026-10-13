@@ -216,7 +216,11 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           projectedPpr: player.projectedPoints || null,
           projectionSource: "espn_public",
           source: "espn",
-          opponent: player.opponent ?? null,
+          // Never wipe an existing nflverse/scoreboard opponent with null —
+          // ESPN public refresh does not carry opponent labels.
+          ...(player.opponent
+            ? { opponent: player.opponent }
+            : {}),
           gameScriptNote: injuryNote,
           updatedAt: now,
         },

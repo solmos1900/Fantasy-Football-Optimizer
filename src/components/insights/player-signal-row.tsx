@@ -210,6 +210,14 @@ export function PlayerSignalRow({
             >
               {signal.matchup.label}
             </span>
+          ) : signal.byeThisWeek ? (
+            <span className="rounded border border-info/35 px-1.5 py-0.5 text-[10px] font-semibold text-info">
+              BYE
+            </span>
+          ) : signal.player.opponent ? (
+            <span className="rounded border border-emerald-950/20 px-1.5 py-0.5 text-[10px] text-emerald-950/55">
+              {signal.player.opponent} · —
+            </span>
           ) : (
             <span className="rounded border border-emerald-950/15 px-1.5 py-0.5 text-[10px] text-emerald-950/35">
               vs — · —

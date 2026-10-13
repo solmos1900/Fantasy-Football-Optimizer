@@ -5,6 +5,7 @@ import type {
   PlayerRole,
   WeeklyScore,
 } from "@/lib/types";
+import { normalizeNflAbbrev } from "@/lib/espn/pro-teams";
 
 /**
  * Defense matchup history — how similar-role players fared vs a given defense.
@@ -70,7 +71,8 @@ export function normalizeOpponentAbbrev(opponent?: string): string | null {
     .replace(/\s+/g, "")
     .toUpperCase();
   if (!cleaned || cleaned === "BYE" || cleaned.length > 4) return null;
-  return cleaned;
+  // Align LA/WAS/JAC aliases with ESPN scoreboard keys (LAR/WSH/JAX).
+  return normalizeNflAbbrev(cleaned) ?? cleaned;
 }
 
 export function inferPlayerRole(player: FantasyPlayer): PlayerRole {
