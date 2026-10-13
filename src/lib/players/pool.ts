@@ -228,6 +228,9 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
     }
 
     // Persist completed-week actuals from ESPN public payload when present.
+    // Gap-fill only: never overwrite actualSource=nflverse_ppr. When nflverse
+    // has no row (e.g. Troy Franklin W4), ESPN category full-PPR is a real
+    // second source and may be written.
     for (const rw of player.recentWeeks ?? []) {
       if (rw.week < 1 || rw.week >= week) continue;
       // Keep real 0-PPR weeks; skip only when both actual and proj are absent.
@@ -237,6 +240,27 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
       ) {
         continue;
       }
+      const espnPts =
+        typeof rw.points === "number" && Number.isFinite(rw.points)
+          ? rw.points
+          : null;
+      const existing = await prisma.playerWeekStat.findUnique({
+        where: {
+          espnId_season_week_leagueId: {
+            espnId: player.espnId,
+            season,
+            week: rw.week,
+            leagueId: NFLVERSE_LEAGUE_ID,
+          },
+        },
+        select: { actualPpr: true, actualSource: true },
+      });
+      const keepNflverse =
+        existing?.actualSource === "nflverse_ppr" &&
+        existing.actualPpr != null;
+      const fillActual =
+        !keepNflverse && espnPts != null && existing?.actualPpr == null;
+
       await prisma.playerWeekStat.upsert({
         where: {
           espnId_season_week_leagueId: {
@@ -256,11 +280,9 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           week: rw.week,
           scoringFormat: "PPR",
           projectedPpr: rw.projectedPoints ?? null,
-          // Do not seed completed-week actuals from ESPN appliedTotal —
-          // nflverse box-score full-PPR owns leagueId="" actualPpr.
-          actualPpr: null,
+          actualPpr: espnPts,
           projectionSource: rw.projectedPoints != null ? "espn_public" : null,
-          actualSource: null,
+          actualSource: espnPts != null ? "espn_category" : null,
           source: "espn",
           leagueId: NFLVERSE_LEAGUE_ID,
           opponent: rw.opponent ?? null,
@@ -273,7 +295,10 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
                 projectionSource: "espn_public",
               }
             : {}),
-          // Never overwrite nflverse full-PPR actuals with ESPN appliedTotal.
+          ...(fillActual
+            ? { actualPpr: espnPts, actualSource: "espn_category" }
+            : {}),
+          ...(rw.opponent ? { opponent: rw.opponent } : {}),
           updatedAt: now,
         },
       });

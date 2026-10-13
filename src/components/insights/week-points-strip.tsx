@@ -7,7 +7,7 @@ import { dashNull } from "@/lib/insights/format-null";
 /**
  * Module A — identical week axis for every player.
  * Played weeks = solid bars; current Proj (Sleeper) = purple outline + hatch;
- * BYE / DNP = labeled empties (never fake 0 bars).
+ * BYE / DNP / empty (snaps but null PPR) = labeled gaps (never fake 0 bars).
  */
 export function WeekPointsStrip({
   weeks,
@@ -107,7 +107,7 @@ export function WeekAxisLegend({ weekAxis }: { weekAxis: number[] }) {
     <p className="text-[10px] text-emerald-950/40">
       Axis W1–W{last}
       {last != null ? " · " : ""}
-      <span className="text-[#C026FF]">P</span> = Proj (Sleeper) · BYE/DNP ≠ 0
+      <span className="text-[#C026FF]">P</span> = Proj (Sleeper) · BYE/DNP/— ≠ 0
     </p>
   );
 }

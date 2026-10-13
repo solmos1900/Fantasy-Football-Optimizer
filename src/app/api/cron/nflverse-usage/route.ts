@@ -5,9 +5,11 @@ import {
   ingestNflverseUsage,
 } from "@/lib/nflverse";
 import {
+  loadGoldenFixture,
   persistGoldenCheckResult,
   runGoldenAccuracyCheck,
 } from "@/lib/accuracy/golden-check";
+import { fillEspnGamelogGaps } from "@/lib/players/fill-espn-gaps";
 
 export const runtime = "nodejs";
 /** Weekly CSV fetch + batch upserts can exceed the default hobby limit. */
@@ -62,6 +64,20 @@ export async function GET(request: Request) {
       mergeIntoLeagueRows: true,
     });
 
+    // Secondary source: ESPN gamelog fills null-PPR gaps (e.g. Troy Franklin W4)
+    // without overwriting nflverse_ppr.
+    let espnGaps = { filled: 0, checked: 0 };
+    try {
+      const fixture = loadGoldenFixture();
+      espnGaps = await fillEspnGamelogGaps({
+        season,
+        throughWeek: Math.max(week, fixture.season === season ? 5 : week),
+        espnIds: fixture.players.map((p) => p.espnId),
+      });
+    } catch (gapErr) {
+      console.warn("[cron/nflverse-usage] espn gap-fill skipped", gapErr);
+    }
+
     let golden = null;
     try {
       golden = await runGoldenAccuracyCheck();
@@ -81,7 +97,7 @@ export async function GET(request: Request) {
       };
     }
 
-    return NextResponse.json({ ok: true, ...result, golden });
+    return NextResponse.json({ ok: true, ...result, espnGaps, golden });
   } catch (err) {
     console.error("[cron/nflverse-usage] failed", err);
     const message = err instanceof Error ? err.message : "nflverse ingest failed";

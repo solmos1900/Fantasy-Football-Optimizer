@@ -14,6 +14,28 @@ import { NFLVERSE_LEAGUE_ID } from "@/lib/nflverse/map";
 import { normalizeOpponentAbbrev } from "@/lib/insights/defense-matchups";
 import type { PlayerPosition } from "@/lib/types";
 
+/** Local venue parse — avoids coupling to player-detail. */
+function venueFromOpponent(opponent: string | null | undefined): {
+  abbrev: string | null;
+  venue: "home" | "away" | "unknown";
+} {
+  if (!opponent?.trim() || /^bye$/i.test(opponent.trim())) {
+    return { abbrev: null, venue: "unknown" };
+  }
+  const raw = opponent.trim();
+  const venue = raw.startsWith("@")
+    ? "away"
+    : /^vs\.?\s+/i.test(raw)
+      ? "home"
+      : "unknown";
+  const abbrev = raw
+    .replace(/^vs\.?\s*/i, "")
+    .replace(/^@\s*/i, "")
+    .trim()
+    .toUpperCase();
+  return { abbrev: abbrev || null, venue };
+}
+
 export type DvpTier = "tough" | "avg" | "soft";
 
 export type DvpChip = {
@@ -25,7 +47,16 @@ export type DvpChip = {
   avgAllowed: number | null;
   sampleWeeks: number;
   tier: DvpTier | null;
-  /** Short label e.g. "vs DAL 28th" */
+  /** Inclusive sample window start (completed weeks). */
+  windowFrom: number;
+  /** Inclusive sample window end (completed weeks). */
+  windowThrough: number;
+  /**
+   * Unambiguous rank text, e.g. `7th-toughest vs RB (W2–5)`.
+   * Does not include vs/@ venue — use `formatDvpChipLabel`.
+   */
+  rankLabel: string;
+  /** @deprecated Prefer formatDvpChipLabel(chip, player.opponent). */
   label: string;
 };
 
@@ -50,6 +81,36 @@ function tierForRank(rank: number): DvpTier {
   if (rank <= 10) return "tough";
   if (rank <= 21) return "avg";
   return "soft";
+}
+
+function buildRankLabel(
+  rank: number | null,
+  position: PlayerPosition,
+  fromWeek: number,
+  through: number,
+): string {
+  const window = `W${fromWeek}–${through}`;
+  if (rank == null) return `— vs ${position} (${window})`;
+  return `${ordinal(rank)}-toughest vs ${position} (${window})`;
+}
+
+/**
+ * Venue prefix from the scoreboard opponent string (`@ ATL` / `vs JAX` / `ATL`).
+ * Away → `@ATL` (no space); home → `vs ATL`.
+ */
+export function formatDvpChipLabel(
+  chip: DvpChip,
+  opponentRaw?: string | null,
+): string {
+  const parsed = venueFromOpponent(opponentRaw ?? chip.opponent);
+  const team = (parsed.abbrev ?? chip.opponent).toUpperCase();
+  const venueTeam =
+    parsed.venue === "away"
+      ? `@${team}`
+      : parsed.venue === "home"
+        ? `vs ${team}`
+        : team;
+  return `${venueTeam} ${chip.rankLabel}`;
 }
 
 /**
@@ -123,6 +184,7 @@ export async function buildDefenseVsPositionMap(options: {
     // Need a meaningful field to rank — require at least 8 defenses with data
     if (entries.length < 8) {
       for (const e of entries) {
+        const rankLabel = buildRankLabel(null, pos, fromWeek, through);
         out.set(`${e.def}|${pos}`, {
           opponent: e.def,
           position: pos,
@@ -130,7 +192,24 @@ export async function buildDefenseVsPositionMap(options: {
           avgAllowed: Math.round(e.avg * 10) / 10,
           sampleWeeks: e.weeks,
           tier: null,
-          label: `vs ${e.def} · —`,
+          windowFrom: fromWeek,
+          windowThrough: through,
+          rankLabel,
+          label: formatDvpChipLabel(
+            {
+              opponent: e.def,
+              position: pos,
+              rank: null,
+              avgAllowed: null,
+              sampleWeeks: e.weeks,
+              tier: null,
+              windowFrom: fromWeek,
+              windowThrough: through,
+              rankLabel,
+              label: "",
+            },
+            e.def,
+          ),
         });
       }
       continue;
@@ -141,15 +220,21 @@ export async function buildDefenseVsPositionMap(options: {
     entries.forEach((e, idx) => {
       const rank = idx + 1;
       const tier = tierForRank(rank);
-      out.set(`${e.def}|${pos}`, {
+      const rankLabel = buildRankLabel(rank, pos, fromWeek, through);
+      const chip: DvpChip = {
         opponent: e.def,
         position: pos,
         rank,
         avgAllowed: Math.round(e.avg * 10) / 10,
         sampleWeeks: e.weeks,
         tier,
-        label: `vs ${e.def} ${ordinal(rank)}`,
-      });
+        windowFrom: fromWeek,
+        windowThrough: through,
+        rankLabel,
+        label: "",
+      };
+      chip.label = formatDvpChipLabel(chip, e.def);
+      out.set(`${e.def}|${pos}`, chip);
     });
   }
 
@@ -164,5 +249,11 @@ export function dvpForPlayer(
   const def = normalizeOpponentAbbrev(opponent);
   if (!def) return null;
   if (!SKILL.includes(position)) return null;
-  return map.get(`${def}|${position}`) ?? null;
+  const base = map.get(`${def}|${position}`);
+  if (!base) return null;
+  // Re-label with scoreboard venue (vs / @) from the player's opponent string.
+  return {
+    ...base,
+    label: formatDvpChipLabel(base, opponent),
+  };
 }

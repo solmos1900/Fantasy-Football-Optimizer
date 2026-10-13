@@ -352,7 +352,10 @@ function weekCellsForPlayer(options: {
     statsThroughWeek,
     usageRows = [],
   } = options;
-  const byWeek = new Map<number, { pts: number | null; opp?: string }>();
+  const byWeek = new Map<
+    number,
+    { pts: number | null; opp?: string; snapShare: number | null; hasRow: boolean }
+  >();
 
   // Seed from nflverse/ESPN PlayerWeekStat (usage rows) — single source for
   // completed-week PPR so strips stay consistent across renders.
@@ -365,13 +368,13 @@ function weekCellsForPlayer(options: {
     byWeek.set(u.week, {
       pts,
       opp: u.opponent ?? undefined,
+      snapShare: u.snapShare,
+      hasRow: true,
     });
   }
 
-  // Connected-league recentWeeks may carry league-scored points. For the
-  // no-league / nflverse strip, usage-row actualPpr (full PPR) already seeded
-  // byWeek — only fill gaps, never replace a known nflverse total with a
-  // thinner ESPN appliedTotal.
+  // Secondary fill: ESPN/Sleeper box-score PPR (player.recentWeeks) only when
+  // nflverse left the week null — never replace a known nflverse total.
   for (const w of player.recentWeeks ?? []) {
     if (w.week < 1 || w.week > statsThroughWeek) continue;
     const pts =
@@ -382,6 +385,8 @@ function weekCellsForPlayer(options: {
     byWeek.set(w.week, {
       pts: prev?.pts != null ? prev.pts : pts,
       opp: w.opponent ?? prev?.opp,
+      snapShare: prev?.snapShare ?? null,
+      hasRow: prev?.hasRow ?? pts != null,
     });
   }
 
@@ -412,7 +417,18 @@ function weekCellsForPlayer(options: {
       cells.push({ week, kind: "played", value: known.pts });
       continue;
     }
-    // Completed week with no score → DNP / missing (never fake 0)
+    // Stat row with snaps but null PPR → unknown ("—"), not DNP.
+    // (e.g. Troy Franklin W4: snaps in secondary source, nflverse PPR null.)
+    const playedSnaps =
+      known?.hasRow &&
+      known.snapShare != null &&
+      Number.isFinite(known.snapShare) &&
+      known.snapShare > 0;
+    if (playedSnaps) {
+      cells.push({ week, kind: "empty", value: null });
+      continue;
+    }
+    // No score and no snap evidence → DNP (never fake 0)
     cells.push({ week, kind: "dnp", value: null });
   }
   return cells;

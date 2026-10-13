@@ -13,7 +13,8 @@ If a PR violates any rule, it is not merge-ready.
 3. **Full PPR** — no-league / Insights strips use **nflverse box-score full PPR** (`actualSource=nflverse_ppr`). Connected leagues may show league-scored points but must **label** the scoring. Never silent half-PPR / standard; never prefer ESPN `appliedTotal` over category / nflverse full PPR for the public pool.
 4. **Latest completed week post-MNF** — after every game in week N is final, load week N into completed strips (or show an **explicit missing-week notice**). Do not hard-cap at `currentWeek - 1` when the scoreboard says N is done.
 5. **Identical week axes** — every player strip shares the same W1…Wn (+ Proj) scaffold. No per-player trimmed axes.
-6. **No 0 for BYE / DNP / null** — missing weeks are BYE, DNP, or `—`. Never coerce null/absent to `0`.
+6. **No 0 for BYE / DNP / null** — missing weeks are BYE, DNP, or `—`. Never coerce null/absent to `0`. A completed week with snaps but null PPR is `empty` (`—`), not DNP; fill PPR from ESPN gamelog when available without overwriting `nflverse_ppr`.
+6b. **Matchup venue** — DVP chips use scoreboard `vs` / `@` (e.g. `@ATL`), and ranks read `7th-toughest vs RB (W2–5)`.
 
 ## Integrity
 
