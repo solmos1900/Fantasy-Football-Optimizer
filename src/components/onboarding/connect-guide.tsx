@@ -331,7 +331,13 @@ export function ConnectGuide({ open, onDismiss }: Props) {
               type="button"
               variant="primary"
               size="sm"
-              onClick={isLastSlide && isLastPlatform ? onDismiss : goNext}
+              data-testid="connect-guide-next"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isLastSlide && isLastPlatform) onDismiss();
+                else goNext();
+              }}
             >
               {doneLabel}
             </Button>

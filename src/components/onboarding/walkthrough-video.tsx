@@ -34,7 +34,8 @@ export function WalkthroughVideo({
     let cancelled = false;
     setStatus("loading");
 
-    // HEAD probe for same-origin public assets; remote URLs fall through to <video>.
+    // Prefer a 1-byte Range GET — Next.dev HEAD on missing public files can hang.
+    // Remote URLs fall through to <video> and use onError.
     const isRemote = /^https?:\/\//i.test(url);
     if (isRemote) {
       setStatus("ready");
@@ -42,20 +43,24 @@ export function WalkthroughVideo({
     }
 
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 2500);
+    const timer = window.setTimeout(() => controller.abort(), 3000);
 
     void fetch(url, {
-      method: "HEAD",
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
       cache: "no-store",
       signal: controller.signal,
     })
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return;
-        // Zero-byte stubs (or missing) must show the honest placeholder — never
-        // pretends a walkthrough exists.
-        const length = Number(res.headers.get("content-length") ?? "0");
-        const ok = res.ok && length > 0;
-        setStatus(ok ? "ready" : "missing");
+        if (!(res.ok || res.status === 206)) {
+          setStatus("missing");
+          return;
+        }
+        const buf = await res.arrayBuffer();
+        if (cancelled) return;
+        // Zero-byte stubs must show the honest placeholder.
+        setStatus(buf.byteLength > 0 ? "ready" : "missing");
       })
       .catch(() => {
         if (!cancelled) setStatus("missing");
