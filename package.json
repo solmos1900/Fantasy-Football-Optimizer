@@ -14,6 +14,7 @@
     "verify:cookie-crypto": "tsx scripts/verify-cookie-crypto.ts",
     "verify:sync-freshness": "tsx scripts/verify-sync-freshness.ts",
     "verify:nflverse": "tsx scripts/verify-nflverse-usage.ts",
+    "verify:insights": "tsx scripts/verify-insights-signals.ts",
     "ingest:nflverse": "tsx scripts/ingest-nflverse-usage.ts",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",

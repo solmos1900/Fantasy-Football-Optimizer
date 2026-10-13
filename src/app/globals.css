@@ -8,7 +8,7 @@
   existing utilities stay readable on dark without a full class rewrite.
 */
 :root {
-  --background: #0b0b0b;
+  --background: #1c1c1c;
   --foreground: #ffffff;
   --field: #b9b9b9;
   /* Primary brand — CTAs, START stamps, active nav, focus */
@@ -56,7 +56,7 @@
     - bg-emerald-950 → light filled chips (pair with text-emerald-50, NEVER text-white)
     - emerald-50 → darkest wash (hovers / ink on light chips)
   */
-  --color-emerald-50: #0b0b0b;
+  --color-emerald-50: #1c1c1c;
   --color-emerald-100: #212121;
   --color-emerald-200: #353535;
   --color-emerald-300: #4a4a4a;

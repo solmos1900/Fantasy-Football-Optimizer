@@ -114,10 +114,10 @@ export function weekRowsForPlayer(
     projectedPpr: Number.isFinite(player.projectedPoints)
       ? player.projectedPoints
       : (existing?.projectedPpr ?? null),
-    actualPpr:
-      player.actualPoints > 0
-        ? player.actualPoints
-        : (existing?.actualPpr ?? null),
+    // Keep real 0-point games; only treat non-finite as missing (never coerce null→0).
+    actualPpr: Number.isFinite(player.actualPoints)
+      ? player.actualPoints
+      : (existing?.actualPpr ?? null),
     opponent: player.opponent ?? existing?.opponent,
   };
 
@@ -797,8 +797,9 @@ export function enrichPlayersWithSnapshots(
         opponent: w.opponent ?? undefined,
       });
     }
+    // Keep the full 1..(current-1) axis for Insights week strips — do not trim to 6.
     recentWeeks.sort((a, b) => b.week - a.week);
-    return { ...p, recentWeeks: recentWeeks.slice(0, 6) };
+    return { ...p, recentWeeks };
   };
 
   return {

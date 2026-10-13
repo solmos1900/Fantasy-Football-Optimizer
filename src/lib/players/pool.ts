@@ -204,7 +204,13 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
     // Persist completed-week actuals from ESPN public payload when present.
     for (const rw of player.recentWeeks ?? []) {
       if (rw.week < 1 || rw.week >= week) continue;
-      if (!(rw.points > 0) && rw.projectedPoints == null) continue;
+      // Keep real 0-PPR weeks; skip only when both actual and proj are absent.
+      if (
+        !(typeof rw.points === "number" && Number.isFinite(rw.points)) &&
+        rw.projectedPoints == null
+      ) {
+        continue;
+      }
       await prisma.playerWeekStat.upsert({
         where: {
           espnId_season_week_leagueId: {
@@ -224,9 +230,15 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           week: rw.week,
           scoringFormat: "PPR",
           projectedPpr: rw.projectedPoints ?? null,
-          actualPpr: rw.points > 0 ? rw.points : null,
+          actualPpr:
+            typeof rw.points === "number" && Number.isFinite(rw.points)
+              ? rw.points
+              : null,
           projectionSource: rw.projectedPoints != null ? "espn_public" : null,
-          actualSource: rw.points > 0 ? "espn_public" : null,
+          actualSource:
+            typeof rw.points === "number" && Number.isFinite(rw.points)
+              ? "espn_public"
+              : null,
           source: "espn",
           leagueId: NFLVERSE_LEAGUE_ID,
           opponent: rw.opponent ?? null,
@@ -239,7 +251,7 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
                 projectionSource: "espn_public",
               }
             : {}),
-          ...(rw.points > 0
+          ...(typeof rw.points === "number" && Number.isFinite(rw.points)
             ? { actualPpr: rw.points, actualSource: "espn_public" }
             : {}),
           updatedAt: now,
