@@ -256,15 +256,11 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           week: rw.week,
           scoringFormat: "PPR",
           projectedPpr: rw.projectedPoints ?? null,
-          actualPpr:
-            typeof rw.points === "number" && Number.isFinite(rw.points)
-              ? rw.points
-              : null,
+          // Do not seed completed-week actuals from ESPN appliedTotal —
+          // nflverse box-score full-PPR owns leagueId="" actualPpr.
+          actualPpr: null,
           projectionSource: rw.projectedPoints != null ? "espn_public" : null,
-          actualSource:
-            typeof rw.points === "number" && Number.isFinite(rw.points)
-              ? "espn_public"
-              : null,
+          actualSource: null,
           source: "espn",
           leagueId: NFLVERSE_LEAGUE_ID,
           opponent: rw.opponent ?? null,
@@ -277,9 +273,7 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
                 projectionSource: "espn_public",
               }
             : {}),
-          ...(typeof rw.points === "number" && Number.isFinite(rw.points)
-            ? { actualPpr: rw.points, actualSource: "espn_public" }
-            : {}),
+          // Never overwrite nflverse full-PPR actuals with ESPN appliedTotal.
           updatedAt: now,
         },
       });
@@ -352,7 +346,7 @@ async function loadPlayersFromDb(options: {
   for (const p of players) {
     const rows = byEspn.get(p.espnId) ?? [];
     const current = rows.find((r) => r.week === options.currentWeek);
-    // One row per week — prefer ESPN-public actuals when both sources exist.
+    // One row per week — prefer nflverse full-PPR over ESPN appliedTotal.
     const byWeek = new Map<number, (typeof rows)[number]>();
     for (const r of rows) {
       if (r.week < 1 || r.week > options.statsThroughWeek) continue;
@@ -363,11 +357,14 @@ async function loadPlayersFromDb(options: {
         continue;
       }
       const prefer =
-        r.actualSource === "espn_public" && prev.actualSource !== "espn_public"
+        r.actualSource === "nflverse_ppr" &&
+        prev.actualSource !== "nflverse_ppr"
           ? r
-          : prev.actualPpr == null && r.actualPpr != null
-            ? r
-            : prev;
+          : prev.actualSource === "nflverse_ppr"
+            ? prev
+            : prev.actualPpr == null && r.actualPpr != null
+              ? r
+              : prev;
       byWeek.set(r.week, prefer);
     }
     const recentWeeks: WeeklyScore[] = [...byWeek.values()]
@@ -553,7 +550,7 @@ export async function getNoLeaguePlayerPool(options?: {
     projectionsUpdatedAt: projectionsUpdatedAt?.toISOString() ?? null,
     latestWeekMissing,
     warning,
-    scoringLabel: "Full PPR (default — no league scoring settings)",
+    scoringLabel: "Full PPR (nflverse box score)",
   };
 
   const contextLeague: LeagueData = {

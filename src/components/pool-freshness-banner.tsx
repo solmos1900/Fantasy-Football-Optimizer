@@ -2,11 +2,14 @@ import {
   formatPoolFreshnessLabel,
   type PlayerPoolFreshness,
 } from "@/lib/players/pool";
+import type { GoldenCheckResult } from "@/lib/accuracy/golden-check";
 
 export function PoolFreshnessBanner({
   freshness,
+  goldenCheck,
 }: {
   freshness: PlayerPoolFreshness;
+  goldenCheck?: GoldenCheckResult | null;
 }) {
   return (
     <div className="space-y-1.5">
@@ -31,6 +34,16 @@ export function PoolFreshnessBanner({
         >
           Latest completed week ({freshness.statsThroughWeek}) is not in the
           database yet — not treating older stats as current.
+        </p>
+      )}
+      {goldenCheck && !goldenCheck.ok && (
+        <p
+          role="alert"
+          className="rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
+          Accuracy check failed ({goldenCheck.failureCount} mismatches vs
+          nflverse full-PPR golden sample). First:{" "}
+          {goldenCheck.failures[0] ?? "see cron logs"}.
         </p>
       )}
     </div>

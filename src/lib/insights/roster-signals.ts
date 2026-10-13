@@ -38,6 +38,10 @@ import {
   type TeammateInjuryImpact,
 } from "@/lib/insights/teammate-injury";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import {
+  loadLatestGoldenCheckResult,
+  type GoldenCheckResult,
+} from "@/lib/accuracy/golden-check";
 import type {
   FantasyPlayer,
   FantasyTeam,
@@ -138,6 +142,8 @@ export type InsightsSignalsBundle = {
   updatedAt: string;
   /** Serialized teammate-injury index for trade cards / client. */
   teammateInjury: ReturnType<typeof serializeTeammateInjuryIndex>;
+  /** Last Tuesday-cron golden sample result (null if never run). */
+  goldenCheck: GoldenCheckResult | null;
 };
 
 type UsageWeekRow = {
@@ -362,7 +368,10 @@ function weekCellsForPlayer(options: {
     });
   }
 
-  // League-synced recentWeeks override when present (true ESPN league scoring).
+  // Connected-league recentWeeks may carry league-scored points. For the
+  // no-league / nflverse strip, usage-row actualPpr (full PPR) already seeded
+  // byWeek — only fill gaps, never replace a known nflverse total with a
+  // thinner ESPN appliedTotal.
   for (const w of player.recentWeeks ?? []) {
     if (w.week < 1 || w.week > statsThroughWeek) continue;
     const pts =
@@ -370,9 +379,8 @@ function weekCellsForPlayer(options: {
         ? Math.round(w.points * 10) / 10
         : null;
     const prev = byWeek.get(w.week);
-    // Prefer explicit league points; keep usage pts when recent week lacks them.
     byWeek.set(w.week, {
-      pts: pts ?? prev?.pts ?? null,
+      pts: prev?.pts != null ? prev.pts : pts,
       opp: w.opponent ?? prev?.opp,
     });
   }
@@ -810,6 +818,10 @@ export async function buildRosterInsightsSignals(
   const coverageUpdated = coverage._max.updatedAt?.toISOString() ?? null;
   const latestWeekMissing = through > 0 && coverage._count < 25;
 
+  const goldenCheck = await loadLatestGoldenCheckResult(league.season).catch(
+    () => null,
+  );
+
   const freshness: PlayerPoolFreshness = {
     season: league.season,
     currentWeek,
@@ -824,10 +836,13 @@ export async function buildRosterInsightsSignals(
       latestWeekMissing
         ? `Week ${through} completed-week stats are thin or missing — not treating older weeks as current.`
         : null,
+      goldenCheck && !goldenCheck.ok
+        ? `Accuracy check failed (${goldenCheck.failureCount}): completed-week full-PPR sample disagrees with nflverse golden fixture.`
+        : null,
     ]
       .filter(Boolean)
       .join(" "),
-    scoringLabel: "Full PPR",
+    scoringLabel: "Full PPR (nflverse box score)",
   };
 
   return {
@@ -842,5 +857,6 @@ export async function buildRosterInsightsSignals(
     sleeperEmpty: sleeper.emptyFeed,
     updatedAt,
     teammateInjury: serializeTeammateInjuryIndex(teammateIndex),
+    goldenCheck,
   };
 }

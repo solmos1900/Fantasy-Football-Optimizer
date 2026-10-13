@@ -261,7 +261,10 @@ export function InsightsBoard({
               Updated {formatUpdatedHm(bundle.updatedAt)}
             </span>
           </div>
-          <PoolFreshnessBanner freshness={bundle.freshness} />
+          <PoolFreshnessBanner
+            freshness={bundle.freshness}
+            goldenCheck={bundle.goldenCheck}
+          />
         </div>
         <Button
           type="button"

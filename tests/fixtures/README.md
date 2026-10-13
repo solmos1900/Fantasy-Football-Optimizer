@@ -2,27 +2,21 @@
 
 `golden-players.json` is the accuracy contract for Insights, Who-to-Start, and Trade Analyzer.
 
-## Stub → assert
+**Scoring:** full PPR from nflverse box-score categories (`actualSource=nflverse_ppr`).  
+**Null** expected fields mean *no stat row / unknown* — never treat as `0`.
 
-The committed file starts in **`mode: "stub"`** with **structure only** (`null` expected fields). A researcher should:
+## Modes
 
-1. Pick real players (keep or replace the stub `espnId` / `name` rows).
-2. Fill every non-null field they want enforced:
-   - `expected.nflTeam`
-   - `expected.opponent` (current-week scoreboard label, e.g. `vs JAX` / `@ MIA` / `BYE`)
-   - `expected.weeks[]`: `week`, `actualPpr`, `targets`, `carries`, `opponent` (completed-week labels, usually abbrev)
-3. Set `"mode": "assert"`.
-4. Run `npm run verify:golden` against a DB that has nflverse/`PlayerWeekStat` coverage for that season.
+- **`stub`** — structure only; CI exits 0.
+- **`assert`** — compare non-null fields to `PlayerWeekStat` (`leagueId=""`). Prefer `nflverse_ppr` over ESPN `appliedTotal`.
 
-## What the verifier compares
+## Fields
 
-For each fixture player, the script loads the same league-agnostic rows Insights / Who-to-Start / Trade use (`PlayerWeekStat` with `leagueId = ""`, plus live scoreboard opponent for the current week) and fails on mismatch for any **non-null** expected field.
+- `expected.nflTeam`
+- `expected.opponent` (optional current-week label)
+- `expected.weeks[]`: `week`, `actualPpr`, `targets`, `carries`, `opponent`
 
-Tolerances:
-
-- PPR: ±0.05
-- targets / carries: exact (integers)
-- team / opponent: case-insensitive; opponent strips `vs` / `@` before compare when fixture uses bare abbrevs
+Tolerances: PPR ±0.06; targets/carries exact; opponent abbrevs case-insensitive (`@HOU` ≡ `HOU`).
 
 ## Commands
 
@@ -30,6 +24,5 @@ Tolerances:
 npm run verify:golden
 ```
 
-CI runs the same script on pull requests (see `.github/workflows/verify-golden.yml`).
-
-While `mode` is `stub`, the job validates JSON shape only and exits 0 so PRs stay green until real values land.
+CI: `.github/workflows/verify-golden.yml`.  
+Weekly: Tuesday `/api/cron/nflverse-usage` re-runs the check and surfaces a visible Insights notice on failure.

@@ -64,10 +64,14 @@ function pprForStatBlock(
     | undefined,
 ): number | null {
   if (!block) return null;
+  // Prefer category formula (true full PPR). ESPN appliedTotal follows
+  // league-default scoring and has been observed to drop TDs / under-count QBs.
+  const fromCats = fullPprFromEspnStatMap(block.stats);
+  if (fromCats != null) return fromCats;
   if (typeof block.appliedTotal === "number" && Number.isFinite(block.appliedTotal)) {
     return Math.round(block.appliedTotal * 10) / 10;
   }
-  return fullPprFromEspnStatMap(block.stats);
+  return null;
 }
 
 export function mapEspnPublicPlayer(

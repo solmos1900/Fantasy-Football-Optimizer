@@ -10,7 +10,7 @@ If a PR violates any rule, it is not merge-ready.
 
 ## Scoring & weeks
 
-3. **Full PPR** — all displayed points and trade chip math use full PPR (or the connected league’s scoring when a league is synced). Never silent half-PPR / standard.
+3. **Full PPR** — no-league / Insights strips use **nflverse box-score full PPR** (`actualSource=nflverse_ppr`). Connected leagues may show league-scored points but must **label** the scoring. Never silent half-PPR / standard; never prefer ESPN `appliedTotal` over category / nflverse full PPR for the public pool.
 4. **Latest completed week post-MNF** — after every game in week N is final, load week N into completed strips (or show an **explicit missing-week notice**). Do not hard-cap at `currentWeek - 1` when the scoreboard says N is done.
 5. **Identical week axes** — every player strip shares the same W1…Wn (+ Proj) scaffold. No per-player trimmed axes.
 6. **No 0 for BYE / DNP / null** — missing weeks are BYE, DNP, or `—`. Never coerce null/absent to `0`.
@@ -33,3 +33,4 @@ If a PR violates any rule, it is not merge-ready.
 |------|-------------|
 | 2026-10-13 | Initial list from Insights redesign + teammate injury owner requirements. |
 | 2026-10-13 | Added golden fixture + `verify:golden` CI gate. |
+| 2026-10-13 | Root cause: ESPN `appliedTotal` overwrote nflverse full-PPR (e.g. Burrow W1 8.8 vs 14.16, Swift W1 9.5 vs 32.4). Prefer `nflverse_ppr`; label strips Full PPR (nflverse). Tuesday cron re-validates golden sample + Insights notice. |

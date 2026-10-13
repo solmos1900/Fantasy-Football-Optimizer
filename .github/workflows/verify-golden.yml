@@ -47,5 +47,8 @@ jobs:
           npx prisma generate
           npx prisma db push --skip-generate
 
+      - name: Seed golden fixture rows
+        run: npx tsx scripts/seed-golden-fixture.ts
+
       - name: Golden accuracy gate
         run: npm run verify:golden
