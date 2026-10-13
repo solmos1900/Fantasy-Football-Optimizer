@@ -2,6 +2,8 @@
 
 Gridiron IQ only stores stats we can attribute. **Null beats fake** — missing usage stays null until a real feed lands. We never invent FantasyPros/SportsDataIO labels or seed fabricated box scores for live leagues.
 
+Owner accuracy rules (display + week + integrity): [`docs/ACCURACY_RULES.md`](./ACCURACY_RULES.md). Golden gate: `npm run verify:golden` ← `tests/fixtures/golden-players.json`.
+
 ## Sources in use
 
 | Source | What we store | License / notes |

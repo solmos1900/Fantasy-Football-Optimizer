@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "mode": "stub",
+  "season": 2026,
+  "description": "Structure-only stub. Researcher: fill expected.* with real nflverse/ESPN values, then set mode to \"assert\".",
+  "surfaces": ["insights", "who-to-start", "trade"],
+  "players": [
+    {
+      "espnId": 4430807,
+      "name": "Bijan Robinson",
+      "surfaces": ["insights", "who-to-start", "trade"],
+      "expected": {
+        "nflTeam": null,
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 2,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 3,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 4,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 5,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4241389,
+      "name": "CeeDee Lamb",
+      "surfaces": ["insights", "who-to-start", "trade"],
+      "expected": {
+        "nflTeam": null,
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 2,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 3,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 4,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 5,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 3915511,
+      "name": "Joe Burrow",
+      "surfaces": ["insights", "who-to-start", "trade"],
+      "expected": {
+        "nflTeam": null,
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 2,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 3,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 4,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          },
+          {
+            "week": 5,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": null
+          }
+        ]
+      }
+    }
+  ]
+}

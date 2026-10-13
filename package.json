@@ -16,6 +16,7 @@
     "verify:nflverse": "tsx scripts/verify-nflverse-usage.ts",
     "verify:insights": "tsx scripts/verify-insights-signals.ts",
     "verify:teammate-injury": "tsx scripts/verify-teammate-injury.ts",
+    "verify:golden": "tsx scripts/verify-golden.ts",
     "ingest:nflverse": "tsx scripts/ingest-nflverse-usage.ts",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
