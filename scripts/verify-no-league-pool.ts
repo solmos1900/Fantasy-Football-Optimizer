@@ -111,5 +111,13 @@ const service = fs.readFileSync(
 );
 assert.doesNotMatch(service, /DEMO_LEAGUE_CONNECTION_ID/);
 
+// Live current-week scoreboard must NOT pin bare dates=<year> (that returns week 18).
+const espnClient = fs.readFileSync(
+  path.join(process.cwd(), "src/lib/espn/client.ts"),
+  "utf8",
+);
+assert.match(espnClient, /Only pin the season year when a specific week/);
+assert.match(espnClient, /if \(week\)/);
+
 console.log("verify-no-league-pool: ok");
 console.log(`  label=${label} joshProj=${mapped.projectedPoints}`);

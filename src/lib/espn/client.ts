@@ -428,8 +428,13 @@ export async function fetchEspnScoreboard(week?: number, season?: number): Promi
   const year = season ?? defaultEspnSeason();
   const url = new URL("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard");
   url.searchParams.set("seasontype", "2");
-  url.searchParams.set("dates", String(year));
-  if (week) url.searchParams.set("week", String(week));
+  // ESPN treats bare `dates=<year>` as a calendar dump and often returns week 18
+  // with every game final. Only pin the season year when a specific week is requested;
+  // otherwise omit `dates` so the live current week is returned.
+  if (week) {
+    url.searchParams.set("dates", String(year));
+    url.searchParams.set("week", String(week));
+  }
 
   const res = await fetch(url.toString(), {
     headers: { Accept: "application/json" },
