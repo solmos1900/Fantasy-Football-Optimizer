@@ -6,12 +6,12 @@
  * - Target competitors: WR↔WR, WR↔TE, TE↔TE
  *
  * Signals (real ESPN injuryStatus only — never invent):
- * - Opp ↑  when a competitor is OUT / IR / DOUBTFUL (vacated volume)
- * - Opp ↓  when a competitor is ACTIVE after a stored prior OUT/IR/DOUBTFUL
- *          (returning volume)
+ * - ↑ More touches/targets when a competitor is OUT / IR / DOUBTFUL
+ * - ↓ Fewer touches/targets when a competitor returns after OUT/IR/DOUBTFUL
  *
- * Chip labels always use full name + NFL team
- * (e.g. "Opp ↑ David Montgomery (HOU) D") — never WR2/RB1/last-name.
+ * Chip labels: plain fantasy-impact wording + full name + NFL team
+ * (e.g. "↑ More touches: David Montgomery (HOU) out") — never Opp ↑/↓,
+ * WR2/RB1, or last-name-only.
  *
  * Volume proxy = last-3 avg target share (WR/TE) or carry share (RB)
  * from nflverse; if last-3 has <2 usable weeks (IR / early exit), use
@@ -49,7 +49,7 @@ export type TeammateInjuryDirection = "up" | "down";
 
 export type TeammateInjuryImpact = {
   direction: TeammateInjuryDirection;
-  /** Chip e.g. "Opp ↑ David Montgomery (HOU) OUT" */
+  /** Chip e.g. "↑ More touches: David Montgomery (HOU) out" */
   label: string;
   tone: "good" | "warn" | "bad" | "info";
   teammateName: string;
@@ -65,6 +65,7 @@ export type TeammateInjuryImpact = {
   allocatedShare: number | null;
   /** Chip-value nudge applied in trade math */
   chipDelta: number;
+  /** Plain tap sentence stating what happened + fantasy impact. */
   detail: string;
 };
 
@@ -100,14 +101,31 @@ export function isVolumeCompetitor(
   return false;
 }
 
-function shortStatus(status: InjuryStatus): string {
+/** Chip suffix: "out", "on IR", "doubtful", "questionable". */
+function plainStatusSuffix(status: InjuryStatus): string {
   const code = formatStatusCode(status);
-  if (code === "QUESTIONABLE") return "Q";
-  if (code === "DOUBTFUL") return "D";
-  if (code === "OUT") return "OUT";
-  if (code === "IR") return "IR";
-  if (code === "SUSPENSION") return "SUS";
-  return code;
+  if (code === "IR") return "on IR";
+  if (code === "OUT") return "out";
+  if (code === "DOUBTFUL") return "doubtful";
+  if (code === "QUESTIONABLE") return "questionable";
+  if (code === "SUSPENSION") return "suspended";
+  return code.toLowerCase();
+}
+
+/** Sentence mid-clause: "is out", "is on IR", … */
+function plainStatusIs(status: InjuryStatus): string {
+  const code = formatStatusCode(status);
+  if (code === "IR") return "is on IR";
+  if (code === "OUT") return "is out";
+  if (code === "DOUBTFUL") return "is doubtful";
+  if (code === "QUESTIONABLE") return "is questionable";
+  if (code === "SUSPENSION") return "is suspended";
+  return `is ${code.toLowerCase()}`;
+}
+
+/** RB → "touches"; WR/TE → "targets". */
+function volumeWord(kind: "target" | "carry" | "unknown"): string {
+  return kind === "carry" ? "touches" : "targets";
 }
 
 function parseInjuryNote(
@@ -424,24 +442,24 @@ export async function buildTeammateInjuryIndex(options: {
               ) / 10;
 
         const who = formatPlayerLabel(tm.name, tm.nflTeam);
+        const you = formatPlayerLabel(p.name, p.nflTeam);
+        const volume = volumeWord(shareKind);
+        const sharePct =
+          share3wk == null ? null : Math.round(share3wk * 100);
+
         const label =
           ev.direction === "up"
-            ? `Opp ↑ ${who} ${shortStatus(tm.injuryStatus)}`
-            : `Opp ↓ ${who} back`;
-
-        const shareLabel =
-          share3wk == null
-            ? "—"
-            : shareKind === "target"
-              ? `${(share3wk * 100).toFixed(0)}% tgt`
-              : `${(share3wk * 100).toFixed(0)}% carry`;
-        const allocLabel =
-          allocated == null ? "—" : `${(allocated * 100).toFixed(0)}% to you`;
+            ? `↑ More ${volume}: ${who} ${plainStatusSuffix(tm.injuryStatus)}`
+            : `↓ Fewer ${volume}: ${who} returning`;
 
         const detail =
           ev.direction === "up"
-            ? `${who} ${shortStatus(tm.injuryStatus)} · ${shareLabel} vacated · your cut ${allocLabel}`
-            : `${who} back (${shortStatus(ev.prior ?? "OUT")}→${shortStatus(tm.injuryStatus)}) · ${shareLabel} returns · your cut ${allocLabel}`;
+            ? sharePct != null
+              ? `${who} ${plainStatusIs(tm.injuryStatus)}. He had ${sharePct}% of team ${volume}; ${you} should pick up some of them.`
+              : `${who} ${plainStatusIs(tm.injuryStatus)}. ${you} may see more ${volume}, but his usual share is unknown.`
+            : sharePct != null
+              ? `${who} is returning. He usually took ${sharePct}% of team ${volume}; ${you} may see fewer.`
+              : `${who} is returning. ${you} may see fewer ${volume}, but his usual share is unknown.`;
 
         // Skip QUESTIONABLE vacated unless share is meaningful — still allow OUT/IR/D
         if (
@@ -472,7 +490,6 @@ export async function buildTeammateInjuryIndex(options: {
         if (ev.direction === "up" && tm.injuryStatus === "QUESTIONABLE") {
           impact.tone = "info";
           impact.chipDelta = Math.round(impact.chipDelta * 0.35 * 10) / 10;
-          impact.label = `Opp ↑ ${who} Q`;
         }
 
         const list = byEspnId.get(p.espnId) ?? [];
@@ -488,14 +505,23 @@ export async function buildTeammateInjuryIndex(options: {
     }
   }
 
-  // Cap to top 2 impacts per player (highest |chipDelta|, then share)
+  // Dedupe + cap to top 2 impacts per player (highest |chipDelta|, then share)
   for (const [id, list] of byEspnId) {
     list.sort(
       (a, b) =>
         Math.abs(b.chipDelta) - Math.abs(a.chipDelta) ||
         (b.share3wk ?? 0) - (a.share3wk ?? 0),
     );
-    byEspnId.set(id, list.slice(0, 2));
+    const seen = new Set<string>();
+    const deduped: TeammateInjuryImpact[] = [];
+    for (const imp of list) {
+      const key = `${imp.direction}:${imp.teammateEspnId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(imp);
+      if (deduped.length >= 2) break;
+    }
+    byEspnId.set(id, deduped);
   }
 
   return {

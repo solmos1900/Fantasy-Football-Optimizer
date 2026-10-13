@@ -11,7 +11,7 @@ import type {
   RuleChip,
   UsageMetric,
 } from "@/lib/insights/roster-signals";
-import { dashNull, dashSharePct } from "@/lib/insights/format-null";
+import { dashNull } from "@/lib/insights/format-null";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import type { DvpChip } from "@/lib/insights/defense-vs-position";
 
@@ -59,52 +59,25 @@ function statusChip(status: PlayerSignal["status"]): {
   return { show: true, code: short, className: statusColor(status) };
 }
 
-function DeltaArrow({ delta, asPct }: { delta: number | null; asPct: boolean }) {
-  if (delta == null || !Number.isFinite(delta) || Math.abs(delta) < 1e-9) {
-    return <span className="text-emerald-950/30">·</span>;
-  }
-  const up = delta > 0;
-  const label = asPct
-    ? `${up ? "+" : ""}${(delta * 100).toFixed(0)}`
-    : `${up ? "+" : ""}${delta.toFixed(1)}`;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-0.5 text-[10px] font-bold tabular-nums",
-        up ? "text-success" : "text-danger",
-      )}
-    >
-      {up ? "↑" : "↓"}
-      {label}
-    </span>
-  );
-}
-
 function UsageMini({ metrics }: { metrics: UsageMetric[] }) {
   const shown = metrics.filter(
     (m) => m.last3 != null || m.season != null,
   );
   if (!shown.length) {
     return (
-      <p className="text-[10px] text-emerald-950/35">Usage —</p>
+      <p className="text-[10px] text-emerald-950/35">Usage unknown</p>
     );
   }
   return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1">
+    <div className="flex flex-col gap-0.5">
       {shown.map((m) => (
-        <div key={m.key} className="flex items-center gap-1 text-[10px]">
-          <span className="font-semibold uppercase tracking-wide text-emerald-950/40">
-            {m.label}
-          </span>
-          <span className="tabular-nums text-emerald-950/85">
-            {m.asPct ? dashSharePct(m.last3, 0) : dashNull(m.last3, 1)}
-          </span>
-          <span className="text-emerald-950/30">/</span>
-          <span className="tabular-nums text-emerald-950/50">
-            {m.asPct ? dashSharePct(m.season, 0) : dashNull(m.season, 1)}
-          </span>
-          <DeltaArrow delta={m.delta} asPct={m.asPct} />
-        </div>
+        <p
+          key={m.key}
+          className="text-[10px] leading-snug text-emerald-950/70"
+          title={m.label}
+        >
+          {m.impactLine}
+        </p>
       ))}
     </div>
   );
@@ -131,8 +104,9 @@ function RuleChipButton({
     <button
       type="button"
       onClick={onToggle}
+      title={chip.detail}
       className={cn(
-        "rounded border px-1.5 py-0.5 text-[10px] font-semibold",
+        "max-w-full rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold leading-snug",
         tone,
         active && "bg-white/5",
       )}
@@ -140,6 +114,22 @@ function RuleChipButton({
       {chip.label}
     </button>
   );
+}
+
+function formLine(signal: PlayerSignal): string {
+  const t = signal.trend;
+  if (t.avg3 == null || t.seasonAvg == null) {
+    return "Not enough completed games to compare form";
+  }
+  const dir =
+    t.pctDelta == null
+      ? "holding steady"
+      : t.pctDelta >= 0.15
+        ? "trending up"
+        : t.pctDelta <= -0.15
+          ? "trending down"
+          : "holding steady";
+  return `Last 3 games avg ${t.avg3.toFixed(1)} vs season ${t.seasonAvg.toFixed(1)}: ${dir}`;
 }
 
 export function PlayerSignalRow({
@@ -181,50 +171,51 @@ export function PlayerSignalRow({
                 Bye
               </span>
             )}
-            <span
-              className={cn(
-                "rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                trendTone(t.label),
-              )}
-            >
-              {t.label}
-            </span>
           </div>
-          <p className="mt-0.5 text-[11px] text-emerald-950/45">
-            {signal.player.isStarter ? "START" : "BN"}
+          <p
+            className={cn(
+              "mt-1 inline-flex max-w-full rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-snug",
+              trendTone(t.label),
+            )}
+            title={t.reason}
+          >
+            {t.reason}
+          </p>
+          <p className="mt-1 text-[11px] text-emerald-950/55">
+            {signal.player.isStarter ? "In your starting lineup" : "On your bench"}
             {" · "}
-            3wk {dashNull(t.avg3)} · szn {dashNull(t.seasonAvg)}
-            {t.pctDelta != null
-              ? ` · ${t.pctDelta >= 0 ? "+" : ""}${(t.pctDelta * 100).toFixed(0)}%`
-              : ""}
+            {formLine(signal)}
           </p>
         </div>
 
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex max-w-[14rem] flex-col items-end gap-1 sm:max-w-[18rem]">
           {signal.matchup ? (
             <span
               className={cn(
-                "rounded border px-1.5 py-0.5 text-[10px] font-semibold",
+                "rounded border px-1.5 py-0.5 text-right text-[10px] font-semibold leading-snug",
                 dvpTone(signal.matchup.tier),
               )}
+              title={signal.matchup.label}
             >
               {signal.matchup.label}
             </span>
           ) : signal.byeThisWeek ? (
             <span className="rounded border border-info/35 px-1.5 py-0.5 text-[10px] font-semibold text-info">
-              BYE
+              On bye: scores 0 this week
             </span>
           ) : signal.player.opponent ? (
             <span className="rounded border border-emerald-950/20 px-1.5 py-0.5 text-[10px] text-emerald-950/55">
-              {signal.player.opponent} · —
+              {signal.player.opponent}: matchup rank unknown
             </span>
           ) : (
             <span className="rounded border border-emerald-950/15 px-1.5 py-0.5 text-[10px] text-emerald-950/35">
-              vs — · —
+              Opponent TBD
             </span>
           )}
           <span className="text-[10px] tabular-nums text-[#C026FF]">
-            Proj {dashNull(signal.sleeperProj)}
+            {signal.sleeperProj != null
+              ? `Projected ${dashNull(signal.sleeperProj)} this week (Sleeper)`
+              : "Projected — this week (Sleeper)"}
           </span>
         </div>
       </div>
@@ -250,7 +241,7 @@ export function PlayerSignalRow({
             />
           ))}
           {detail && (
-            <span className="text-[10px] tabular-nums text-emerald-950/55">
+            <span className="basis-full text-[10px] leading-snug text-emerald-950/60">
               {detail.detail}
             </span>
           )}

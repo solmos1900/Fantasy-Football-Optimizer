@@ -577,7 +577,7 @@ function LeanResultsCard({
               .flatMap((row) =>
                 row.impacts.map((imp) => ({
                   key: `${row.espnId}-${imp.teammateEspnId}`,
-                  detail: `${row.playerName}: ${imp.detail}`,
+                  detail: imp.detail,
                 })),
               )
               .filter((x) => x.key === openImpact)

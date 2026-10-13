@@ -83,20 +83,40 @@ function tierForRank(rank: number): DvpTier {
   return "soft";
 }
 
+function positionPlural(position: PlayerPosition): string {
+  if (position === "RB") return "RBs";
+  if (position === "WR") return "WRs";
+  if (position === "TE") return "TEs";
+  if (position === "QB") return "QBs";
+  return position;
+}
+
+function impactForRank(rank: number | null, tier: DvpTier | null): string {
+  if (rank == null || tier == null) return "matchup impact unknown";
+  if (tier === "tough") return "expect fewer points";
+  if (tier === "soft") return "expect more points";
+  return "expect a typical week";
+}
+
 function buildRankLabel(
   rank: number | null,
   position: PlayerPosition,
   fromWeek: number,
   through: number,
+  tier: DvpTier | null,
 ): string {
   const window = `W${fromWeek}–${through}`;
-  if (rank == null) return `— vs ${position} (${window})`;
-  return `${ordinal(rank)}-toughest vs ${position} (${window})`;
+  const pos = positionPlural(position);
+  if (rank == null) {
+    return `rank vs ${pos} unknown (${window}): ${impactForRank(null, null)}`;
+  }
+  return `${ordinal(rank)}-toughest vs ${pos} (${window}): ${impactForRank(rank, tier)}`;
 }
 
 /**
- * Venue prefix from the scoreboard opponent string (`@ ATL` / `vs JAX` / `ATL`).
+ * Venue prefix from the scoreboard opponent string (`@ATL` / `vs JAX` / `ATL`).
  * Away → `@ATL` (no space); home → `vs ATL`.
+ * Full chip states fantasy impact, e.g. `@JAX: 7th-toughest vs RBs (W2–5): expect fewer points`.
  */
 export function formatDvpChipLabel(
   chip: DvpChip,
@@ -110,7 +130,7 @@ export function formatDvpChipLabel(
       : parsed.venue === "home"
         ? `vs ${team}`
         : team;
-  return `${venueTeam} ${chip.rankLabel}`;
+  return `${venueTeam}: ${chip.rankLabel}`;
 }
 
 /**
@@ -184,7 +204,7 @@ export async function buildDefenseVsPositionMap(options: {
     // Need a meaningful field to rank — require at least 8 defenses with data
     if (entries.length < 8) {
       for (const e of entries) {
-        const rankLabel = buildRankLabel(null, pos, fromWeek, through);
+        const rankLabel = buildRankLabel(null, pos, fromWeek, through, null);
         out.set(`${e.def}|${pos}`, {
           opponent: e.def,
           position: pos,
@@ -220,7 +240,7 @@ export async function buildDefenseVsPositionMap(options: {
     entries.forEach((e, idx) => {
       const rank = idx + 1;
       const tier = tierForRank(rank);
-      const rankLabel = buildRankLabel(rank, pos, fromWeek, through);
+      const rankLabel = buildRankLabel(rank, pos, fromWeek, through, tier);
       const chip: DvpChip = {
         opponent: e.def,
         position: pos,

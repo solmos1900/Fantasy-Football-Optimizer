@@ -38,7 +38,7 @@ Owner accuracy rules (display + week + integrity): [`docs/ACCURACY_RULES.md`](./
 | Routes % / RZ touches | nflverse columns when present | Currently often null → **—** |
 | Matchup chip (`vs DAL 28th`) | nflverse actualPpr joined by opponent × position, last 4 completed weeks, ranked 1–32 | Tertiles tough/avg/soft; no Vegas |
 | Waiver watch opportunity | nflverse targets+carries last 2 weeks among league free agents | |
-| Teammate injury Opp ↑ / Opp ↓ | ESPN injuries feed (status) + nflverse target/carry share | Labels: full name + team (`Opp ↑ David Montgomery (HOU) D`) — never WR2/RB1. Share = last-3 avg when ≥2 usable weeks, else season-to-date. Vacated × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus`. Null share → — |
+| Teammate injury (more/fewer touches or targets) | ESPN injuries feed (status) + nflverse target/carry share | Plain labels: `↑ More touches: David Montgomery (HOU) out` / `↑ More targets: Alec Pierce (IND) on IR` — never Opp ↑/↓ or WR2/RB1. Share = last-3 avg when ≥2 usable weeks, else season-to-date. Vacated × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus`. Null share → — |
 | Freshness label | Same pattern as no-league tools | `Stats through Week N · updated X min ago` |
 
 ## Not integrated

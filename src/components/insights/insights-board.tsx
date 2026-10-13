@@ -19,7 +19,7 @@ function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
   const bits: { label: string; names: string; tone: string }[] = [];
   if (pulse.rising.length) {
     bits.push({
-      label: "↑",
+      label: "Trending up (more points lately)",
       names: pulse.rising
         .map((p) => formatPlayerLabel(p.name, p.nflTeam))
         .join(", "),
@@ -28,7 +28,7 @@ function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
   }
   if (pulse.fading.length) {
     bits.push({
-      label: "↓",
+      label: "Trending down (fewer points lately)",
       names: pulse.fading
         .map((p) => formatPlayerLabel(p.name, p.nflTeam))
         .join(", "),
@@ -37,11 +37,11 @@ function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
   }
   if (pulse.atRisk.length) {
     bits.push({
-      label: "!",
+      label: "Watch list",
       names: pulse.atRisk
         .map(
           (p) =>
-            `${formatPlayerLabel(p.name, p.nflTeam)} ${p.reason}`,
+            `${formatPlayerLabel(p.name, p.nflTeam)} (${p.reason})`,
         )
         .join(", "),
       tone: "text-danger",
@@ -49,14 +49,16 @@ function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
   }
   if (!bits.length) {
     return (
-      <p className="text-[11px] text-emerald-950/40">Roster pulse —</p>
+      <p className="text-[11px] text-emerald-950/40">
+        No big roster swings this week
+      </p>
     );
   }
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+    <div className="flex flex-col gap-1 text-[11px]">
       {bits.map((b) => (
-        <p key={b.label} className={cn("tabular-nums", b.tone)}>
-          <span className="font-bold">{b.label}</span> {b.names}
+        <p key={b.label} className={cn("leading-snug", b.tone)}>
+          <span className="font-bold">{b.label}:</span> {b.names}
         </p>
       ))}
     </div>

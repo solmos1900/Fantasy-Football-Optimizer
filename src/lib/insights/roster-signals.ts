@@ -76,6 +76,11 @@ export type UsageMetric = {
   delta: number | null;
   /** Display as percent? */
   asPct: boolean;
+  /**
+   * Plain fantasy-impact line, e.g.
+   * "↑ Getting 25% of team targets (up from 21%): more catches"
+   */
+  impactLine: string;
 };
 
 export type TrendChip = {
@@ -85,6 +90,10 @@ export type TrendChip = {
   seasonAvg: number | null;
   /** (avg3 − seasonAvg) / seasonAvg when both known */
   pctDelta: number | null;
+  /**
+   * Badge + reason, e.g. "Trending down: 27% below season average"
+   */
+  reason: string;
 };
 
 export type RuleChip = {
@@ -177,23 +186,39 @@ function avgField(
 
 function buildTrendChip(played: number[]): TrendChip {
   if (played.length < 2) {
+    const avg3 = mean(played.slice(-3));
+    const seasonAvg = mean(played);
     return {
       label: "Thin",
-      avg3: mean(played.slice(-3)),
-      seasonAvg: mean(played),
+      avg3,
+      seasonAvg,
       pctDelta: null,
+      reason: "Not enough games yet to call a trend",
     };
   }
   const avg3 = mean(played.slice(-3));
   const seasonAvg = mean(played);
   if (avg3 == null || seasonAvg == null || seasonAvg === 0) {
-    return { label: "Thin", avg3, seasonAvg, pctDelta: null };
+    return {
+      label: "Thin",
+      avg3,
+      seasonAvg,
+      pctDelta: null,
+      reason: "Not enough games yet to call a trend",
+    };
   }
   const pctDelta = (avg3 - seasonAvg) / Math.abs(seasonAvg);
+  const pctAbs = Math.round(Math.abs(pctDelta) * 100);
   let label: TrendChip["label"] = "Steady";
-  if (pctDelta >= 0.15) label = "Rising";
-  else if (pctDelta <= -0.15) label = "Fading";
-  return { label, avg3, seasonAvg, pctDelta };
+  let reason = `Holding steady: near season average (${avg3.toFixed(1)} last 3 vs ${seasonAvg.toFixed(1)} season)`;
+  if (pctDelta >= 0.15) {
+    label = "Rising";
+    reason = `Trending up: ${pctAbs}% above season average`;
+  } else if (pctDelta <= -0.15) {
+    label = "Fading";
+    reason = `Trending down: ${pctAbs}% below season average`;
+  }
+  return { label, avg3, seasonAvg, pctDelta, reason };
 }
 
 function isHealthy(status: InjuryStatus): boolean {
@@ -292,6 +317,77 @@ function usageMetricsFor(
 
   const metrics: UsageMetric[] = [];
 
+  const impactFor = (
+    key: UsageMetricKey,
+    last3: number | null,
+    season: number | null,
+    asPct: boolean,
+  ): string => {
+    if (last3 == null && season == null) return "Usage unknown";
+    const cur = last3 ?? season!;
+    const prior = season;
+    const delta =
+      last3 != null && prior != null ? last3 - prior : null;
+    const flatPct = delta == null || Math.abs(delta) < 0.005;
+    const flatAbs = delta == null || Math.abs(delta) < 0.05;
+    const up = delta != null && !flatPct && delta > 0;
+    const down = delta != null && !flatPct && delta < 0;
+
+    if (key === "targetShare") {
+      const c = Math.round(cur * 100);
+      if (prior == null || flatPct) {
+        return `Getting ${c}% of team targets: catch chances`;
+      }
+      const p = Math.round(prior * 100);
+      return up
+        ? `↑ Getting ${c}% of team targets (up from ${p}%): more catches`
+        : `↓ Getting ${c}% of team targets (down from ${p}%): fewer catches`;
+    }
+    if (key === "snapShare") {
+      const c = Math.round(cur * 100);
+      if (prior == null || flatPct) {
+        return `On field ${c}% of plays: snap share`;
+      }
+      const p = Math.round(prior * 100);
+      return up
+        ? `↑ On field ${c}% of plays (up from ${p}%): more chances`
+        : `↓ On field ${c}% of plays (down from ${p}%): fewer chances`;
+    }
+    if (key === "airYardsShare") {
+      const c = Math.round(cur * 100);
+      if (prior == null || flatPct) {
+        return `${c}% of team air yards: deep-target share`;
+      }
+      const p = Math.round(prior * 100);
+      return up
+        ? `↑ ${c}% of team air yards (up from ${p}%): more downfield looks`
+        : `↓ ${c}% of team air yards (down from ${p}%): fewer downfield looks`;
+    }
+    if (key === "routes") {
+      const c = Math.round(cur * 100);
+      return `Running routes on ${c}% of plays: route rate`;
+    }
+    if (key === "carriesTargets") {
+      const c = cur.toFixed(1);
+      if (prior == null || flatAbs) {
+        return `${c} carries+targets per game: touch volume`;
+      }
+      const p = prior.toFixed(1);
+      const touchUp = delta != null && delta > 0;
+      return touchUp
+        ? `↑ ${c} carries+targets/game (up from ${p}): more touches`
+        : `↓ ${c} carries+targets/game (down from ${p}): fewer touches`;
+    }
+    if (key === "redZoneTouches") {
+      if (cur === 0 && (prior == null || prior === 0)) {
+        return "No red-zone touches lately: fewer score chances";
+      }
+      const c = asPct ? `${Math.round(cur * 100)}%` : cur.toFixed(1);
+      return `${c} red-zone touches: score chances`;
+    }
+    return "Usage";
+  };
+
   const push = (
     key: UsageMetricKey,
     label: string,
@@ -307,23 +403,24 @@ function usageMetricsFor(
       season: b,
       delta: a != null && b != null ? a - b : null,
       asPct,
+      impactLine: impactFor(key, a, b, asPct),
     });
   };
 
   if (position === "WR" || position === "TE" || position === "RB") {
-    push("targetShare", "Tgt%", (r) => r.targetShare, true);
+    push("targetShare", "Targets", (r) => r.targetShare, true);
   }
-  push("snapShare", "Snap%", (r) => r.snapShare, true);
+  push("snapShare", "Snaps", (r) => r.snapShare, true);
 
   if (position === "WR" || position === "TE") {
     // routePct rarely present in nflverse week file — show — when null
-    push("routes", "Routes%", (r) => r.routePct, true);
-    push("airYardsShare", "AY%", (r) => r.airYardsShare, true);
+    push("routes", "Routes", (r) => r.routePct, true);
+    push("airYardsShare", "Air yards", (r) => r.airYardsShare, true);
   }
   if (position === "RB") {
     push(
       "carriesTargets",
-      "Car+Tgt",
+      "Touches",
       (r) => {
         if (r.carries == null && r.targets == null) return null;
         return (r.carries ?? 0) + (r.targets ?? 0);
@@ -331,7 +428,7 @@ function usageMetricsFor(
       false,
     );
   }
-  push("redZoneTouches", "RZ", (r) => r.redZoneTouches, false);
+  push("redZoneTouches", "Red zone", (r) => r.redZoneTouches, false);
 
   return metrics;
 }
@@ -454,11 +551,13 @@ function playerRuleChips(options: {
     const a = avgField(last2, (r) => r.targetShare);
     const b = avgField(prev2, (r) => r.targetShare);
     if (a != null && b != null && a - b >= 0.05) {
+      const from = Math.round(b * 100);
+      const to = Math.round(a * 100);
       chips.push({
         id: "usage-up",
-        label: "Usage ↑",
+        label: `↑ More targets: ${to}% of team (up from ${from}%): more catches`,
         tone: "good",
-        detail: `Tgt% ${(b * 100).toFixed(0)}→${(a * 100).toFixed(0)} (+${((a - b) * 100).toFixed(0)} pts)`,
+        detail: `Target share rose from ${from}% to ${to}% over the last two weeks — expect more catch chances and PPR points.`,
       });
     }
   }
@@ -474,21 +573,24 @@ function playerRuleChips(options: {
     const flat =
       tgt?.delta == null || Math.abs(tgt.delta) < 0.03 || tgt.last3 == null;
     if (flat) {
+      const pct = Math.round(pctDelta * 100);
       chips.push({
         id: "sell-high",
-        label: "Sell-high",
+        label: `Sell-high: scoring ${pct}% above season average without more usage; trade value may drop`,
         tone: "warn",
-        detail: `3wk ${avg3.toFixed(1)} vs szn ${seasonAvg.toFixed(1)} (+${(pctDelta * 100).toFixed(0)}%) · flat usage`,
+        detail: `Last 3 games avg ${avg3.toFixed(1)} vs season ${seasonAvg.toFixed(1)} (+${pct}%) while usage is flat — sell before regression.`,
       });
     }
   }
 
   if (signal.byeThisWeek) {
+    const week =
+      signal.weeks[signal.weeks.length - 1]?.week ?? "—";
     chips.push({
       id: "bye",
-      label: "On bye",
+      label: `On bye week ${week}: scores 0 this week`,
       tone: "info",
-      detail: `Week ${signal.weeks[signal.weeks.length - 1]?.week ?? "—"} bye`,
+      detail: `Week ${week} bye — he scores 0 unless you have a replacement in the lineup.`,
     });
   }
 
@@ -509,9 +611,9 @@ function rosterLevelChips(
   if (byeStarters.length >= 2) {
     chips.push({
       id: "bye-conflict",
-      label: "Bye conflict",
+      label: `Bye conflict: ${byeStarters.length} starters score 0 this week`,
       tone: "warn",
-      detail: `${byeStarters.length} starters on bye: ${byeStarters.map((p) => formatPlayerLabel(p.name, p.nflTeam)).join(", ")}`,
+      detail: `${byeStarters.length} starters on bye (${byeStarters.map((p) => formatPlayerLabel(p.name, p.nflTeam)).join(", ")}) — replace them or take zeros.`,
     });
   }
 
@@ -524,11 +626,13 @@ function rosterLevelChips(
         !isOutish(p.injuryStatus),
     );
     if (healthy.length < 2) {
+      const noun =
+        pos === "RB" ? "running back" : pos === "TE" ? "tight end" : pos;
       chips.push({
         id: `thin-${pos}`,
-        label: `Thin at ${pos}`,
+        label: `Thin at ${noun}: only ${healthy.length} healthy — injury risk`,
         tone: "bad",
-        detail: `${healthy.length} healthy ${pos}${healthy.length === 1 ? "" : "s"}`,
+        detail: `Only ${healthy.length} healthy ${noun}${healthy.length === 1 ? "" : "s"} on the roster — one injury leaves the slot empty.`,
       });
     }
   }
@@ -574,10 +678,16 @@ function buildPulse(signals: PlayerSignal[]): RosterPulse {
       espnId: s.player.espnId,
       nflTeam: s.player.nflTeam,
       reason: isOutish(s.status)
-        ? s.status
+        ? s.status === "IR"
+          ? "on IR — may score 0"
+          : s.status === "OUT"
+            ? "out — may score 0"
+            : s.status === "DOUBTFUL"
+              ? "doubtful — start risk"
+              : "unavailable — start risk"
         : s.status === "QUESTIONABLE"
-          ? "Q"
-          : "Sell-high",
+          ? "questionable — confirm before kickoff"
+          : "sell-high — trade value may drop",
     }));
   return { rising, fading, atRisk };
 }
