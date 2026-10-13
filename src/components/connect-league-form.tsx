@@ -130,7 +130,7 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
             <div>
               <dt className="type-caption text-emerald-950/45">Source</dt>
               <dd className="mt-0.5 font-medium text-emerald-950">
-                {connection.isDemo ? "Demo seed" : "ESPN"} · ID{" "}
+                {connection.isDemo ? "Demo (read-only)" : "ESPN"} · ID{" "}
                 {connection.leagueId} · Season {connection.season}
               </dd>
             </div>
@@ -157,8 +157,8 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
       <div>
         <h2 className="type-section text-emerald-950">Choose how to connect</h2>
         <p className="type-body mt-1 max-w-2xl text-emerald-950/65">
-          Two equal options — try the seeded demo, or link your ESPN fantasy
-          league. Only the action you click shows a loading state.
+          Two equal options — try the real read-only demo league, or link your
+          ESPN fantasy league. Only the action you click shows a loading state.
         </p>
       </div>
 
@@ -167,11 +167,11 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
           <p className="type-eyebrow text-orange-700">Option A</p>
           <h3 className="type-section mt-1 text-emerald-950">Load demo league</h3>
           <p className="type-body mt-2 flex-1 text-emerald-950/65">
-            Instant seeded 8-team league with rosters, matchups, free agents, and
-            insights — no ESPN credentials.{" "}
+            A real ESPN league snapshot with current rosters and latest finished
+            week stats — read-only, no credentials required.{" "}
             {isGuest
-              ? "Your guest display name becomes your demo team name."
-              : "Uses your account name as the demo team name when set."}
+              ? "Your guest display name becomes your team name on the board."
+              : "Uses your account name as the team name when set."}
           </p>
           <Button
             type="button"

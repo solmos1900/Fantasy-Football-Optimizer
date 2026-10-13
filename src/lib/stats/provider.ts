@@ -1,10 +1,12 @@
 /**
  * Stats provider — prefers free ESPN public scoreboard for live leagues.
- * Demo leagues get clearly labeled demo live stats. Live ESPN leagues never
- * fall back to demo top-performer names/points.
+ * Fabricated seed-only demo may use labeled seed live stats. Real read-only
+ * demo leagues (shared ESPN connection) use the public scoreboard + roster
+ * actuals — never invented top-performer points.
  */
 
 import type { LeagueData, LiveStatSnapshot } from "@/lib/types";
+import { isFabricatedSeedLeague } from "@/lib/demo/config";
 import { createDemoLiveStats } from "@/lib/demo/seed";
 import { fetchEspnScoreboard } from "@/lib/espn/client";
 import {
@@ -18,7 +20,8 @@ export async function getLiveStats(
   const week = league?.currentWeek ?? 3;
   const season = league?.season;
 
-  if (!league || league.isDemo) {
+  // Only the old in-memory seed uses fabricated live stats.
+  if (!league || isFabricatedSeedLeague(league)) {
     return createDemoLiveStats(week);
   }
 

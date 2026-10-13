@@ -22,7 +22,7 @@ This app assumes **1QB redraft**: a season-long league where you start one quart
 | **Guest** | Try the product with only a display name. No email required. Guest data does not carry over if you later sign in with Google, GitHub, or email. |
 | **Signed in** | Google, GitHub, or email/password. League connections stay on that account. |
 
-After you enter, you pick how to get data: **Load demo league** or **Connect ESPN**. Those are equal choices — neither sits under the other. In demo mode, your display name becomes your team name.
+After you enter, you pick how to get data: **Load demo league** or **Connect ESPN**. Those are equal choices — neither sits under the other. Demo mode loads a **real read-only** ESPN league snapshot (configured with `DEMO_LEAGUE_CONNECTION_ID`) — never fabricated stats. Your display name becomes your team name on that board.
 
 ---
 
@@ -46,7 +46,7 @@ After you enter, you pick how to get data: **Load demo league** or **Connect ESP
 |--------------|---------------------|
 | Rosters, projections, actuals, matchups | ESPN Fantasy league APIs (the unofficial endpoints the fantasy.espn.com site uses), synced and cached for your account |
 | Opponent labels for finished weeks | ESPN’s public NFL scoreboard |
-| Guest demo | In-app **labeled demo** seed (weeks limited to finished ones). Demo comps are tagged Demo |
+| Guest / Load demo | Real ESPN league snapshot from `DEMO_LEAGUE_CONNECTION_ID` (read-only; no owner cookies on guest rows). Finished-week comps only; labeled Demo in the UI |
 | News / injuries | ESPN public news feeds + roster injury flags — never invented |
 | Trends (projected vs actual) | Saved in Postgres when you sync or open Insights, for that league connection |
 

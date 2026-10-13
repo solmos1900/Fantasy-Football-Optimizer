@@ -17,6 +17,7 @@ type Props = {
 
 /**
  * Empty-state chrome with two equal peer CTAs: Load demo league | Connect ESPN.
+ * Demo loads a real read-only ESPN snapshot (DEMO_LEAGUE_CONNECTION_ID) — never seed.
  * Never nests demo under a single "Connect league" button.
  */
 export function EmptyLeagueConnect({

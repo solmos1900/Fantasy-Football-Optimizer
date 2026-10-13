@@ -25,8 +25,8 @@ Guest cleanup below targets **Postgres**. It does not lower the Function Storage
 
 ## What we stop writing
 
-- Demo leagues no longer persist `PlayerWeekStat` / `PlayerTrendSnapshot` (in-memory trends only).
-- Guest demo connections skip storing `cachedPayload` (seed regenerates).
+- Fabricated in-memory seed (`leagueId` `demo-league`) never persists `PlayerWeekStat` / `PlayerTrendSnapshot`.
+- Guest **Load demo league** uses a real ESPN snapshot from `DEMO_LEAGUE_CONNECTION_ID` (read-only). Guest rows store a sanitized `cachedPayload` and **never** copy `espnSwid` / `espnS2`. Shared source refresh uses a TTL (`DEMO_LEAGUE_SYNC_TTL_MINUTES`, default 12).
 
 Live ESPN sync for **signed-in** users is unchanged.
 

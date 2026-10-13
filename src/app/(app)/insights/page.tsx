@@ -325,7 +325,7 @@ export default async function InsightsPage() {
         </p>
         {league.isDemo && (
           <p className="type-eyebrow mt-3 text-orange-700">
-            Demo league data — guest-friendly
+            Read-only demo league — real ESPN snapshot
           </p>
         )}
       </div>

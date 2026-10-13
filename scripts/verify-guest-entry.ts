@@ -1,17 +1,21 @@
 /**
  * Regression guard for guest / demo entry (no DB required).
  *
- * Covers the post-auth product path guests hit after Continue as Guest →
- * Load demo league: seed shape, insights bundle, player detail (incl. empty
- * defense comps), and trade analyzer verdict shape.
+ * Product guests load a real ESPN snapshot via DEMO_LEAGUE_CONNECTION_ID
+ * (see verify-demo-league.ts). This script keeps exercising insights /
+ * defense / trade analyzer against the in-memory seed fixture only — never
+ * as a product data path.
  *
  * Run: npx tsx scripts/verify-guest-entry.ts
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   applyDemoOwnerDisplayName,
   createDemoLeague,
 } from "../src/lib/demo/seed";
+import { isFabricatedSeedLeague } from "../src/lib/demo/config";
 import {
   buildInsightsBundle,
   generateInsights,
@@ -28,6 +32,7 @@ const league = applyDemoOwnerDisplayName(
 );
 
 assert.equal(league.isDemo, true);
+assert.ok(isFabricatedSeedLeague(league));
 assert.equal(league.scoringPeriodId, 3);
 assert.equal(league.currentWeek, 3);
 assert.match(league.name, /CrashTest Guest/);
@@ -87,7 +92,25 @@ assert.equal(typeof grade.giveValue, "number");
 assert.equal(typeof grade.receiveValue, "number");
 assert.ok(grade.summary);
 
+// Product connect path must not call createDemoLeague.
+const service = fs.readFileSync(
+  path.join(process.cwd(), "src/lib/league/service.ts"),
+  "utf8",
+);
+assert.doesNotMatch(service, /createDemoLeague/);
+assert.match(service, /getFreshDemoSourceLeague/);
+
+// Connect guide must document ESPN field labels and Coming soon for Sleeper.
+const onboarding = fs.readFileSync(
+  path.join(process.cwd(), "src/lib/onboarding/content.ts"),
+  "utf8",
+);
+assert.match(onboarding, /SWID \(private\)/);
+assert.match(onboarding, /espn_s2 \(private\)/);
+assert.match(onboarding, /available: false/);
+assert.match(onboarding, /Coming soon/);
+
 console.log("verify-guest-entry: ok");
 console.log(
-  `  demo=${league.name} week=${league.scoringPeriodId} insights=${insights.length} trends=${trends.size} verdict=${grade.verdictLabel}`,
+  `  fixture=${league.name} week=${league.scoringPeriodId} insights=${insights.length} trends=${trends.size} verdict=${grade.verdictLabel}`,
 );

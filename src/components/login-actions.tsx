@@ -131,7 +131,8 @@ export function LoginActions({
           </Button>
           <p className="type-caption leading-relaxed text-emerald-950/50">
             Guest mode creates a temporary session so you can connect ESPN or
-            load the demo league without an account. UI labels you as Guest.
+            load the real read-only demo league without an account. UI labels
+            you as Guest.
           </p>
         </div>
 

@@ -58,7 +58,15 @@ const trends = fs.readFileSync(
   path.join(process.cwd(), "src/lib/insights/trends.ts"),
   "utf8",
 );
-assert.match(trends, /if \(league\.isDemo\)/);
+// Fabricated seed must not write PlayerWeekStat; real demo leagues may persist.
+assert.match(trends, /isFabricatedSeedLeague\(league\)/);
+
+const service = fs.readFileSync(
+  path.join(process.cwd(), "src/lib/league/service.ts"),
+  "utf8",
+);
+assert.match(service, /getFreshDemoSourceLeague/);
+assert.doesNotMatch(service, /createDemoLeague/);
 
 if (prev === undefined) delete process.env.GUEST_SESSION_TTL_HOURS;
 else process.env.GUEST_SESSION_TTL_HOURS = prev;
