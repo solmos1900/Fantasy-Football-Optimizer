@@ -10,9 +10,9 @@
  * - Opp ↓  when a competitor is ACTIVE after a stored prior OUT/IR/DOUBTFUL
  *          (returning volume)
  *
- * Volume proxy = 3-week avg target share (WR/TE/QB pass-catchers) or
- * carry share proxy (carries / team carries) for RBs from nflverse.
- * When share is null → detail shows "—" (never guess).
+ * Volume proxy = last-3 avg target share (WR/TE) or carry share (RB)
+ * from nflverse; if last-3 has <2 usable weeks (IR / early exit), use
+ * season-to-date average. Null share → detail shows "—" (never guess).
  *
  * Trade chip adjustment (transparent):
  *   Δchip ≈ vacatedOrReturningShare × REDIST_FRACTION × SHARE_TO_POINTS
@@ -196,6 +196,12 @@ async function loadShareRows(options: {
   return out;
 }
 
+/**
+ * Vacated/returning volume share from nflverse.
+ * Prefer last-3 completed weeks; if that window has fewer than 2 usable
+ * observations (typical for IR / early-season exits), fall back to the
+ * full season-to-date average so we don't understate pre-injury volume.
+ */
 function avgShareWindow(
   rows: ShareRow[],
   kind: "target" | "carry",
@@ -204,24 +210,36 @@ function avgShareWindow(
 ): number | null {
   const last3from = Math.max(1, throughWeek - 2);
   const last3 = rows.filter((r) => r.week >= last3from && r.week <= throughWeek);
-  const window = last3.length ? last3 : rows; // season fallback for IR / inactive
-  if (kind === "target") {
-    const vals = window
+  const season = rows.filter((r) => r.week >= 1 && r.week <= throughWeek);
+
+  const targetVals = (window: ShareRow[]) =>
+    window
       .map((r) => r.targetShare)
       .filter((v): v is number => v != null && Number.isFinite(v));
-    if (!vals.length) return null;
-    return vals.reduce((a, b) => a + b, 0) / vals.length;
+
+  const carryVals = (window: ShareRow[]) => {
+    const parts: number[] = [];
+    for (const r of window) {
+      if (r.carries == null || !r.nflTeam) continue;
+      const teamKey = `${r.nflTeam}|${r.week}`;
+      const team = teamCarryTotals?.get(teamKey);
+      if (team == null || team <= 0) continue;
+      parts.push(r.carries / team);
+    }
+    return parts;
+  };
+
+  if (kind === "target") {
+    const recent = targetVals(last3);
+    const window = recent.length >= 2 ? recent : targetVals(season);
+    if (!window.length) return null;
+    return window.reduce((a, b) => a + b, 0) / window.length;
   }
-  const parts: number[] = [];
-  for (const r of window) {
-    if (r.carries == null || !r.nflTeam) continue;
-    const teamKey = `${r.nflTeam}|${r.week}`;
-    const team = teamCarryTotals?.get(teamKey);
-    if (team == null || team <= 0) continue;
-    parts.push(r.carries / team);
-  }
-  if (!parts.length) return null;
-  return parts.reduce((a, b) => a + b, 0) / parts.length;
+
+  const recent = carryVals(last3);
+  const window = recent.length >= 2 ? recent : carryVals(season);
+  if (!window.length) return null;
+  return window.reduce((a, b) => a + b, 0) / window.length;
 }
 
 async function teamCarryTotals(
