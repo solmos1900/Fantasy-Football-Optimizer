@@ -25,12 +25,17 @@ export default async function InsightsPreviewPage() {
   // Prefer real players who currently show teammate-injury Opp chips
   // (e.g. Josh Downs / Tyler Warren ← Alec Pierce IND IR) so QA screenshots
   // exercise the feature without fabricating status.
+  // Prefer golden-sample + Opp-chip players so QA can spot-check full-PPR
+  // strips (Burrow/Swift) and teammate-injury chips (Downs/Marks/Franklin).
   const preferNames = new Set([
+    "Joe Burrow",
+    "D'Andre Swift",
     "Josh Downs",
     "Tyler Warren",
     "Ashton Dulin",
     "Woody Marks",
     "Troy Franklin",
+    "David Montgomery",
   ]);
   const pick = (
     pos: "QB" | "RB" | "WR" | "TE",

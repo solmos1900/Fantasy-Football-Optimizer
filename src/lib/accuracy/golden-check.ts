@@ -29,11 +29,15 @@ type ExpectedWeek = {
   targets: number | null;
   carries: number | null;
   opponent: string | null;
+  /** Documented in fixture; not asserted (nflverse snap %). */
+  snapPct?: number | null;
 };
 
 type FixturePlayer = {
   espnId: number;
   name: string;
+  /** Optional position from researcher dump (used by seed script). */
+  position?: string;
   expected: {
     nflTeam: string | null;
     opponent: string | null;
@@ -143,7 +147,12 @@ export async function runGoldenAccuracyCheck(): Promise<GoldenCheckResult> {
       const row = byWeek.get(ew.week);
       const label = `${fp.name} W${ew.week}`;
 
-      // null expected = unknown (no stat row) — do not treat as 0
+      // All scoring fields null = unknown week (no assertable stat row).
+      // Keep opponent/snapPct in the fixture for docs; do not treat as 0.
+      const scoringUnknown =
+        ew.actualPpr == null && ew.targets == null && ew.carries == null;
+      if (scoringUnknown) continue;
+
       if (ew.actualPpr != null) {
         const actual = row?.actualPpr;
         if (

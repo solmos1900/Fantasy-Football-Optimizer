@@ -15,17 +15,19 @@ async function main() {
 
   for (const fp of fixture.players) {
     const team = fp.expected.nflTeam ?? "FA";
+    const position = fp.position ?? "RB";
     await prisma.player.upsert({
       where: { espnId: fp.espnId },
       create: {
         espnId: fp.espnId,
         espnPlayerId: String(fp.espnId),
         name: fp.name,
-        position: "RB",
+        position,
         nflTeam: team,
       },
       update: {
         name: fp.name,
+        position,
         nflTeam: team,
       },
     });
@@ -36,7 +38,7 @@ async function main() {
     });
 
     for (const w of fp.expected.weeks) {
-      // Skip unknown weeks (all-null) — no row to seed
+      // Skip weeks with no assertable fields — no row to seed
       if (
         w.actualPpr == null &&
         w.targets == null &&
