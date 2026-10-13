@@ -46,7 +46,7 @@ export const ONBOARDING_PLATFORMS: OnboardingPlatform[] = [
       {
         id: "espn-open",
         title: "Open Connect ESPN league",
-        body: "After you sign in or continue as a guest, choose Connect ESPN league (from Home or the Connect page). That is Option B next to Load demo league.",
+        body: "After you sign in or continue as a guest, open Connect (or Home → Connect ESPN league) to link your fantasy league.",
       },
       {
         id: "espn-league-id",

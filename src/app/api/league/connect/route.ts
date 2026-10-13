@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { connectDemoLeague, connectEspnLeague } from "@/lib/league/service";
+import { connectEspnLeague } from "@/lib/league/service";
 import { defaultEspnSeason } from "@/lib/season";
 
 export async function POST(request: Request) {
@@ -14,8 +14,13 @@ export async function POST(request: Request) {
 
   try {
     if (mode === "demo") {
-      const league = await connectDemoLeague(session.user.id);
-      return NextResponse.json({ ok: true, league });
+      return NextResponse.json(
+        {
+          error:
+            "Demo leagues are no longer available. Connect an ESPN league, or use Trades tools without a league (full NFL player pool, full PPR).",
+        },
+        { status: 400 },
+      );
     }
 
     const leagueId = String(body.leagueId ?? "").trim();

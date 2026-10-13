@@ -1,11 +1,4 @@
 import { prisma } from "@/lib/db";
-import { isFabricatedSeedLeague } from "@/lib/demo/config";
-import {
-  DemoLeagueNotConfiguredError,
-  demoNotConfiguredMessage,
-  getFreshDemoSourceLeague,
-  sanitizeDemoLeagueForViewer,
-} from "@/lib/demo/real-demo";
 import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
 import {
   decryptEspnCookie,
@@ -15,36 +8,12 @@ import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
 
 async function persistTrendsSafe(league: LeagueData): Promise<void> {
-  // Fabricated seed is regenerable in-memory — skip Neon writes.
-  // Real demo (shared ESPN leagueId) should persist so guests share trends.
-  if (isFabricatedSeedLeague(league)) return;
   try {
     await refreshProjectionTrends(league);
   } catch (err) {
     // Trends are best-effort — never block sync if Neon is briefly unavailable
     console.error("[trends] refresh failed", err);
   }
-}
-
-async function userFlags(userId: string): Promise<{
-  name: string | null;
-  isGuest: boolean;
-}> {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, isGuest: true },
-    });
-    return { name: user?.name ?? null, isGuest: Boolean(user?.isGuest) };
-  } catch (err) {
-    console.error("[league] userFlags failed", err);
-    return { name: null, isGuest: false };
-  }
-}
-
-async function demoOwnerDisplayName(userId: string): Promise<string | null> {
-  const { name } = await userFlags(userId);
-  return name;
 }
 
 /** Prefer DB lastSyncedAt when hydrating a cached ESPN payload for the UI. */
@@ -60,7 +29,7 @@ export function applyConnectionLastSyncedAt(
 export async function getUserLeagueConnection(userId: string) {
   try {
     return await prisma.leagueConnection.findFirst({
-      where: { userId },
+      where: { userId, isDemo: false },
       orderBy: { updatedAt: "desc" },
     });
   } catch (err) {
@@ -70,107 +39,19 @@ export async function getUserLeagueConnection(userId: string) {
   }
 }
 
-/**
- * Persist a read-only demo snapshot onto the viewer's LeagueConnection.
- * Never copies ESPN cookies. Guests keep a Neon cache so page loads stay fast;
- * freshness is driven by the shared DEMO_LEAGUE_CONNECTION_ID source TTL.
- */
-async function upsertViewerDemoConnection(
-  userId: string,
-  view: LeagueData,
-): Promise<void> {
-  await prisma.leagueConnection.upsert({
-    where: {
-      userId_leagueId_season: {
-        userId,
-        leagueId: view.leagueId,
-        season: view.season,
-      },
-    },
-    update: {
-      isDemo: true,
-      teamId: view.userTeamId ?? null,
-      leagueName: view.name,
-      espnSwid: null,
-      espnS2: null,
-      cachedPayload: JSON.stringify(view),
-      lastSyncedAt: view.lastSyncedAt
-        ? new Date(view.lastSyncedAt)
-        : new Date(),
-    },
-    create: {
-      userId,
-      leagueId: view.leagueId,
-      season: view.season,
-      teamId: view.userTeamId ?? null,
-      leagueName: view.name,
-      isDemo: true,
-      espnSwid: null,
-      espnS2: null,
-      cachedPayload: JSON.stringify(view),
-      lastSyncedAt: view.lastSyncedAt
-        ? new Date(view.lastSyncedAt)
-        : new Date(),
-    },
-  });
-}
-
 export async function getLeagueDataForUser(
   userId: string,
 ): Promise<LeagueData | null> {
   const connection = await getUserLeagueConnection(userId);
   if (!connection) return null;
 
-  const ownerName = connection.isDemo
-    ? await demoOwnerDisplayName(userId)
-    : null;
-
-  if (connection.isDemo) {
-    // Real shared demo: serve Neon first, refresh source when TTL expired.
-    try {
-      const fresh = await getFreshDemoSourceLeague();
-      const view = sanitizeDemoLeagueForViewer(fresh, ownerName);
-      try {
-        await upsertViewerDemoConnection(userId, view);
-      } catch (err) {
-        console.error("[league] failed to persist viewer demo cache", err);
-      }
-      return view;
-    } catch (err) {
-      // Honest fallback: viewer Neon snapshot if it is real (never re-seed).
-      if (connection.cachedPayload) {
-        try {
-          const cached = JSON.parse(connection.cachedPayload) as LeagueData;
-          if (!isFabricatedSeedLeague(cached) && cached.teams?.length) {
-            console.error(
-              "[league] demo source unavailable; serving viewer cache",
-              err,
-            );
-            return sanitizeDemoLeagueForViewer(
-              applyConnectionLastSyncedAt(cached, connection.lastSyncedAt),
-              ownerName,
-            );
-          }
-        } catch {
-          // fall through
-        }
-      }
-      if (err instanceof DemoLeagueNotConfiguredError) {
-        console.error("[league]", err.message);
-        return null;
-      }
-      console.error("[league] demo hydrate failed", err);
-      return null;
-    }
-  }
+  // Ignore legacy demo / seed rows — product path is ESPN only.
+  if (connection.isDemo) return null;
 
   if (connection.cachedPayload) {
     try {
       const cached = JSON.parse(connection.cachedPayload) as LeagueData;
-      // Never resurrect fabricated seed payloads for product users.
-      if (isFabricatedSeedLeague(cached)) {
-        return null;
-      }
+      if (cached.isDemo || cached.leagueId === "demo-league") return null;
       return applyConnectionLastSyncedAt(cached, connection.lastSyncedAt);
     } catch {
       // fall through
@@ -178,30 +59,6 @@ export async function getLeagueDataForUser(
   }
 
   return null;
-}
-
-export async function connectDemoLeague(
-  userId: string,
-  options?: { forceRefresh?: boolean },
-): Promise<LeagueData> {
-  const { name: ownerName } = await userFlags(userId);
-
-  let fresh: LeagueData;
-  try {
-    fresh = await getFreshDemoSourceLeague({
-      forceRefresh: Boolean(options?.forceRefresh),
-    });
-  } catch (err) {
-    if (err instanceof DemoLeagueNotConfiguredError) {
-      throw new Error(demoNotConfiguredMessage());
-    }
-    throw err;
-  }
-
-  const view = sanitizeDemoLeagueForViewer(fresh, ownerName);
-  await upsertViewerDemoConnection(userId, view);
-  await persistTrendsSafe(view);
-  return view;
 }
 
 export async function connectEspnLeague(
@@ -278,13 +135,12 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
   }
 
   if (connection.isDemo) {
-    // Explicit Sync: bypass TTL and refresh the shared source, then re-copy.
-    return connectDemoLeague(userId, { forceRefresh: true });
+    throw new Error(
+      "Demo leagues are no longer supported. Connect an ESPN league instead.",
+    );
   }
 
   // Decrypt only for the ESPN fetch path; next write re-encrypts at rest.
-  // Missing/wrong ESPN_COOKIE_ENCRYPTION_KEY fails closed here — surface that
-  // to the client instead of leaving Last sync frozen on a silent failure.
   let swid: string | undefined;
   let espnS2: string | undefined;
   try {

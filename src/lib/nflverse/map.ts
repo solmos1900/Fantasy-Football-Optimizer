@@ -1,9 +1,11 @@
 /**
  * Map nflverse weekly player-stat rows → PlayerWeekStat usage columns.
  * Only real fields — never invent shares, RZ, or fantasy points.
+ * Full-PPR actuals are derived from real box-score columns via the published formula.
  */
 
 import { parseOptionalFloat } from "./csv";
+import { fullPprFromNflverseRow } from "@/lib/players/scoring";
 
 /** League-agnostic usage rows use empty leagueId (ESPN sync keeps league-scoped PPR). */
 export const NFLVERSE_LEAGUE_ID = "";
@@ -28,6 +30,11 @@ export type NflverseUsageMapped = {
   airYards: number | null;
   /** Filled later from snap_counts when join succeeds; otherwise null. */
   snapShare: number | null;
+  /**
+   * Full-PPR total computed from real nflverse box-score columns (not ESPN).
+   * Only written on leagueId="" rows — never invents missing yards/TDs.
+   */
+  actualPpr: number | null;
 };
 
 const SKILL_POSITIONS = new Set(["QB", "RB", "WR", "TE", "FB"]);
@@ -111,6 +118,7 @@ export function mapNflverseWeekRow(
     targetShare,
     airYards,
     snapShare: null,
+    actualPpr: fullPprFromNflverseRow(row),
   };
 }
 

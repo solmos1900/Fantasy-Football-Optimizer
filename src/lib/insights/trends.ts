@@ -17,7 +17,6 @@
  */
 
 import { prisma } from "@/lib/db";
-import { isFabricatedSeedLeague } from "@/lib/demo/config";
 import type {
   FantasyPlayer,
   InjuryStatus,
@@ -394,9 +393,12 @@ async function upsertPlayer(player: FantasyPlayer) {
 export async function refreshProjectionTrends(
   league: LeagueData,
 ): Promise<{ snapshots: number; trends: number }> {
-  // Fabricated in-memory seed is regenerable — never persist those fantasy stats.
-  // Real read-only demo (shared ESPN league) persists under the real leagueId.
-  if (isFabricatedSeedLeague(league)) {
+  // In-memory seed / no-league context — never persist fantasy stats blobs.
+  if (
+    league.leagueId === "demo-league" ||
+    league.leagueId === "no-league" ||
+    league.isDemo
+  ) {
     return { snapshots: 0, trends: 0 };
   }
   const source: SnapshotSource = "espn";
@@ -460,7 +462,7 @@ export async function refreshProjectionTrends(
           projectionSource: rowSource,
           actualSource:
             row.actualPpr != null
-              ? isFabricatedSeedLeague(league)
+              ? league.isDemo
                 ? "demo"
                 : "espn_league"
               : null,
@@ -480,7 +482,7 @@ export async function refreshProjectionTrends(
           projectionSource: rowSource,
           actualSource:
             row.actualPpr != null
-              ? isFabricatedSeedLeague(league)
+              ? league.isDemo
                 ? "demo"
                 : "espn_league"
               : null,

@@ -310,12 +310,15 @@ export function WhoToStart({
   poolPlayers,
   trends: trendsProp,
   isDemo,
+  noLeague = false,
 }: {
   league: LeagueData;
   you: FantasyTeam;
   poolPlayers: FantasyPlayer[];
   trends?: TrendsProp;
   isDemo?: boolean;
+  /** No roster chips / league-mate shortcuts — search the NFL pool only. */
+  noLeague?: boolean;
 }) {
   const [playerA, setPlayerA] = useState<FantasyPlayer | null>(null);
   const [playerB, setPlayerB] = useState<FantasyPlayer | null>(null);
@@ -335,6 +338,17 @@ export function WhoToStart({
     playerA?.position ?? playerB?.position ?? null;
 
   const suggestions = useMemo(() => {
+    if (noLeague) {
+      // Top projected at the locked position (or overall) — never fake roster chips.
+      const exclude = new Set<string>();
+      if (playerA) exclude.add(playerA.id);
+      if (playerB) exclude.add(playerB.id);
+      return pool
+        .filter((p) => !exclude.has(p.id))
+        .filter((p) => !positionLock || p.position === positionLock)
+        .filter((p) => p.projectedPoints > 0)
+        .slice(0, 8);
+    }
     if (!positionLock) {
       // Default: show a few of your starters as kickoff ideas.
       return you.roster
@@ -346,7 +360,7 @@ export function WhoToStart({
     if (playerA) exclude.add(playerA.id);
     if (playerB) exclude.add(playerB.id);
     return samePositionSuggestions(you, positionLock, exclude).slice(0, 8);
-  }, [you, positionLock, playerA, playerB]);
+  }, [you, positionLock, playerA, playerB, noLeague, pool]);
 
   const comparison = useMemo(() => {
     if (!playerA || !playerB) return null;
@@ -414,14 +428,21 @@ export function WhoToStart({
         Pick two players at the same position. We weigh this week&apos;s
         projection, recent form, injury status, and defense matchup — no LLM,
         no invented comps.
+        {noLeague
+          ? " Scoring defaults to full PPR until you connect a league."
+          : ""}
       </p>
 
       {suggestions.length > 0 && (
         <div className="space-y-2">
           <p className="type-eyebrow text-emerald-950/45">
-            {positionLock
-              ? `From your ${positionLock}s`
-              : "From your starters"}
+            {noLeague
+              ? positionLock
+                ? `Top projected ${positionLock}s`
+                : "Top projected players"
+              : positionLock
+                ? `From your ${positionLock}s`
+                : "From your starters"}
           </p>
           <ul className="flex flex-wrap gap-2">
             {suggestions.map((p) => (
@@ -433,9 +454,16 @@ export function WhoToStart({
                 >
                   <PositionChip position={p.position} />
                   <span className="truncate">{p.name}</span>
-                  <span className="type-caption shrink-0 text-emerald-950/45">
-                    {p.isStarter ? "S" : "BN"}
-                  </span>
+                  {!noLeague && (
+                    <span className="type-caption shrink-0 text-emerald-950/45">
+                      {p.isStarter ? "S" : "BN"}
+                    </span>
+                  )}
+                  {noLeague && p.projectedPoints > 0 && (
+                    <span className="type-caption shrink-0 text-emerald-950/45">
+                      {p.projectedPoints.toFixed(1)}
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -446,7 +474,7 @@ export function WhoToStart({
       <div className="grid gap-6 sm:grid-cols-2">
         <section className="surface-card space-y-3 p-4 sm:p-5">
           <SinglePlayerSearch
-            label="Search league pool"
+            label={noLeague ? "Search NFL players" : "Search league pool"}
             sideLetter="A"
             pool={pool}
             selected={playerA}
@@ -458,7 +486,7 @@ export function WhoToStart({
         </section>
         <section className="surface-card space-y-3 p-4 sm:p-5">
           <SinglePlayerSearch
-            label="Search league pool"
+            label={noLeague ? "Search NFL players" : "Search league pool"}
             sideLetter="B"
             pool={pool}
             selected={playerB}
@@ -506,7 +534,9 @@ export function WhoToStart({
 
       {!playerA && !playerB && (
         <p className="type-body text-sm text-emerald-950/55">
-          Type to search, or tap a starter above to begin.
+          {noLeague
+            ? "Type a player name to begin, or tap a suggested player above."
+            : "Type to search, or tap a starter above to begin."}
         </p>
       )}
 

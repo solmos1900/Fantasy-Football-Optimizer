@@ -9,7 +9,7 @@
     "lint": "eslint",
     "verify:defense": "tsx scripts/verify-defense-matchups.ts",
     "verify:guest": "tsx scripts/verify-guest-entry.ts",
-    "verify:demo": "tsx scripts/verify-demo-league.ts",
+    "verify:no-league": "tsx scripts/verify-no-league-pool.ts",
     "verify:cleanup": "tsx scripts/verify-ephemeral-cleanup.ts",
     "verify:cookie-crypto": "tsx scripts/verify-cookie-crypto.ts",
     "verify:sync-freshness": "tsx scripts/verify-sync-freshness.ts",

@@ -586,6 +586,7 @@ export function TradeAnalyzer({
   initialGiveIds = [],
   initialReceiveIds = [],
   isDemo,
+  forceFreeMode = false,
 }: {
   you: FantasyTeam;
   partners: FantasyTeam[];
@@ -596,13 +597,17 @@ export function TradeAnalyzer({
   initialGiveIds?: string[];
   initialReceiveIds?: string[];
   isDemo?: boolean;
+  /** No-league users: lock to player-vs-player (no team trade packages). */
+  forceFreeMode?: boolean;
 }) {
   const trends = useMemo(() => toTrendMap(trendsProp), [trendsProp]);
 
   const hasDeepLinkBothSides =
     initialGiveIds.length > 0 && initialReceiveIds.length > 0;
 
-  const [mode, setMode] = useState<TradeMode>("team");
+  const [mode, setMode] = useState<TradeMode>(
+    forceFreeMode || partners.length === 0 ? "free" : "team",
+  );
   const [step, setStep] = useState<TradeStep>(() =>
     hasDeepLinkBothSides ? "results" : "yours",
   );
@@ -806,7 +811,7 @@ export function TradeAnalyzer({
         canReachResults={canReachResults}
       />
 
-      {step !== "results" && (
+      {step !== "results" && !forceFreeMode && (
         <div
           className="inline-flex rounded-xl border border-emerald-950/15 bg-[color-mix(in_srgb,var(--kraft)_25%,var(--surface))] p-1"
           role="tablist"
@@ -841,6 +846,13 @@ export function TradeAnalyzer({
             Player vs player
           </button>
         </div>
+      )}
+
+      {forceFreeMode && step !== "results" && (
+        <p className="type-caption text-emerald-950/55">
+          Full PPR · NFL player pool — connect a league to unlock team-trade
+          packages against league mates.
+        </p>
       )}
 
       {isDemo && step !== "results" && (

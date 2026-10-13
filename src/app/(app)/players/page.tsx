@@ -13,7 +13,7 @@ export default async function PlayersPage() {
     return (
       <EmptyLeagueConnect
         title="Players"
-        message="Load a demo league or connect ESPN to search the player pool with ownership and projections."
+        message="Connect an ESPN league to search your league player pool with ownership and projections. Trade Analyzer still works without a league."
       />
     );
   }

@@ -35,7 +35,7 @@ export default async function PlayerDetailPage({
     return (
       <EmptyLeagueConnect
         title="Player"
-        message="Load a demo league or connect ESPN to open player drill-downs with projections and defense comps."
+        message="Connect an ESPN league to open player drill-downs with projections and defense comps."
       />
     );
   }
