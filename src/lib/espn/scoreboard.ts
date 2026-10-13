@@ -83,7 +83,7 @@ export function parseEspnScoreboard(raw: {
 }
 
 /**
- * Format opponent string for UI / parseVenue: `@ MIA`, `vs NE`, or `BYE`.
+ * Format opponent string for UI / parseVenue: `@MIA`, `vs NE`, or `BYE`.
  * Returns undefined when the team has no known schedule entry yet.
  */
 export function formatOpponentLabel(
@@ -95,7 +95,8 @@ export function formatOpponentLabel(
 
   const entry = schedule.get(team);
   if (entry?.kind === "game") {
-    return entry.home ? `vs ${entry.opponent}` : `@ ${entry.opponent}`;
+    // Away uses compact @ATL (no space) so DVP chips match scoreboard venue.
+    return entry.home ? `vs ${entry.opponent}` : `@${entry.opponent}`;
   }
   if (entry?.kind === "bye") {
     return "BYE";

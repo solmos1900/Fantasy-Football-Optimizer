@@ -1,0 +1,574 @@
+{
+  "version": 1,
+  "mode": "assert",
+  "season": 2026,
+  "description": "nflverse full-PPR reference (verbatim researcher dump). null week fields = no stat row (unknown, not 0).",
+  "scoring": "full_ppr_nflverse",
+  "surfaces": [
+    "insights",
+    "who-to-start",
+    "trade"
+  ],
+  "players": [
+    {
+      "espnId": 3915511,
+      "name": "Joe Burrow",
+      "position": "QB",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "CIN",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 14.16,
+            "targets": 0,
+            "carries": 5,
+            "opponent": "TB",
+            "snapPct": 100.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 16.18,
+            "targets": 0,
+            "carries": 1,
+            "opponent": "HOU",
+            "snapPct": 100.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 22.58,
+            "targets": 0,
+            "carries": 2,
+            "opponent": "PIT",
+            "snapPct": 100.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 23.72,
+            "targets": 0,
+            "carries": 3,
+            "opponent": "JAX",
+            "snapPct": 100.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 24.6,
+            "targets": 0,
+            "carries": 4,
+            "opponent": "MIA",
+            "snapPct": 100.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4429059,
+      "name": "Woody Marks",
+      "position": "RB",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "HOU",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 5.0,
+            "targets": 1,
+            "carries": 9,
+            "opponent": "BUF",
+            "snapPct": 51.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 8.5,
+            "targets": 6,
+            "carries": 8,
+            "opponent": "CIN",
+            "snapPct": 48.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 9.1,
+            "targets": 1,
+            "carries": 5,
+            "opponent": "IND",
+            "snapPct": 37.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 8.2,
+            "targets": 1,
+            "carries": 6,
+            "opponent": "DAL",
+            "snapPct": 44.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 12.5,
+            "targets": 4,
+            "carries": 15,
+            "opponent": "TEN",
+            "snapPct": 85.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4688813,
+      "name": "Josh Downs",
+      "position": "WR",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "IND",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 5.7,
+            "targets": 4,
+            "carries": 0,
+            "opponent": "BAL",
+            "snapPct": 89.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 14.2,
+            "targets": 9,
+            "carries": 0,
+            "opponent": "KC",
+            "snapPct": 83.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 12.7,
+            "targets": 11,
+            "carries": 0,
+            "opponent": "HOU",
+            "snapPct": 68.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 4.6,
+            "targets": 4,
+            "carries": 0,
+            "opponent": "WAS",
+            "snapPct": 77.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 7.7,
+            "targets": 6,
+            "carries": 0,
+            "opponent": "PIT",
+            "snapPct": 85.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4259545,
+      "name": "D'Andre Swift",
+      "position": "RB",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "CHI",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 32.4,
+            "targets": 1,
+            "carries": 18,
+            "opponent": "CAR",
+            "snapPct": 57.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 12.9,
+            "targets": 5,
+            "carries": 16,
+            "opponent": "MIN",
+            "snapPct": 68.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 10.8,
+            "targets": 3,
+            "carries": 20,
+            "opponent": "PHI",
+            "snapPct": 69.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 7.4,
+            "targets": 2,
+            "carries": 15,
+            "opponent": "NYJ",
+            "snapPct": 35.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 17.3,
+            "targets": 5,
+            "carries": 9,
+            "opponent": "GB",
+            "snapPct": 58.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4374302,
+      "name": "Amon-Ra St. Brown",
+      "position": "WR",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "DET",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 28.7,
+            "targets": 14,
+            "carries": 0,
+            "opponent": "NO",
+            "snapPct": 90.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 35.2,
+            "targets": 13,
+            "carries": 0,
+            "opponent": "BUF",
+            "snapPct": 95.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 11.9,
+            "targets": 8,
+            "carries": 0,
+            "opponent": "NYJ",
+            "snapPct": 74.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 15.5,
+            "targets": 11,
+            "carries": 0,
+            "opponent": "CAR",
+            "snapPct": 96.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 12.9,
+            "targets": 11,
+            "carries": 0,
+            "opponent": "ARI",
+            "snapPct": 86.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4431280,
+      "name": "Troy Franklin",
+      "position": "WR",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "DEN",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 0.5,
+            "targets": 1,
+            "carries": 1,
+            "opponent": "KC",
+            "snapPct": 33.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 3.7,
+            "targets": 2,
+            "carries": 0,
+            "opponent": "JAX",
+            "snapPct": 21.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 3.1,
+            "targets": 1,
+            "carries": 0,
+            "opponent": "LA",
+            "snapPct": 18.0
+          },
+          {
+            "week": 4,
+            "actualPpr": null,
+            "targets": null,
+            "carries": null,
+            "opponent": "SF",
+            "snapPct": 48.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 3.6,
+            "targets": 2,
+            "carries": 0,
+            "opponent": "LAC",
+            "snapPct": 63.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4035538,
+      "name": "David Montgomery",
+      "position": "RB",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "HOU",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 28.9,
+            "targets": 3,
+            "carries": 20,
+            "opponent": "BUF",
+            "snapPct": 49.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 4.4,
+            "targets": 2,
+            "carries": 6,
+            "opponent": "CIN",
+            "snapPct": 52.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 6.8,
+            "targets": 2,
+            "carries": 11,
+            "opponent": "IND",
+            "snapPct": 63.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 4.3,
+            "targets": 0,
+            "carries": 10,
+            "opponent": "DAL",
+            "snapPct": 56.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 1.1,
+            "targets": 0,
+            "carries": 5,
+            "opponent": "TEN",
+            "snapPct": 14.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4361307,
+      "name": "Trey McBride",
+      "position": "TE",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "ARI",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 24.5,
+            "targets": 13,
+            "carries": 0,
+            "opponent": "LAC",
+            "snapPct": 80.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 18.1,
+            "targets": 10,
+            "carries": 0,
+            "opponent": "SEA",
+            "snapPct": 88.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 16.5,
+            "targets": 11,
+            "carries": 0,
+            "opponent": "SF",
+            "snapPct": 91.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 10.1,
+            "targets": 12,
+            "carries": 0,
+            "opponent": "NYG",
+            "snapPct": 97.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 21.6,
+            "targets": 10,
+            "carries": 0,
+            "opponent": "DET",
+            "snapPct": 90.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4430807,
+      "name": "Bijan Robinson",
+      "position": "RB",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "ATL",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 31.3,
+            "targets": 10,
+            "carries": 21,
+            "opponent": "PIT",
+            "snapPct": 77.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 11.1,
+            "targets": 4,
+            "carries": 16,
+            "opponent": "CAR",
+            "snapPct": 51.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 35.3,
+            "targets": 2,
+            "carries": 29,
+            "opponent": "GB",
+            "snapPct": 72.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 27.7,
+            "targets": 2,
+            "carries": 19,
+            "opponent": "NO",
+            "snapPct": 60.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 15.8,
+            "targets": 7,
+            "carries": 17,
+            "opponent": "BAL",
+            "snapPct": 81.0
+          }
+        ]
+      }
+    },
+    {
+      "espnId": 4362628,
+      "name": "Ja'Marr Chase",
+      "position": "WR",
+      "surfaces": [
+        "insights",
+        "who-to-start",
+        "trade"
+      ],
+      "expected": {
+        "nflTeam": "CIN",
+        "opponent": null,
+        "weeks": [
+          {
+            "week": 1,
+            "actualPpr": 3.2,
+            "targets": 4,
+            "carries": 0,
+            "opponent": "TB",
+            "snapPct": 94.0
+          },
+          {
+            "week": 2,
+            "actualPpr": 26.5,
+            "targets": 9,
+            "carries": 0,
+            "opponent": "HOU",
+            "snapPct": 88.0
+          },
+          {
+            "week": 3,
+            "actualPpr": 24.8,
+            "targets": 12,
+            "carries": 0,
+            "opponent": "PIT",
+            "snapPct": 100.0
+          },
+          {
+            "week": 4,
+            "actualPpr": 5.7,
+            "targets": 3,
+            "carries": 0,
+            "opponent": "JAX",
+            "snapPct": 20.0
+          },
+          {
+            "week": 5,
+            "actualPpr": 19.7,
+            "targets": 10,
+            "carries": 0,
+            "opponent": "MIA",
+            "snapPct": 89.0
+          }
+        ]
+      }
+    }
+  ]
+}

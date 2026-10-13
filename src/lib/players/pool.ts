@@ -11,6 +11,12 @@ import { detectLatestNflverseWeek, ingestNflverseUsage } from "@/lib/nflverse";
 import { NFLVERSE_LEAGUE_ID, NFLVERSE_SOURCE } from "@/lib/nflverse/map";
 import { fetchEspnPublicSkillPlayers } from "@/lib/players/espn-public";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
+import { fetchEspnScoreboard } from "@/lib/espn/client";
+import {
+  parseEspnScoreboard,
+  scheduleMapWithByes,
+  formatOpponentLabel,
+} from "@/lib/espn/scoreboard";
 import { defaultEspnSeason } from "@/lib/season";
 import type {
   FantasyPlayer,
@@ -156,10 +162,26 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
     });
 
     // Current-week projection + injury snapshot (league-agnostic).
-    // Injury is stored in gameScriptNote as injuryStatus=<STATUS> so DB-first
-    // loads within the projection TTL still show honest status (no schema mig).
+    // Injury note keeps prevInjuryStatus when status changes (teammate Opp ↓).
     if (player.projectedPoints > 0 || player.injuryStatus !== "ACTIVE") {
-      const injuryNote = `injuryStatus=${player.injuryStatus}`;
+      const existing = await prisma.playerWeekStat.findUnique({
+        where: {
+          espnId_season_week_leagueId: {
+            espnId: player.espnId,
+            season,
+            week,
+            leagueId: NFLVERSE_LEAGUE_ID,
+          },
+        },
+        select: { gameScriptNote: true },
+      });
+      const { mergeInjuryNote } = await import(
+        "@/lib/insights/teammate-injury"
+      );
+      const injuryNote = mergeInjuryNote(
+        existing?.gameScriptNote,
+        player.injuryStatus,
+      );
       await prisma.playerWeekStat.upsert({
         where: {
           espnId_season_week_leagueId: {
@@ -194,7 +216,11 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           projectedPpr: player.projectedPoints || null,
           projectionSource: "espn_public",
           source: "espn",
-          opponent: player.opponent ?? null,
+          // Never wipe an existing nflverse/scoreboard opponent with null —
+          // ESPN public refresh does not carry opponent labels.
+          ...(player.opponent
+            ? { opponent: player.opponent }
+            : {}),
           gameScriptNote: injuryNote,
           updatedAt: now,
         },
@@ -202,9 +228,39 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
     }
 
     // Persist completed-week actuals from ESPN public payload when present.
+    // Gap-fill only: never overwrite actualSource=nflverse_ppr. When nflverse
+    // has no row (e.g. Troy Franklin W4), ESPN category full-PPR is a real
+    // second source and may be written.
     for (const rw of player.recentWeeks ?? []) {
       if (rw.week < 1 || rw.week >= week) continue;
-      if (!(rw.points > 0) && rw.projectedPoints == null) continue;
+      // Keep real 0-PPR weeks; skip only when both actual and proj are absent.
+      if (
+        !(typeof rw.points === "number" && Number.isFinite(rw.points)) &&
+        rw.projectedPoints == null
+      ) {
+        continue;
+      }
+      const espnPts =
+        typeof rw.points === "number" && Number.isFinite(rw.points)
+          ? rw.points
+          : null;
+      const existing = await prisma.playerWeekStat.findUnique({
+        where: {
+          espnId_season_week_leagueId: {
+            espnId: player.espnId,
+            season,
+            week: rw.week,
+            leagueId: NFLVERSE_LEAGUE_ID,
+          },
+        },
+        select: { actualPpr: true, actualSource: true },
+      });
+      const keepNflverse =
+        existing?.actualSource === "nflverse_ppr" &&
+        existing.actualPpr != null;
+      const fillActual =
+        !keepNflverse && espnPts != null && existing?.actualPpr == null;
+
       await prisma.playerWeekStat.upsert({
         where: {
           espnId_season_week_leagueId: {
@@ -224,9 +280,9 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           week: rw.week,
           scoringFormat: "PPR",
           projectedPpr: rw.projectedPoints ?? null,
-          actualPpr: rw.points > 0 ? rw.points : null,
+          actualPpr: espnPts,
           projectionSource: rw.projectedPoints != null ? "espn_public" : null,
-          actualSource: rw.points > 0 ? "espn_public" : null,
+          actualSource: espnPts != null ? "espn_category" : null,
           source: "espn",
           leagueId: NFLVERSE_LEAGUE_ID,
           opponent: rw.opponent ?? null,
@@ -239,9 +295,10 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
                 projectionSource: "espn_public",
               }
             : {}),
-          ...(rw.points > 0
-            ? { actualPpr: rw.points, actualSource: "espn_public" }
+          ...(fillActual
+            ? { actualPpr: espnPts, actualSource: "espn_category" }
             : {}),
+          ...(rw.opponent ? { opponent: rw.opponent } : {}),
           updatedAt: now,
         },
       });
@@ -314,17 +371,39 @@ async function loadPlayersFromDb(options: {
   for (const p of players) {
     const rows = byEspn.get(p.espnId) ?? [];
     const current = rows.find((r) => r.week === options.currentWeek);
-    const recentWeeks: WeeklyScore[] = rows
-      .filter((r) => r.week >= 1 && r.week <= options.statsThroughWeek)
-      .filter((r) => r.actualPpr != null || r.projectedPpr != null)
+    // One row per week — prefer nflverse full-PPR over ESPN appliedTotal.
+    const byWeek = new Map<number, (typeof rows)[number]>();
+    for (const r of rows) {
+      if (r.week < 1 || r.week > options.statsThroughWeek) continue;
+      if (r.actualPpr == null && r.projectedPpr == null) continue;
+      const prev = byWeek.get(r.week);
+      if (!prev) {
+        byWeek.set(r.week, r);
+        continue;
+      }
+      const prefer =
+        r.actualSource === "nflverse_ppr" &&
+        prev.actualSource !== "nflverse_ppr"
+          ? r
+          : prev.actualSource === "nflverse_ppr"
+            ? prev
+            : prev.actualPpr == null && r.actualPpr != null
+              ? r
+              : prev;
+      byWeek.set(r.week, prefer);
+    }
+    const recentWeeks: WeeklyScore[] = [...byWeek.values()]
       .map((r) => ({
         week: r.week,
-        points: r.actualPpr ?? 0,
+        points:
+          r.actualPpr != null && Number.isFinite(r.actualPpr)
+            ? Math.round(r.actualPpr * 10) / 10
+            : 0,
         projectedPoints: r.projectedPpr ?? undefined,
         opponent: r.opponent ?? undefined,
       }))
       .sort((a, b) => b.week - a.week)
-      .slice(0, 6);
+      .slice(0, 8);
 
     // Prefer players that have at least some signal.
     if (
@@ -469,6 +548,25 @@ export async function getNoLeaguePlayerPool(options?: {
     }
   }
 
+  // Stamp real opponents / BYE for the upcoming (current) week.
+  try {
+    const board = await fetchEspnScoreboard(weekSnap.currentWeek, season);
+    const parsed = parseEspnScoreboard(
+      board as Parameters<typeof parseEspnScoreboard>[0],
+    );
+    const schedule = scheduleMapWithByes(
+      parsed.byTeam,
+      parsed.eventCount,
+      players.map((p) => p.nflTeam),
+    );
+    players = players.map((p) => {
+      const opponent = formatOpponentLabel(p.nflTeam, schedule);
+      return opponent ? { ...p, opponent } : p;
+    });
+  } catch {
+    // Leave opponents unset rather than inventing matchups.
+  }
+
   const freshness: PlayerPoolFreshness = {
     season,
     currentWeek: weekSnap.currentWeek,
@@ -477,7 +575,7 @@ export async function getNoLeaguePlayerPool(options?: {
     projectionsUpdatedAt: projectionsUpdatedAt?.toISOString() ?? null,
     latestWeekMissing,
     warning,
-    scoringLabel: "Full PPR (default — no league scoring settings)",
+    scoringLabel: "Full PPR (nflverse box score)",
   };
 
   const contextLeague: LeagueData = {

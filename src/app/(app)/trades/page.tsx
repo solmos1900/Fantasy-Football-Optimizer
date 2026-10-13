@@ -6,6 +6,7 @@ import {
   loadTrendMap,
 } from "@/lib/insights/trends";
 import { getNoLeaguePlayerPool } from "@/lib/players/pool";
+import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
 import { TradesHub } from "@/components/trades-hub";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 
@@ -47,6 +48,10 @@ export default async function TradesPage({
       roster: [],
       isCurrentUser: true,
     };
+    const teammateInjury = await buildTradeTeammateInjuryIndex(
+      pool.players,
+      pool.freshness.season,
+    );
 
     return (
       <TradesHub
@@ -59,6 +64,7 @@ export default async function TradesPage({
         noLeague
         freshness={pool.freshness}
         initialTool={initialTool}
+        teammateInjury={teammateInjury}
       />
     );
   }
@@ -106,6 +112,11 @@ export default async function TradesPage({
     if (!poolById.has(player.id)) poolById.set(player.id, player);
   }
 
+  const teammateInjury = await buildTradeTeammateInjuryIndex(
+    [...poolById.values()],
+    league.season,
+  );
+
   return (
     <TradesHub
       league={league}
@@ -121,6 +132,7 @@ export default async function TradesPage({
       isDemo={false}
       noLeague={false}
       initialTool={initialTool}
+      teammateInjury={teammateInjury}
     />
   );
 }

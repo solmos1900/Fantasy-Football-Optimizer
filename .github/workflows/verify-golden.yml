@@ -1,0 +1,54 @@
+name: Verify golden accuracy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  golden:
+    name: npm run verify:golden
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gridiron_iq
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gridiron_iq?schema=public
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma generate + schema
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Seed golden fixture rows
+        run: npx tsx scripts/seed-golden-fixture.ts
+
+      - name: Golden accuracy gate
+        run: npm run verify:golden

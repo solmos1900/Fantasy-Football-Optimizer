@@ -2,6 +2,8 @@
 
 Gridiron IQ only stores stats we can attribute. **Null beats fake** — missing usage stays null until a real feed lands. We never invent FantasyPros/SportsDataIO labels or seed fabricated box scores for live leagues.
 
+Owner accuracy rules (display + week + integrity): [`docs/ACCURACY_RULES.md`](./ACCURACY_RULES.md). Golden gate: `npm run verify:golden` ← `tests/fixtures/golden-players.json`.
+
 ## Sources in use
 
 | Source | What we store | License / notes |
@@ -24,7 +26,22 @@ Gridiron IQ only stores stats we can attribute. **Null beats fake** — missing 
 
 > Player usage statistics are provided by [nflverse](https://github.com/nflverse) / [nflverse-data](https://github.com/nflverse/nflverse-data), licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
 
+## Insights tab field → source map
+
+| UI field | Source | Notes |
+|---------|--------|-------|
+| Weekly PPR points (completed weeks) | ESPN league sync → `PlayerWeekStat` (`leagueId` = league) | Real 0 kept; missing → DNP / — (never fake 0) |
+| Current-week **Proj (Sleeper)** | `api.sleeper.app/projections/nfl/{season}/{week}` → `stats.pts_ppr` | Not `/v1/projections` (empty shells). Bye / missing → **—** (never relabel ESPN as Sleeper) |
+| Injury / status chips | ESPN roster `injuryStatus` | Q/D/O/IR semantic colors |
+| Bye cells | ESPN public scoreboard (`BYE` opponent) | |
+| Target share / snap % / air yards | nflverse → `PlayerWeekStat` (`leagueId=""`) | Air-yards **share** = player airYards / team week sum |
+| Routes % / RZ touches | nflverse columns when present | Currently often null → **—** |
+| Matchup chip (`vs DAL 28th`) | nflverse actualPpr joined by opponent × position, last 4 completed weeks, ranked 1–32 | Tertiles tough/avg/soft; no Vegas |
+| Waiver watch opportunity | nflverse targets+carries last 2 weeks among league free agents | |
+| Teammate injury (more/fewer touches or targets) | ESPN injuries feed (status) + nflverse target/carry share | Plain labels: `↑ More touches: David Montgomery (HOU) out` / `↑ More targets: Alec Pierce (IND) on IR` — never Opp ↑/↓ or WR2/RB1. Share = last-3 avg when ≥2 usable weeks, else season-to-date. Vacated × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus`. Null share → — |
+| Freshness label | Same pattern as no-league tools | `Stats through Week N · updated X min ago` |
+
 ## Not integrated
 
 - FantasyPros / SportsDataIO (paid commercial — do not scrape or fake)
-- Sleeper commercial distribution without a written license
+- Sleeper commercial projections when the public feed is empty (show —; do not invent)

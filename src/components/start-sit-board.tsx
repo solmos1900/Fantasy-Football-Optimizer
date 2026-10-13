@@ -99,7 +99,7 @@ function weeksForPlayer(
   if (!byWeek.has(currentWeek)) {
     byWeek.set(currentWeek, {
       week: currentWeek,
-      pts: player.actualPoints > 0 ? player.actualPoints : null,
+      pts: Number.isFinite(player.actualPoints) ? player.actualPoints : null,
       proj: player.projectedPoints,
       opp: player.opponent ?? null,
     });
@@ -111,7 +111,7 @@ function weeksForPlayer(
       opp: cur.opp ?? player.opponent ?? null,
       pts:
         cur.pts ??
-        (player.actualPoints > 0 ? player.actualPoints : null),
+        (Number.isFinite(player.actualPoints) ? player.actualPoints : null),
     });
   }
 

@@ -19,6 +19,12 @@ import {
   trendBlurb,
   trendFitBonus,
 } from "@/lib/insights/trade-value";
+import {
+  impactsForPlayer,
+  teammateInjuryChipDelta,
+  type TeammateInjuryImpact,
+  type TeammateInjuryIndex,
+} from "@/lib/insights/teammate-injury";
 
 export type TradeVerdict =
   | "accept"
@@ -48,6 +54,14 @@ export interface TradeAnalysis {
   facts: string[];
   /** Product judgment (verdict rationale, acceptance lean). */
   judgments: string[];
+  /** Teammate injury Opp ↑/↓ chips on players in the deal (rule-based). */
+  teammateImpacts: {
+    espnId: number;
+    playerName: string;
+    nflTeam: string;
+    side: "give" | "receive" | "a" | "b";
+    impacts: TeammateInjuryImpact[];
+  }[];
 }
 
 const VERDICT_LABEL: Record<TradeVerdict, string> = {
@@ -176,11 +190,13 @@ export function analyzeTrade(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateInjury?: TeammateInjuryIndex | null,
 ): TradeAnalysis | null {
   if (!give.length || !receive.length) return null;
 
-  const giveValue = sideValue(give, trends);
-  const receiveValue = sideValue(receive, trends);
+  const deltaMap = teammateInjury?.chipDeltaByEspnId;
+  const giveValue = sideValue(give, trends, deltaMap);
+  const receiveValue = sideValue(receive, trends, deltaMap);
   const valueGap = receiveValue - giveValue;
   const rejects = hardRejectReasons(give, receive, trends);
   const hardRejected = rejects.length > 0;
@@ -237,18 +253,38 @@ export function analyzeTrade(
     whyAcceptedOrNot = gaps.join(" ");
   }
 
+  const teammateImpacts = [
+    ...give.map((p) => ({
+      espnId: p.espnId,
+      playerName: p.name,
+      nflTeam: p.nflTeam,
+      side: "give" as const,
+      impacts: impactsForPlayer(teammateInjury, p.espnId),
+    })),
+    ...receive.map((p) => ({
+      espnId: p.espnId,
+      playerName: p.name,
+      nflTeam: p.nflTeam,
+      side: "receive" as const,
+      impacts: impactsForPlayer(teammateInjury, p.espnId),
+    })),
+  ].filter((x) => x.impacts.length > 0);
+
   const facts = [
     `Scoring assumed: full PPR, standard 1QB redraft (QB chips discounted; ~70% ROS/form + ~30% this-week).`,
     `Your side chips: ${giveValue.toFixed(1)} (${names(give)}).`,
     `Their side chips: ${receiveValue.toFixed(1)} (${names(receive)}).`,
     `Value gap (you): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
-    ...give.map(
-      (p) =>
-        `${p.name}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, trends).toFixed(1)}.`,
-    ),
-    ...receive.map(
-      (p) =>
-        `${p.name}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, trends).toFixed(1)}.`,
+    ...give.map((p) => {
+      const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
+      return `${p.name}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate inj ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+    }),
+    ...receive.map((p) => {
+      const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
+      return `${p.name}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate inj ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+    }),
+    ...teammateImpacts.flatMap((row) =>
+      row.impacts.map((i) => `${row.playerName}: ${i.detail}`),
     ),
   ];
 
@@ -283,6 +319,7 @@ export function analyzeTrade(
     acceptanceLeanLabel: LEAN_LABEL[lean],
     facts,
     judgments,
+    teammateImpacts,
   };
 }
 
@@ -295,11 +332,13 @@ export function comparePlayerPackages(
   sideA: FantasyPlayer[],
   sideB: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateInjury?: TeammateInjuryIndex | null,
 ): TradeAnalysis | null {
   if (!sideA.length || !sideB.length) return null;
 
-  const giveValue = sideValue(sideA, trends);
-  const receiveValue = sideValue(sideB, trends);
+  const deltaMap = teammateInjury?.chipDeltaByEspnId;
+  const giveValue = sideValue(sideA, trends, deltaMap);
+  const receiveValue = sideValue(sideB, trends, deltaMap);
   const valueGap = receiveValue - giveValue;
   const rejects = hardRejectReasons(sideA, sideB, trends);
   const hardRejected = rejects.length > 0;
@@ -360,11 +399,31 @@ export function comparePlayerPackages(
         : `The package does not clearly help both sides — rework the players or add a sweetener.`;
   }
 
+  const teammateImpacts = [
+    ...sideA.map((p) => ({
+      espnId: p.espnId,
+      playerName: p.name,
+      nflTeam: p.nflTeam,
+      side: "a" as const,
+      impacts: impactsForPlayer(teammateInjury, p.espnId),
+    })),
+    ...sideB.map((p) => ({
+      espnId: p.espnId,
+      playerName: p.name,
+      nflTeam: p.nflTeam,
+      side: "b" as const,
+      impacts: impactsForPlayer(teammateInjury, p.espnId),
+    })),
+  ].filter((x) => x.impacts.length > 0);
+
   const facts = [
     `Scoring assumed: full PPR, standard 1QB redraft.`,
     `Side A chips: ${giveValue.toFixed(1)} (${names(sideA)}).`,
     `Side B chips: ${receiveValue.toFixed(1)} (${names(sideB)}).`,
     `Value gap (Side B − Side A): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
+    ...teammateImpacts.flatMap((row) =>
+      row.impacts.map((i) => `${row.playerName}: ${i.detail}`),
+    ),
   ];
 
   const judgments = [
@@ -398,5 +457,6 @@ export function comparePlayerPackages(
     acceptanceLeanLabel: LEAN_LABEL[lean],
     facts,
     judgments,
+    teammateImpacts,
   };
 }

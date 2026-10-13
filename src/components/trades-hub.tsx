@@ -7,6 +7,7 @@ import { TradeAnalyzer, type TrendsProp } from "@/components/trade-analyzer";
 import { WhoToStart } from "@/components/who-to-start";
 import { PoolFreshnessBanner } from "@/components/pool-freshness-banner";
 import type { PlayerPoolFreshness } from "@/lib/players/pool";
+import type { serializeTeammateInjuryIndex } from "@/lib/insights/teammate-injury";
 
 export type TradesTool = "analyzer" | "who-to-start";
 
@@ -23,6 +24,7 @@ export function TradesHub({
   noLeague = false,
   freshness,
   initialTool = "analyzer",
+  teammateInjury,
 }: {
   league: LeagueData;
   you: FantasyTeam;
@@ -37,6 +39,7 @@ export function TradesHub({
   noLeague?: boolean;
   freshness?: PlayerPoolFreshness;
   initialTool?: TradesTool;
+  teammateInjury?: ReturnType<typeof serializeTeammateInjuryIndex>;
 }) {
   const [tool, setTool] = useState<TradesTool>(initialTool);
 
@@ -120,6 +123,7 @@ export function TradesHub({
           initialReceiveIds={initialReceiveIds}
           isDemo={isDemo}
           forceFreeMode={noLeague}
+          teammateInjury={teammateInjury}
         />
       ) : (
         <WhoToStart
