@@ -100,7 +100,31 @@ function trendFor(
   return trends.get(espnId);
 }
 
-export function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
+export type ChipValueOptions = {
+  trends?: TrendLookup;
+  /**
+   * Teammate injury chip deltas (Opp ↑ / Opp ↓), from buildTeammateInjuryIndex.
+   * Transparent: Δ = allocatedShare × SHARE_TO_POINTS (see teammate-injury.ts).
+   */
+  teammateInjuryDelta?: number;
+};
+
+function isTrendLookup(v: unknown): v is TrendLookup {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    typeof (v as { get?: unknown }).get === "function"
+  );
+}
+
+export function chipValue(
+  p: FantasyPlayer,
+  trendsOrOpts?: TrendLookup | ChipValueOptions,
+): number {
+  const opts: ChipValueOptions = isTrendLookup(trendsOrOpts)
+    ? { trends: trendsOrOpts }
+    : (trendsOrOpts ?? {});
+  const trends = opts.trends;
   const recent =
     p.recentWeeks && p.recentWeeks.length
       ? p.recentWeeks.reduce((a, w) => a + w.points, 0) / p.recentWeeks.length
@@ -109,6 +133,8 @@ export function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
   const trend = trendFor(trends, p.espnId);
   // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
   if (trend) blended += trend.restOfSeasonAdj;
+  // Teammate injury volume nudge (rule-based; never an LLM grade)
+  if (opts.teammateInjuryDelta) blended += opts.teammateInjuryDelta;
   if (["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus)) blended *= 0.15;
 
   if (p.position === "QB") return blended * 0.45;
@@ -130,8 +156,18 @@ export function chipValue(p: FantasyPlayer, trends?: TrendLookup): number {
 export function sideValue(
   players: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
 ): number {
-  return players.reduce((a, p) => a + chipValue(p, trends), 0);
+  return players.reduce((a, p) => {
+    const delta = teammateDeltaByEspnId?.get(p.espnId) ?? 0;
+    return (
+      a +
+      chipValue(p, {
+        trends,
+        teammateInjuryDelta: delta,
+      })
+    );
+  }, 0);
 }
 
 export function trendBlurb(

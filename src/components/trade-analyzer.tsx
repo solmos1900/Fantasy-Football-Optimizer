@@ -20,6 +20,10 @@ import {
   type TradeVerdict,
 } from "@/lib/insights/trade-analyzer";
 import { chipValue } from "@/lib/insights/trade-value";
+import {
+  hydrateTeammateInjuryIndex,
+  type serializeTeammateInjuryIndex,
+} from "@/lib/insights/teammate-injury";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
@@ -517,6 +521,7 @@ function LeanResultsCard({
   const benefit = whoBenefitsCopy(analysis, mode);
   const giveLabel = mode === "team" ? "You give" : "Side A";
   const getLabel = mode === "team" ? "You get" : "Side B";
+  const [openImpact, setOpenImpact] = useState<string | null>(null);
 
   return (
     <article
@@ -538,6 +543,54 @@ function LeanResultsCard({
       </span>
 
       <p className="type-body mt-3 text-emerald-950/80">{reason}</p>
+
+      {analysis.teammateImpacts.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <p className="type-eyebrow text-emerald-950/45">Teammate injury</p>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.teammateImpacts.flatMap((row) =>
+              row.impacts.map((imp) => {
+                const key = `${row.espnId}-${imp.teammateEspnId}`;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() =>
+                      setOpenImpact((k) => (k === key ? null : key))
+                    }
+                    className={cn(
+                      "rounded border px-1.5 py-0.5 text-[10px] font-semibold",
+                      imp.tone === "good" && "border-success/40 text-success",
+                      imp.tone === "warn" && "border-warning/40 text-warning",
+                      imp.tone === "bad" && "border-danger/40 text-danger",
+                      imp.tone === "info" && "border-info/40 text-info",
+                    )}
+                  >
+                    {row.playerName.split(" ").pop()} · {imp.label}
+                  </button>
+                );
+              }),
+            )}
+          </div>
+          {openImpact &&
+            analysis.teammateImpacts
+              .flatMap((row) =>
+                row.impacts.map((imp) => ({
+                  key: `${row.espnId}-${imp.teammateEspnId}`,
+                  detail: `${row.playerName}: ${imp.detail}`,
+                })),
+              )
+              .filter((x) => x.key === openImpact)
+              .map((x) => (
+                <p
+                  key={x.key}
+                  className="text-[11px] tabular-nums text-emerald-950/55"
+                >
+                  {x.detail}
+                </p>
+              ))}
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-3 gap-3 border-t border-emerald-950/10 pt-4">
         <div>
@@ -587,6 +640,7 @@ export function TradeAnalyzer({
   initialReceiveIds = [],
   isDemo,
   forceFreeMode = false,
+  teammateInjury: teammateInjuryProp,
 }: {
   you: FantasyTeam;
   partners: FantasyTeam[];
@@ -599,8 +653,13 @@ export function TradeAnalyzer({
   isDemo?: boolean;
   /** No-league users: lock to player-vs-player (no team trade packages). */
   forceFreeMode?: boolean;
+  teammateInjury?: ReturnType<typeof serializeTeammateInjuryIndex>;
 }) {
   const trends = useMemo(() => toTrendMap(trendsProp), [trendsProp]);
+  const teammateInjury = useMemo(
+    () => hydrateTeammateInjuryIndex(teammateInjuryProp),
+    [teammateInjuryProp],
+  );
 
   const hasDeepLinkBothSides =
     initialGiveIds.length > 0 && initialReceiveIds.length > 0;
@@ -671,11 +730,11 @@ export function TradeAnalyzer({
 
   const analysis = useMemo(() => {
     if (mode === "free") {
-      return comparePlayerPackages(give, receive, trends);
+      return comparePlayerPackages(give, receive, trends, teammateInjury);
     }
     if (!partner) return null;
-    return analyzeTrade(you, partner, give, receive, trends);
-  }, [mode, you, partner, give, receive, trends]);
+    return analyzeTrade(you, partner, give, receive, trends, teammateInjury);
+  }, [mode, you, partner, give, receive, trends, teammateInjury]);
 
   const canReachTheirs = give.length > 0;
   const canReachResults = give.length > 0 && receive.length > 0 && !!analysis;

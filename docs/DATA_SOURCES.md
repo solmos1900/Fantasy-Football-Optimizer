@@ -36,6 +36,7 @@ Gridiron IQ only stores stats we can attribute. **Null beats fake** — missing 
 | Routes % / RZ touches | nflverse columns when present | Currently often null → **—** |
 | Matchup chip (`vs DAL 28th`) | nflverse actualPpr joined by opponent × position, last 4 completed weeks, ranked 1–32 | Tertiles tough/avg/soft; no Vegas |
 | Waiver watch opportunity | nflverse targets+carries last 2 weeks among league free agents | |
+| Teammate injury Opp ↑ / Opp ↓ | ESPN injuries feed (status) + nflverse 3-wk target/carry share | Vacated share × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus` in `gameScriptNote`. Null share → — |
 | Freshness label | Same pattern as no-league tools | `Stats through Week N · updated X min ago` |
 
 ## Not integrated

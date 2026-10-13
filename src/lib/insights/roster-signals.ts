@@ -19,6 +19,15 @@ import {
 import { fetchSleeperProjections } from "@/lib/sleeper/projections";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
 import type { PlayerPoolFreshness } from "@/lib/players/pool";
+import {
+  applyInjuryReport,
+  fetchEspnInjuryReport,
+} from "@/lib/espn/injuries";
+import {
+  buildTeammateInjuryIndex,
+  serializeTeammateInjuryIndex,
+  type TeammateInjuryImpact,
+} from "@/lib/insights/teammate-injury";
 import type {
   FantasyPlayer,
   FantasyTeam,
@@ -82,6 +91,8 @@ export type PlayerSignal = {
   status: InjuryStatus;
   byeThisWeek: boolean;
   ruleChips: RuleChip[];
+  /** Teammate injury Opp ↑ / Opp ↓ chips (real ESPN status + nflverse share). */
+  teammateImpacts: TeammateInjuryImpact[];
   sleeperProj: number | null;
 };
 
@@ -110,6 +121,8 @@ export type InsightsSignalsBundle = {
   freshness: PlayerPoolFreshness;
   sleeperEmpty: boolean;
   updatedAt: string;
+  /** Serialized teammate-injury index for trade cards / client. */
+  teammateInjury: ReturnType<typeof serializeTeammateInjuryIndex>;
 };
 
 type UsageWeekRow = {
@@ -572,11 +585,47 @@ export async function buildRosterInsightsSignals(
   const roster = team.roster.filter((p) => p.slot !== "IR");
   const espnIds = roster.map((p) => p.espnId);
 
-  const [usageMap, dvpMap, sleeper] = await Promise.all([
+  // Full NFL skill context for teammate injury scan (injuries often off-roster).
+  const contextPlayers = [
+    ...league.teams.flatMap((t) => t.roster),
+    ...league.freeAgents,
+  ];
+  const contextEspn = new Set(contextPlayers.map((p) => p.espnId));
+  const dbExtra = await prisma.player.findMany({
+    where: {
+      position: { in: ["QB", "RB", "WR", "TE"] },
+      nflTeam: {
+        in: [
+          ...new Set(
+            roster.map((p) => p.nflTeam).filter((t) => t && t !== "FA"),
+          ),
+        ],
+      },
+    },
+    take: 400,
+  });
+  for (const p of dbExtra) {
+    if (contextEspn.has(p.espnId)) continue;
+    contextPlayers.push({
+      id: `espn-${p.espnId}`,
+      espnId: p.espnId,
+      name: p.name,
+      position: p.position as PlayerPosition,
+      nflTeam: p.nflTeam ?? "FA",
+      injuryStatus: "ACTIVE",
+      projectedPoints: 0,
+      actualPoints: 0,
+      percentOwned: 0,
+      percentStarted: 0,
+    });
+    contextEspn.add(p.espnId);
+  }
+
+  const [usageMap, dvpMap, sleeper, injuryReport] = await Promise.all([
     loadUsageByEspn({
       season: league.season,
       throughWeek: Math.max(statsThroughWeek, 0),
-      espnIds,
+      espnIds: [...contextEspn],
     }),
     buildDefenseVsPositionMap({
       season: league.season,
@@ -584,7 +633,28 @@ export async function buildRosterInsightsSignals(
       lookback: 4,
     }),
     fetchSleeperProjections({ season: league.season, week: currentWeek }),
+    fetchEspnInjuryReport(),
   ]);
+
+  const injuredContext = applyInjuryReport(contextPlayers, injuryReport);
+  // Prefer roster's own ESPN fantasy injury when present (source of truth for owned players)
+  const rosterStatus = new Map(
+    roster.map((p) => [p.espnId, p.injuryStatus] as const),
+  );
+  const poolForInjury = injuredContext.map((p) => ({
+    espnId: p.espnId,
+    name: p.name,
+    position: p.position,
+    nflTeam: p.nflTeam,
+    injuryStatus: rosterStatus.get(p.espnId) ?? p.injuryStatus,
+    projectedPoints: p.projectedPoints,
+  }));
+
+  const teammateIndex = await buildTeammateInjuryIndex({
+    season: league.season,
+    statsThroughWeek: Math.max(statsThroughWeek, 0),
+    players: poolForInjury,
+  });
 
   const weekAxis = Array.from({ length: currentWeek }, (_, i) => i + 1);
   const updatedAt = sleeper.fetchedAt || league.lastSyncedAt;
@@ -609,6 +679,7 @@ export async function buildRosterInsightsSignals(
     );
     const matchup = dvpForPlayer(dvpMap, player.opponent, player.position);
     const byeThisWeek = (player.opponent ?? "").toUpperCase() === "BYE";
+    const teammateImpacts = teammateIndex.byEspnId.get(player.espnId) ?? [];
     const base = {
       player,
       weeks,
@@ -618,13 +689,23 @@ export async function buildRosterInsightsSignals(
       status: player.injuryStatus,
       byeThisWeek,
       sleeperProj,
+      teammateImpacts,
     };
     const ruleChips = playerRuleChips({
       signal: base,
       usageRows,
       throughWeek: Math.max(statsThroughWeek, 0),
     });
-    return { ...base, ruleChips };
+    // Promote teammate injury chips into the rule chip row (tap = detail)
+    for (const imp of teammateImpacts) {
+      ruleChips.unshift({
+        id: `tm-${imp.direction}-${imp.teammateEspnId}`,
+        label: imp.label,
+        tone: imp.tone,
+        detail: imp.detail,
+      });
+    }
+    return { ...base, ruleChips: ruleChips.slice(0, 4) };
   });
 
   // Starters first, then bench — dense Sleeper-style order
@@ -680,5 +761,6 @@ export async function buildRosterInsightsSignals(
     freshness,
     sleeperEmpty: sleeper.emptyFeed,
     updatedAt,
+    teammateInjury: serializeTeammateInjuryIndex(teammateIndex),
   };
 }

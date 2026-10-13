@@ -156,10 +156,26 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
     });
 
     // Current-week projection + injury snapshot (league-agnostic).
-    // Injury is stored in gameScriptNote as injuryStatus=<STATUS> so DB-first
-    // loads within the projection TTL still show honest status (no schema mig).
+    // Injury note keeps prevInjuryStatus when status changes (teammate Opp ↓).
     if (player.projectedPoints > 0 || player.injuryStatus !== "ACTIVE") {
-      const injuryNote = `injuryStatus=${player.injuryStatus}`;
+      const existing = await prisma.playerWeekStat.findUnique({
+        where: {
+          espnId_season_week_leagueId: {
+            espnId: player.espnId,
+            season,
+            week,
+            leagueId: NFLVERSE_LEAGUE_ID,
+          },
+        },
+        select: { gameScriptNote: true },
+      });
+      const { mergeInjuryNote } = await import(
+        "@/lib/insights/teammate-injury"
+      );
+      const injuryNote = mergeInjuryNote(
+        existing?.gameScriptNote,
+        player.injuryStatus,
+      );
       await prisma.playerWeekStat.upsert({
         where: {
           espnId_season_week_leagueId: {
