@@ -25,6 +25,7 @@ import {
   type serializeTeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
 
@@ -551,22 +552,24 @@ function LeanResultsCard({
             {analysis.teammateImpacts.flatMap((row) =>
               row.impacts.map((imp) => {
                 const key = `${row.espnId}-${imp.teammateEspnId}`;
+                const who = formatPlayerLabel(row.playerName, row.nflTeam);
                 return (
                   <button
                     key={key}
                     type="button"
+                    title={imp.detail}
                     onClick={() =>
                       setOpenImpact((k) => (k === key ? null : key))
                     }
                     className={cn(
-                      "rounded border px-1.5 py-0.5 text-[10px] font-semibold",
+                      "max-w-full rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold leading-snug",
                       imp.tone === "good" && "border-success/40 text-success",
                       imp.tone === "warn" && "border-warning/40 text-warning",
                       imp.tone === "bad" && "border-danger/40 text-danger",
                       imp.tone === "info" && "border-info/40 text-info",
                     )}
                   >
-                    {imp.label}
+                    {who}: {imp.label}
                   </button>
                 );
               }),

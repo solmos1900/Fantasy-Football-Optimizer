@@ -58,6 +58,7 @@ export interface TradeAnalysis {
   teammateImpacts: {
     espnId: number;
     playerName: string;
+    nflTeam: string;
     side: "give" | "receive" | "a" | "b";
     impacts: TeammateInjuryImpact[];
   }[];
@@ -256,12 +257,14 @@ export function analyzeTrade(
     ...give.map((p) => ({
       espnId: p.espnId,
       playerName: p.name,
+      nflTeam: p.nflTeam,
       side: "give" as const,
       impacts: impactsForPlayer(teammateInjury, p.espnId),
     })),
     ...receive.map((p) => ({
       espnId: p.espnId,
       playerName: p.name,
+      nflTeam: p.nflTeam,
       side: "receive" as const,
       impacts: impactsForPlayer(teammateInjury, p.espnId),
     })),
@@ -400,12 +403,14 @@ export function comparePlayerPackages(
     ...sideA.map((p) => ({
       espnId: p.espnId,
       playerName: p.name,
+      nflTeam: p.nflTeam,
       side: "a" as const,
       impacts: impactsForPlayer(teammateInjury, p.espnId),
     })),
     ...sideB.map((p) => ({
       espnId: p.espnId,
       playerName: p.name,
+      nflTeam: p.nflTeam,
       side: "b" as const,
       impacts: impactsForPlayer(teammateInjury, p.espnId),
     })),

@@ -287,15 +287,16 @@ export function InsightsBoard({
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             {bundle.ruleChipsRoster.map((chip) => (
               <button
-                key={`${chip.id}-${chip.detail}`}
+                key={chip.id}
                 type="button"
+                title={chip.detail}
                 onClick={() =>
                   setOpenRosterChip((id) =>
                     id === chip.id ? null : chip.id,
                   )
                 }
                 className={cn(
-                  "rounded border px-1.5 py-0.5 text-[10px] font-semibold",
+                  "max-w-full rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold leading-snug",
                   chip.tone === "good" && "border-success/40 text-success",
                   chip.tone === "bad" && "border-danger/40 text-danger",
                   chip.tone === "warn" && "border-warning/40 text-warning",
@@ -306,7 +307,7 @@ export function InsightsBoard({
               </button>
             ))}
             {rosterDetail && (
-              <span className="text-[10px] text-emerald-950/55">
+              <span className="basis-full text-[10px] leading-snug text-emerald-950/55">
                 {rosterDetail.detail}
               </span>
             )}

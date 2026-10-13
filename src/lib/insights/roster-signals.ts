@@ -531,6 +531,14 @@ function weekCellsForPlayer(options: {
   return cells;
 }
 
+/** Every player chip must lead with full name + NFL team. */
+function namedChipLabel(
+  player: { name: string; nflTeam: string },
+  rest: string,
+): string {
+  return `${formatPlayerLabel(player.name, player.nflTeam)}: ${rest}`;
+}
+
 function playerRuleChips(options: {
   signal: Omit<PlayerSignal, "ruleChips">;
   usageRows: UsageWeekRow[];
@@ -538,6 +546,7 @@ function playerRuleChips(options: {
 }): RuleChip[] {
   const chips: RuleChip[] = [];
   const { signal, usageRows, throughWeek } = options;
+  const who = signal.player;
   const tgt = signal.usage.find((u) => u.key === "targetShare");
 
   // Usage ↑ — target share +5 pts (0.05) over last 2 weeks vs prior window
@@ -555,9 +564,12 @@ function playerRuleChips(options: {
       const to = Math.round(a * 100);
       chips.push({
         id: "usage-up",
-        label: `↑ More targets: ${to}% of team (up from ${from}%): more catches`,
+        label: namedChipLabel(
+          who,
+          `↑ getting ${to}% of team targets (up from ${from}%): more catches`,
+        ),
         tone: "good",
-        detail: `Target share rose from ${from}% to ${to}% over the last two weeks — expect more catch chances and PPR points.`,
+        detail: `${formatPlayerLabel(who.name, who.nflTeam)}'s target share rose from ${from}% to ${to}% over the last two weeks — expect more catch chances and PPR points.`,
       });
     }
   }
@@ -576,9 +588,12 @@ function playerRuleChips(options: {
       const pct = Math.round(pctDelta * 100);
       chips.push({
         id: "sell-high",
-        label: `Sell-high: scoring ${pct}% above season average without more usage; trade value may drop`,
+        label: namedChipLabel(
+          who,
+          `Sell-high: scoring ${pct}% above season average without more usage; trade value may drop`,
+        ),
         tone: "warn",
-        detail: `Last 3 games avg ${avg3.toFixed(1)} vs season ${seasonAvg.toFixed(1)} (+${pct}%) while usage is flat — sell before regression.`,
+        detail: `${formatPlayerLabel(who.name, who.nflTeam)}: last 3 games avg ${avg3.toFixed(1)} vs season ${seasonAvg.toFixed(1)} (+${pct}%) while usage is flat — sell before regression.`,
       });
     }
   }
@@ -588,9 +603,12 @@ function playerRuleChips(options: {
       signal.weeks[signal.weeks.length - 1]?.week ?? "—";
     chips.push({
       id: "bye",
-      label: `On bye week ${week}: scores 0 this week`,
+      label: namedChipLabel(
+        who,
+        `On bye week ${week}: scores 0 this week`,
+      ),
       tone: "info",
-      detail: `Week ${week} bye — he scores 0 unless you have a replacement in the lineup.`,
+      detail: `${formatPlayerLabel(who.name, who.nflTeam)} is on bye in week ${week} — he scores 0 unless you have a replacement in the lineup.`,
     });
   }
 
@@ -637,14 +655,19 @@ function rosterLevelChips(
     }
   }
 
-  // Surface sell-high / usage from players into roster strip (deduped labels)
+  // Surface sell-high / usage from players into roster strip.
+  // Labels already include full player + team from playerRuleChips.
   const fromPlayers = signals.flatMap((s) =>
     s.ruleChips.filter((c) => c.id === "sell-high" || c.id === "usage-up"),
   );
   for (const c of fromPlayers) {
     if (chips.length >= 6) break;
-    if (!chips.some((x) => x.id === c.id && x.detail === c.detail)) {
-      chips.push(c);
+    if (!chips.some((x) => x.label === c.label)) {
+      chips.push({
+        ...c,
+        // Unique id per player so Roster Pulse toggles don't collide.
+        id: `${c.id}-${c.label}`,
+      });
     }
   }
 
@@ -899,11 +922,12 @@ export async function buildRosterInsightsSignals(
       usageRows,
       throughWeek: Math.max(statsThroughWeek, 0),
     });
-    // Promote teammate injury chips into the rule chip row (tap = detail)
+    // Promote teammate injury chips into the rule chip row (tap = detail).
+    // Prefix with this player so Roster Pulse / trade cards never lose the subject.
     for (const imp of teammateImpacts) {
       ruleChips.unshift({
         id: `tm-${imp.direction}-${imp.teammateEspnId}`,
-        label: imp.label,
+        label: namedChipLabel(player, imp.label),
         tone: imp.tone,
         detail: imp.detail,
       });
