@@ -25,6 +25,7 @@ import {
   type TeammateInjuryImpact,
   type TeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 
 export type TradeVerdict =
   | "accept"
@@ -80,7 +81,9 @@ const LEAN_LABEL: Record<AcceptanceLean, string> = {
 };
 
 function names(players: FantasyPlayer[]): string {
-  return players.map((p) => p.name).join(" + ");
+  return players
+    .map((p) => formatPlayerLabel(p.name, p.nflTeam))
+    .join(" + ");
 }
 
 function buildForYou(
@@ -90,8 +93,8 @@ function buildForYou(
   trends?: TrendLookup,
 ): string[] {
   const lines = [
-    `You send: ${give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
-    `You get: ${receive.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
+    `You send: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj (Sleeper), ${tierOf(p)})`).join(" + ")}.`,
+    `You get: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj (Sleeper), ${tierOf(p)})`).join(" + ")}.`,
   ];
   for (const p of receive) {
     if (needsPosition(you, p.position)) {
@@ -105,7 +108,7 @@ function buildForYou(
   for (const p of give) {
     if (needsPosition(you, p.position) && depthAtPosition(you, p.position) <= 2) {
       lines.push(
-        `Caution: ${p.name} leaves a thinner ${p.position} group after the deal.`,
+        `Caution: ${formatPlayerLabel(p.name, p.nflTeam)} leaves a thinner ${p.position} group after the deal.`,
       );
     }
   }
@@ -119,8 +122,8 @@ function buildForThem(
   trends?: TrendLookup,
 ): string[] {
   const lines = [
-    `They send: ${receive.map((p) => `${p.name} (${p.position})`).join(" + ")}.`,
-    `They get: ${give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+    `They send: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position})`).join(" + ")}.`,
+    `They get: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj (Sleeper))`).join(" + ")}.`,
   ];
   for (const p of give) {
     if (needsPosition(them, p.position)) {
@@ -277,14 +280,19 @@ export function analyzeTrade(
     `Value gap (you): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
     ...give.map((p) => {
       const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
-      return `${p.name}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate inj ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+      const who = formatPlayerLabel(p.name, p.nflTeam);
+      return `${who}: ${p.projectedPoints.toFixed(1)} proj (Sleeper) · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
     }),
     ...receive.map((p) => {
       const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
-      return `${p.name}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate inj ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+      const who = formatPlayerLabel(p.name, p.nflTeam);
+      return `${who}: ${p.projectedPoints.toFixed(1)} proj (Sleeper) · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
     }),
     ...teammateImpacts.flatMap((row) =>
-      row.impacts.map((i) => `${row.playerName}: ${i.detail}`),
+      row.impacts.map(
+        (i) =>
+          `${formatPlayerLabel(row.playerName, row.nflTeam)}: ${i.detail}`,
+      ),
     ),
   ];
 
@@ -364,8 +372,8 @@ export function comparePlayerPackages(
   else lean = "low";
 
   const forYou = [
-    `Side A (send): ${sideA.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
-    `Side B (get): ${sideB.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+    `Side A (send): ${sideA.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj (Sleeper))`).join(" + ")}.`,
+    `Side B (get): ${sideB.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj (Sleeper))`).join(" + ")}.`,
     valueGap >= 0.5
       ? `Side B is ahead by about ${valueGap.toFixed(1)} chip points — Side A would usually want something else back.`
       : valueGap <= -0.5
@@ -374,7 +382,11 @@ export function comparePlayerPackages(
   ];
   for (const p of [...sideA, ...sideB].slice(0, 4)) {
     const tb = trendBlurb(p, trends);
-    if (tb) forYou.push(`${p.name}: ${tb}`);
+    if (tb) {
+      forYou.push(
+        tb.replace(p.name, formatPlayerLabel(p.name, p.nflTeam)),
+      );
+    }
   }
 
   const forThem = [
@@ -422,7 +434,10 @@ export function comparePlayerPackages(
     `Side B chips: ${receiveValue.toFixed(1)} (${names(sideB)}).`,
     `Value gap (Side B − Side A): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
     ...teammateImpacts.flatMap((row) =>
-      row.impacts.map((i) => `${row.playerName}: ${i.detail}`),
+      row.impacts.map(
+        (i) =>
+          `${formatPlayerLabel(row.playerName, row.nflTeam)}: ${i.detail}`,
+      ),
     ),
   ];
 

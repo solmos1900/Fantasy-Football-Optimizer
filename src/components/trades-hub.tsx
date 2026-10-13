@@ -8,6 +8,7 @@ import { WhoToStart } from "@/components/who-to-start";
 import { PoolFreshnessBanner } from "@/components/pool-freshness-banner";
 import type { PlayerPoolFreshness } from "@/lib/players/pool";
 import type { serializeTeammateInjuryIndex } from "@/lib/insights/teammate-injury";
+import type { ToolDisplayMeta } from "@/lib/insights/tool-display";
 
 export type TradesTool = "analyzer" | "who-to-start";
 
@@ -25,6 +26,7 @@ export function TradesHub({
   freshness,
   initialTool = "analyzer",
   teammateInjury,
+  toolMeta,
 }: {
   league: LeagueData;
   you: FantasyTeam;
@@ -40,6 +42,7 @@ export function TradesHub({
   freshness?: PlayerPoolFreshness;
   initialTool?: TradesTool;
   teammateInjury?: ReturnType<typeof serializeTeammateInjuryIndex>;
+  toolMeta?: ToolDisplayMeta | null;
 }) {
   const [tool, setTool] = useState<TradesTool>(initialTool);
 
@@ -65,7 +68,7 @@ export function TradesHub({
       <div className="animate-fade-up space-y-3">
         <h1 className="type-page text-emerald-950">{copy.title}</h1>
         <p className="type-body max-w-2xl text-emerald-950/65">{copy.body}</p>
-        {noLeague && freshness && <PoolFreshnessBanner freshness={freshness} />}
+        {freshness && <PoolFreshnessBanner freshness={freshness} />}
         {noLeague && (!poolPlayers || poolPlayers.length === 0) && (
           <p
             role="status"
@@ -124,6 +127,7 @@ export function TradesHub({
           isDemo={isDemo}
           forceFreeMode={noLeague}
           teammateInjury={teammateInjury}
+          toolMeta={toolMeta}
         />
       ) : (
         <WhoToStart
@@ -133,6 +137,8 @@ export function TradesHub({
           trends={trends}
           isDemo={isDemo}
           noLeague={noLeague}
+          toolMeta={toolMeta}
+          teammateInjury={teammateInjury}
         />
       )}
     </div>

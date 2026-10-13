@@ -16,6 +16,7 @@ import {
   normalizeTrendLabel,
   trendLabelCopy,
 } from "@/lib/insights/trend-labels";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 
 export const SKILL_POSITIONS: PlayerPosition[] = ["RB", "WR", "TE"];
 /** @deprecated Prefer SKILL_POSITIONS — kept as alias for call-site clarity. */
@@ -182,7 +183,7 @@ export function trendBlurb(
     t.avgDelta != null
       ? ` — about ${t.avgDelta >= 0 ? "+" : ""}${t.avgDelta.toFixed(1)} vs projection lately`
       : "";
-  return `${p.name} is ${trendLabelCopy(label).toLowerCase()}${delta}.`;
+  return `${formatPlayerLabel(p.name, p.nflTeam)} is ${trendLabelCopy(label).toLowerCase()}${delta}.`;
 }
 
 export function needsPosition(

@@ -16,8 +16,17 @@ import {
   type WhoToStartResult,
   type WhoToStartVerdict,
 } from "@/lib/insights/who-to-start";
+import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
+import { ToolPlayerCard } from "@/components/tool-player-card";
+import { WeekAxisLegend } from "@/components/insights/week-points-strip";
+import type { ToolDisplayMeta } from "@/lib/insights/tool-display";
+import {
+  hydrateTeammateInjuryIndex,
+  type serializeTeammateInjuryIndex,
+} from "@/lib/insights/teammate-injury";
+import { preferredProj } from "@/lib/insights/tool-display";
 
 export type TrendsProp =
   | Map<number, PlayerTrendView>
@@ -36,7 +45,9 @@ const VERDICT_STYLE: Record<WhoToStartVerdict, string> = {
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return false;
+  const label = formatPlayerLabel(player.name, player.nflTeam).toLowerCase();
   return (
+    label.includes(q) ||
     player.name.toLowerCase().includes(q) ||
     player.nflTeam.toLowerCase().includes(q) ||
     player.position.toLowerCase().includes(q)
@@ -50,6 +61,7 @@ function SinglePlayerSearch({
   selected,
   blockedId,
   positionLock,
+  toolMeta,
   onSelect,
   onClear,
 }: {
@@ -58,8 +70,8 @@ function SinglePlayerSearch({
   pool: FantasyPlayer[];
   selected: FantasyPlayer | null;
   blockedId: string | null;
-  /** When set, only same-position players are selectable. */
   positionLock: PlayerPosition | null;
+  toolMeta?: ToolDisplayMeta | null;
   onSelect: (player: FantasyPlayer) => void;
   onClear: () => void;
 }) {
@@ -76,9 +88,12 @@ function SinglePlayerSearch({
       .filter((p) => !selected || p.id !== selected.id)
       .filter((p) => !positionLock || p.position === positionLock)
       .filter((p) => matchesPlayerQuery(p, q))
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)
+      .sort(
+        (a, b) =>
+          preferredProj(b, toolMeta) - preferredProj(a, toolMeta),
+      )
       .slice(0, 8);
-  }, [pool, query, selected, blockedId, positionLock]);
+  }, [pool, query, selected, blockedId, positionLock, toolMeta]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -112,41 +127,24 @@ function SinglePlayerSearch({
       </div>
 
       {selected ? (
-        <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-950/12 bg-[var(--kraft)] px-3 py-2.5">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="truncate font-medium text-emerald-950">
-                {selected.name}
-              </span>
-              <PositionChip position={selected.position} />
-              <span className="type-caption text-emerald-950/50">
-                {selected.nflTeam}
-              </span>
-              {selected.injuryStatus !== "ACTIVE" && (
-                <span
-                  className={cn(
-                    "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                    statusColor(selected.injuryStatus),
-                  )}
-                >
-                  {formatStatusCode(selected.injuryStatus)}
-                </span>
-              )}
+        <div className="rounded-xl border border-emerald-950/12 bg-[var(--kraft)] px-3 py-2.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <ToolPlayerCard
+                player={selected}
+                toolMeta={toolMeta}
+                compact
+              />
             </div>
-            <p className="mt-0.5 type-caption text-emerald-950/45">
-              proj {selected.projectedPoints.toFixed(1)}
-              {selected.opponent ? ` · ${selected.opponent}` : ""}
-              {selected.isStarter ? " · starter" : ""}
-            </p>
+            <button
+              type="button"
+              onClick={onClear}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-emerald-950/55 transition hover:bg-emerald-950/10 hover:text-emerald-950"
+              aria-label={`Clear ${formatPlayerLabel(selected.name, selected.nflTeam)}`}
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClear}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-emerald-950/55 transition hover:bg-emerald-950/10 hover:text-emerald-950"
-            aria-label={`Clear ${selected.name}`}
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </button>
         </div>
       ) : (
         <>
@@ -188,8 +186,8 @@ function SinglePlayerSearch({
 
           {open && query.trim().length === 0 && (
             <p className="type-body text-sm text-emerald-950/55">
-              Start typing to search the league player pool
-              {positionLock ? ` (${positionLock} only)` : ""}.
+              Start typing to search the{" "}
+              {positionLock ? `${positionLock} ` : ""}player pool.
             </p>
           )}
 
@@ -207,30 +205,40 @@ function SinglePlayerSearch({
                     : `No players match “${query.trim()}”.`}
                 </li>
               ) : (
-                suggestions.map((player) => (
-                  <li key={player.id} role="option" aria-selected={false}>
-                    <button
-                      type="button"
-                      onClick={() => pick(player)}
-                      className="flex w-full items-center gap-3 border-b border-emerald-950/5 px-3 py-2.5 text-left last:border-0 transition hover:bg-orange-50/70"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate font-medium text-emerald-950">
-                            {player.name}
-                          </span>
-                          <PositionChip position={player.position} />
-                          <span className="type-caption text-emerald-950/50">
-                            {player.nflTeam}
-                          </span>
+                suggestions.map((player) => {
+                  const proj = preferredProj(player, toolMeta);
+                  return (
+                    <li key={player.id} role="option" aria-selected={false}>
+                      <button
+                        type="button"
+                        onClick={() => pick(player)}
+                        className="flex w-full items-center gap-3 border-b border-emerald-950/5 px-3 py-2.5 text-left last:border-0 transition hover:bg-orange-50/70"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="truncate font-medium text-emerald-950">
+                              {formatPlayerLabel(player.name, player.nflTeam)}
+                            </span>
+                            <PositionChip position={player.position} />
+                            {player.injuryStatus !== "ACTIVE" && (
+                              <span
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                                  statusColor(player.injuryStatus),
+                                )}
+                              >
+                                {formatStatusCode(player.injuryStatus)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 type-caption text-[#C026FF]">
+                            Projected {proj.toFixed(1)} this week (Sleeper)
+                          </div>
                         </div>
-                        <div className="mt-0.5 type-caption text-emerald-950/45">
-                          proj {player.projectedPoints.toFixed(1)}
-                        </div>
-                      </div>
-                    </button>
-                  </li>
-                ))
+                      </button>
+                    </li>
+                  );
+                })
               )}
             </ul>
           )}
@@ -240,7 +248,13 @@ function SinglePlayerSearch({
   );
 }
 
-function VerdictCard({ result }: { result: WhoToStartResult }) {
+function VerdictCard({
+  result,
+  toolMeta,
+}: {
+  result: WhoToStartResult;
+  toolMeta?: ToolDisplayMeta | null;
+}) {
   return (
     <article
       className={cn(
@@ -261,23 +275,54 @@ function VerdictCard({ result }: { result: WhoToStartResult }) {
       <h2 className="type-section mt-3 text-emerald-950">{result.headline}</h2>
       <p className="type-body mt-2 text-emerald-950/80">{result.summary}</p>
 
+      {toolMeta && (
+        <p className="mt-2">
+          <WeekAxisLegend weekAxis={toolMeta.weekAxis} />
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-4 border-t border-emerald-950/10 pt-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3">
+          <p className="type-eyebrow text-emerald-950/45">A</p>
+          <div className="mt-2">
+            <ToolPlayerCard
+              player={result.playerA}
+              toolMeta={toolMeta}
+              teammateImpacts={result.sideA.teammateImpacts}
+              maxPts={toolMeta?.maxPts}
+            />
+          </div>
+        </div>
+        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3">
+          <p className="type-eyebrow text-emerald-950/45">B</p>
+          <div className="mt-2">
+            <ToolPlayerCard
+              player={result.playerB}
+              toolMeta={toolMeta}
+              teammateImpacts={result.sideB.teammateImpacts}
+              maxPts={toolMeta?.maxPts}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-emerald-950/10 pt-4">
         <div>
-          <p className="type-eyebrow text-emerald-950/45">A · proj</p>
-          <p className="type-stat mt-1 text-2xl text-emerald-950 sm:text-3xl">
+          <p className="type-eyebrow text-emerald-950/45">A · Proj (Sleeper)</p>
+          <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
             {result.sideA.projectedPoints.toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
-            {result.playerA.name}
+            {formatPlayerLabel(result.playerA.name, result.playerA.nflTeam)}
           </p>
         </div>
         <div>
-          <p className="type-eyebrow text-emerald-950/45">B · proj</p>
-          <p className="type-stat mt-1 text-2xl text-emerald-950 sm:text-3xl">
+          <p className="type-eyebrow text-emerald-950/45">B · Proj (Sleeper)</p>
+          <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
             {result.sideB.projectedPoints.toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
-            {result.playerB.name}
+            {formatPlayerLabel(result.playerB.name, result.playerB.nflTeam)}
           </p>
         </div>
       </div>
@@ -296,7 +341,7 @@ function VerdictCard({ result }: { result: WhoToStartResult }) {
         </ul>
         {result.dataThin && (
           <p className="type-caption mt-3 text-orange-700">
-            Thin sample on form and/or defense comps — edge is softer.
+            Thin sample on form and/or matchup rank — lean is softer.
           </p>
         )}
       </div>
@@ -311,6 +356,8 @@ export function WhoToStart({
   trends: trendsProp,
   isDemo,
   noLeague = false,
+  toolMeta,
+  teammateInjury: teammateInjuryProp,
 }: {
   league: LeagueData;
   you: FantasyTeam;
@@ -319,9 +366,15 @@ export function WhoToStart({
   isDemo?: boolean;
   /** No roster chips / league-mate shortcuts — search the NFL pool only. */
   noLeague?: boolean;
+  toolMeta?: ToolDisplayMeta | null;
+  teammateInjury?: ReturnType<typeof serializeTeammateInjuryIndex>;
 }) {
   const [playerA, setPlayerA] = useState<FantasyPlayer | null>(null);
   const [playerB, setPlayerB] = useState<FantasyPlayer | null>(null);
+  const teammateInjury = useMemo(
+    () => hydrateTeammateInjuryIndex(teammateInjuryProp),
+    [teammateInjuryProp],
+  );
 
   const pool = useMemo(() => {
     const seen = new Set<string>();
@@ -331,26 +384,26 @@ export function WhoToStart({
       seen.add(p.id);
       unique.push(p);
     }
-    return unique.sort((a, b) => b.projectedPoints - a.projectedPoints);
-  }, [poolPlayers]);
+    return unique.sort(
+      (a, b) => preferredProj(b, toolMeta) - preferredProj(a, toolMeta),
+    );
+  }, [poolPlayers, toolMeta]);
 
   const positionLock: PlayerPosition | null =
     playerA?.position ?? playerB?.position ?? null;
 
   const suggestions = useMemo(() => {
     if (noLeague) {
-      // Top projected at the locked position (or overall) — never fake roster chips.
       const exclude = new Set<string>();
       if (playerA) exclude.add(playerA.id);
       if (playerB) exclude.add(playerB.id);
       return pool
         .filter((p) => !exclude.has(p.id))
         .filter((p) => !positionLock || p.position === positionLock)
-        .filter((p) => p.projectedPoints > 0)
+        .filter((p) => preferredProj(p, toolMeta) > 0)
         .slice(0, 8);
     }
     if (!positionLock) {
-      // Default: show a few of your starters as kickoff ideas.
       return you.roster
         .filter((p) => p.isStarter && p.slot !== "IR")
         .sort((a, b) => b.projectedPoints - a.projectedPoints)
@@ -360,12 +413,16 @@ export function WhoToStart({
     if (playerA) exclude.add(playerA.id);
     if (playerB) exclude.add(playerB.id);
     return samePositionSuggestions(you, positionLock, exclude).slice(0, 8);
-  }, [you, positionLock, playerA, playerB, noLeague, pool]);
+  }, [you, positionLock, playerA, playerB, noLeague, pool, toolMeta]);
 
   const comparison = useMemo(() => {
     if (!playerA || !playerB) return null;
-    return compareWhoToStart(league, playerA, playerB, trendsProp);
-  }, [league, playerA, playerB, trendsProp]);
+    return compareWhoToStart(league, playerA, playerB, {
+      trends: trendsProp,
+      toolMeta,
+      teammateInjury,
+    });
+  }, [league, playerA, playerB, trendsProp, toolMeta, teammateInjury]);
 
   function selectA(player: FantasyPlayer) {
     if (playerB && playerB.position !== player.position) {
@@ -391,7 +448,6 @@ export function WhoToStart({
     if (!playerB) {
       if (player.id === playerA.id) return;
       if (player.position !== playerA.position) {
-        // Switch lock to this player's position and start over with A.
         setPlayerB(null);
         setPlayerA(player);
         return;
@@ -399,7 +455,6 @@ export function WhoToStart({
       selectB(player);
       return;
     }
-    // Both filled — replace B if same pos, else reset to A.
     if (player.position === playerA.position && player.id !== playerA.id) {
       selectB(player);
     } else {
@@ -426,8 +481,9 @@ export function WhoToStart({
 
       <p className="type-body max-w-2xl text-sm text-emerald-950/65">
         Pick two players at the same position. We weigh this week&apos;s
-        projection, recent form, injury status, and defense matchup — no LLM,
-        no invented comps.
+        Sleeper projection (full PPR), recent form, injury status, and defense
+        matchup — no LLM, no invented comps. The verdict edge matches the
+        projection gap shown on the cards.
         {noLeague
           ? " Scoring defaults to full PPR until you connect a league."
           : ""}
@@ -445,28 +501,33 @@ export function WhoToStart({
                 : "From your starters"}
           </p>
           <ul className="flex flex-wrap gap-2">
-            {suggestions.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => quickPick(p)}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-950/15 bg-[var(--kraft)] px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-600/45 hover:bg-orange-50/40"
-                >
-                  <PositionChip position={p.position} />
-                  <span className="truncate">{p.name}</span>
-                  {!noLeague && (
-                    <span className="type-caption shrink-0 text-emerald-950/45">
-                      {p.isStarter ? "S" : "BN"}
+            {suggestions.map((p) => {
+              const proj = preferredProj(p, toolMeta);
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => quickPick(p)}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-950/15 bg-[var(--kraft)] px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-600/45 hover:bg-orange-50/40"
+                  >
+                    <PositionChip position={p.position} />
+                    <span className="truncate">
+                      {formatPlayerLabel(p.name, p.nflTeam)}
                     </span>
-                  )}
-                  {noLeague && p.projectedPoints > 0 && (
-                    <span className="type-caption shrink-0 text-emerald-950/45">
-                      {p.projectedPoints.toFixed(1)}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
+                    {!noLeague && (
+                      <span className="type-caption shrink-0 text-emerald-950/45">
+                        {p.isStarter ? "S" : "BN"}
+                      </span>
+                    )}
+                    {proj > 0 && (
+                      <span className="type-caption shrink-0 text-[#C026FF]">
+                        {proj.toFixed(1)} Sleeper
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -480,6 +541,7 @@ export function WhoToStart({
             selected={playerA}
             blockedId={playerB?.id ?? null}
             positionLock={playerB && !playerA ? playerB.position : null}
+            toolMeta={toolMeta}
             onSelect={selectA}
             onClear={() => setPlayerA(null)}
           />
@@ -492,6 +554,7 @@ export function WhoToStart({
             selected={playerB}
             blockedId={playerA?.id ?? null}
             positionLock={playerA && !playerB ? playerA.position : null}
+            toolMeta={toolMeta}
             onSelect={selectB}
             onClear={() => setPlayerB(null)}
           />
@@ -516,8 +579,11 @@ export function WhoToStart({
           role="alert"
           className="rounded-xl border border-orange-600/30 bg-orange-50/40 px-3 py-2.5 type-body text-sm text-orange-800"
         >
-          Same position only — {playerA!.name} is {playerA!.position} and{" "}
-          {playerB!.name} is {playerB!.position}. Clear one pick to continue.
+          Same position only —{" "}
+          {formatPlayerLabel(playerA!.name, playerA!.nflTeam)} is{" "}
+          {playerA!.position} and{" "}
+          {formatPlayerLabel(playerB!.name, playerB!.nflTeam)} is{" "}
+          {playerB!.position}. Clear one pick to continue.
         </p>
       )}
 
@@ -530,7 +596,9 @@ export function WhoToStart({
         </p>
       )}
 
-      {comparison?.ok && <VerdictCard result={comparison} />}
+      {comparison?.ok && (
+        <VerdictCard result={comparison} toolMeta={toolMeta} />
+      )}
 
       {!playerA && !playerB && (
         <p className="type-body text-sm text-emerald-950/55">
