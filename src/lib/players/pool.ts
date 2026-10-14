@@ -585,6 +585,31 @@ export async function getNoLeaguePlayerPool(options?: {
     const roster = await buildAuthoritativeRosterMap();
     const applied = applyRosterAuthorityToPool(players, roster.byEspnId);
     players = applied.players;
+
+    // Inject picker-eligible auth players missing from ESPN/DB-derived pool
+    // (practice-squad / post-cut signings often absent from ESPN public top-N).
+    const inPool = new Set(players.map((p) => p.espnId));
+    for (const auth of roster.byEspnId.values()) {
+      if (!auth.pickerEligible || auth.nflTeam === "FA") continue;
+      if (inPool.has(auth.espnId)) continue;
+      const pos = auth.position as FantasyPlayer["position"];
+      if (!["QB", "RB", "WR", "TE"].includes(pos)) continue;
+      players.push({
+        id: `espn-${auth.espnId}`,
+        espnId: auth.espnId,
+        name: auth.name,
+        position: pos,
+        nflTeam: auth.nflTeam,
+        injuryStatus: "ACTIVE",
+        projectedPoints: 0,
+        actualPoints: 0,
+        percentOwned: 0,
+        percentStarted: 0,
+        practiceSquad: auth.practiceSquad,
+        singleSourceTeam: auth.singleSourceTeam,
+      });
+      inPool.add(auth.espnId);
+    }
     if (applied.teamCorrections > 0 || applied.excluded > 0) {
       // Persist corrected teams for every picker-eligible pool player
       // (not a capped slice — ESPN FA stubs can sit anywhere in the sort).
