@@ -49,3 +49,4 @@ If a PR violates any rule, it is not merge-ready.
 | 2026-10-13 | Fantasy-impact wording rule: every label states what happened + points impact; replaced Opp ↑/↓ jargon and TGT%/AY%/szn/3wk abbreviations. |
 | 2026-10-14 | No-league pool: Sleeper+nflverse roster authority (never FA for rostered players); Sleeper full-PPR proj only (never ESPN 0); DataIssue cross-check + UI notices; `verify:pool`. |
 | 2026-10-14 | Roster identity joins on `sleeper_id` (never name). Team source priority: most recent Sleeper `news_updated` vs nflverse weekly roster week wins. `team_mismatch` DataIssues only for same-day pending moves (UI notice). |
+| 2026-10-14 | Stale pre-2026 Sleeper-only rows → FA/excluded. Same-team nflverse CUT vs Sleeper → DataIssue + exclude. Practice squad (DEV) + Sleeper-only post-cut labels in UI. |
