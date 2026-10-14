@@ -6,7 +6,7 @@ import { dashNull } from "@/lib/insights/format-null";
 
 /**
  * Module A — identical week axis for every player.
- * Played weeks = solid bars; current Proj (Sleeper) = purple outline + hatch;
+ * Played weeks = solid bars; current Proj = purple outline + hatch;
  * BYE / DNP / empty (snaps but null PPR) = labeled gaps (never fake 0 bars).
  */
 export function WeekPointsStrip({
@@ -61,14 +61,14 @@ export function WeekPointsStrip({
                   style={{ height: h }}
                   title={
                     isProj
-                      ? `Proj (Sleeper) ${dashNull(cell.value)}`
+                      ? `Projected ${dashNull(cell.value)}`
                       : `W${cell.week} ${dashNull(cell.value)}`
                   }
                 />
               ) : isProj ? (
                 <div
                   className="flex h-9 w-full max-w-[1.35rem] items-center justify-center rounded-sm border border-dashed border-[#C026FF]/55"
-                  title="Proj (Sleeper) —"
+                  title="Projected —"
                 >
                   <span className="text-[9px] text-[#C026FF]/80">—</span>
                 </div>
@@ -107,7 +107,7 @@ export function WeekAxisLegend({ weekAxis }: { weekAxis: number[] }) {
     <p className="text-[10px] text-emerald-950/40">
       Axis W1–W{last}
       {last != null ? " · " : ""}
-      <span className="text-[#C026FF]">P</span> = Proj (Sleeper) · BYE/DNP/— ≠ 0
+      <span className="text-[#C026FF]">P</span> = Projected · BYE/DNP/— ≠ 0
     </p>
   );
 }

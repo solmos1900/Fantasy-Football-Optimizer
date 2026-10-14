@@ -45,7 +45,7 @@ export type ToolPlayerCard = {
   weeks: WeekPointCell[];
   matchup: DvpChip | null;
   sleeperProj: number | null;
-  /** e.g. "Projected 15.3 this week (Sleeper)" */
+  /** e.g. "Projected 15.3 this week" */
   sleeperLine: string;
   /** Last 3 vs season form with fantasy impact. */
   formLine: string | null;
@@ -148,9 +148,30 @@ export function injuryNoteFor(player: FantasyPlayer): string | null {
 
 export function sleeperProjLine(proj: number | null): string {
   if (proj == null || !Number.isFinite(proj)) {
-    return "Projected — this week (Sleeper)";
+    return "Projected — this week";
   }
-  return `Projected ${proj.toFixed(1)} this week (Sleeper)`;
+  return `Projected ${proj.toFixed(1)} this week`;
+}
+
+/** Null when no Sleeper projection is available (UI should show —, not 0.0). */
+export function preferredProjOrNull(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): number | null {
+  if (meta?.sleeperByEspnId) {
+    const fromSleeper = meta.sleeperByEspnId[String(player.espnId)];
+    if (fromSleeper != null && Number.isFinite(fromSleeper)) return fromSleeper;
+    // Meta loaded and this player has no Sleeper row → missing
+    return null;
+  }
+  if (
+    typeof player.projectedPoints === "number" &&
+    Number.isFinite(player.projectedPoints) &&
+    player.projectedPoints > 0
+  ) {
+    return player.projectedPoints;
+  }
+  return null;
 }
 
 export function dvpMapToRecord(
@@ -267,7 +288,7 @@ export function buildToolPlayerCard(
 
   const sleeperLine = hasSleeper
     ? sleeperProjLine(sleeperProj)
-    : "Projected — this week (Sleeper) · projection unavailable";
+    : "Projected — this week";
 
   return {
     player,

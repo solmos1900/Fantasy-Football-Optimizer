@@ -32,6 +32,7 @@ import { ToolPlayerCard } from "@/components/tool-player-card";
 import { WeekAxisLegend } from "@/components/insights/week-points-strip";
 import {
   preferredProj,
+  preferredProjOrNull,
   type ToolDisplayMeta,
 } from "@/lib/insights/tool-display";
 import { impactsForPlayer } from "@/lib/insights/teammate-injury";
@@ -110,7 +111,7 @@ function PlayerPickRow({
   chip: number;
   toolMeta?: ToolDisplayMeta | null;
 }) {
-  const proj = preferredProj(player, toolMeta);
+  const proj = preferredProjOrNull(player, toolMeta);
   return (
     <label
       className={cn(
@@ -143,7 +144,7 @@ function PlayerPickRow({
           )}
         </div>
         <div className="mt-0.5 type-caption text-[#C026FF]">
-          Projected {proj.toFixed(1)} this week (Sleeper)
+          Projected {proj == null ? "—" : proj.toFixed(1)} this week
           {player.isStarter ? " · starter" : " · bench"}
         </div>
       </div>
@@ -151,7 +152,7 @@ function PlayerPickRow({
         <div className="type-stat text-base leading-none text-emerald-950">
           {chip.toFixed(1)}
         </div>
-        <div>val</div>
+        <div>Trade value</div>
       </div>
     </label>
   );
@@ -354,15 +355,17 @@ function PlayerSearchPicker({
                         )}
                       </div>
                       <div className="mt-0.5 type-caption text-[#C026FF]">
-                        Projected {preferredProj(player, toolMeta).toFixed(1)}{" "}
-                        this week (Sleeper)
+                        {(() => {
+                          const proj = preferredProjOrNull(player, toolMeta);
+                          return `Projected ${proj == null ? "—" : proj.toFixed(1)} this week`;
+                        })()}
                       </div>
                     </div>
                     <div className="text-right type-caption text-emerald-950/50">
                       <div className="type-stat text-base leading-none text-emerald-950">
                         {chipValue(player, trends).toFixed(1)}
                       </div>
-                      <div>val</div>
+                      <div>Trade value</div>
                     </div>
                   </button>
                 </li>

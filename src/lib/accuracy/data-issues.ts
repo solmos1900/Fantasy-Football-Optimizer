@@ -3,13 +3,17 @@
  */
 
 import { prisma } from "@/lib/db";
-import { buildAuthoritativeRosterMap } from "@/lib/players/roster-authority";
+import {
+  buildAuthoritativeRosterMap,
+  type AuthoritativeRosterEntry,
+} from "@/lib/players/roster-authority";
 import { NFLVERSE_LEAGUE_ID, NFLVERSE_SOURCE } from "@/lib/nflverse/map";
 import { fullPprFromCategories } from "@/lib/players/scoring";
 import { fetchGunzipText, parseCsv } from "@/lib/nflverse/csv";
 import { playerWeekStatsCsvGzUrl } from "@/lib/nflverse/urls";
 import { defaultEspnSeason } from "@/lib/season";
 import { loadPlayerIdCrosswalk } from "@/lib/nflverse/crosswalk";
+import { nflTeamFullName } from "@/lib/espn/pro-teams";
 
 export type DataIssueKind =
   | "team_mismatch"
@@ -20,54 +24,125 @@ export type DataIssueKind =
 
 export type DataIssueSummary = {
   openCount: number;
-  /** Short notices for UI, e.g. "data check failed for Justin Jefferson (team)" */
+  /** Plain-English notices for UI */
   notices: string[];
   byKind: Record<string, number>;
 };
 
+/** Human-readable notice for a DataIssue row (owner-facing). */
+export function formatDataIssueNotice(row: {
+  kind: string;
+  playerName?: string | null;
+  espnId?: number | null;
+  detail?: string | null;
+  sources?: string | null;
+}): string {
+  const who =
+    row.playerName?.trim() ||
+    (row.espnId ? `Player ${row.espnId}` : "A player");
+  let sources: Record<string, unknown> = {};
+  if (row.sources) {
+    try {
+      sources = JSON.parse(row.sources) as Record<string, unknown>;
+    } catch {
+      sources = {};
+    }
+  }
+  const sleeperTeam = String(sources.sleeperTeam ?? "");
+  const cutTeam =
+    String(sources.cutTeam ?? sources.nflverseTeam ?? sleeperTeam ?? "") ||
+    null;
+  const resolved = String(sources.resolvedTeam ?? "");
+  const week = sources.cutWeek != null ? Number(sources.cutWeek) : null;
+  const practiceSquad = Boolean(sources.practiceSquad);
+
+  if (row.kind === "team_mismatch") {
+    const club = cutTeam ? nflTeamFullName(cutTeam) : "their club";
+    const weekBit =
+      week != null && Number.isFinite(week) ? ` in Week ${week}` : "";
+    return `${who}: team unclear (${club} cut him${weekBit}), left out of player search`;
+  }
+  if (row.kind === "single_source_team") {
+    const club = resolved
+      ? nflTeamFullName(resolved)
+      : sleeperTeam
+        ? nflTeamFullName(sleeperTeam)
+        : "an NFL team";
+    const ps = practiceSquad ? " practice squad" : "";
+    return `${who}: team not yet confirmed by a second source (listed with the ${club}${ps})`;
+  }
+  if (row.kind === "roster_fa_conflict") {
+    const club = resolved
+      ? nflTeamFullName(resolved)
+      : String(sources.authTeam ?? "")
+        ? nflTeamFullName(String(sources.authTeam))
+        : "an NFL team";
+    return `${who}: roster was marked free agent but he is listed with the ${club} — team corrected`;
+  }
+  if (row.kind === "ppr_mismatch") {
+    return `${who}: scored points from one source do not match another — check before trusting totals`;
+  }
+  if (row.kind === "projection_missing") {
+    return `${who}: no weekly projection available yet`;
+  }
+  return row.detail?.trim() || `${who}: data needs a review`;
+}
+
+function cutWeekFromEvidence(evidence: string | null | undefined): number | null {
+  if (!evidence) return null;
+  const m = evidence.match(/week\s+(\d+)/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+function cutTeamFromEvidence(
+  entry: AuthoritativeRosterEntry,
+): string | null {
+  // Same-team CUT: sleeperTeam is the club that cut him
+  if (entry.sleeperTeam) return entry.sleeperTeam;
+  const m = entry.evidence?.match(
+    /nflverse week \d+ ([A-Z]{2,3}) CUT/i,
+  );
+  return m?.[1] ?? null;
+}
+
 export async function loadOpenDataIssueSummary(options?: {
   limit?: number;
+  /** When set, only count/show issues for these ESPN ids (players in the pool). */
+  poolEspnIds?: Iterable<number>;
 }): Promise<DataIssueSummary> {
   const limit = options?.limit ?? 12;
+  const poolSet =
+    options?.poolEspnIds != null
+      ? new Set(
+          [...options.poolEspnIds].filter((n) => Number.isFinite(n) && n > 0),
+        )
+      : null;
+
   const open = await prisma.dataIssue.findMany({
     where: { resolved: false },
     orderBy: { createdAt: "desc" },
-    take: 200,
+    take: 500,
   });
+
+  const relevant = open.filter((row) => {
+    if (poolSet == null) return true;
+    if (row.espnId == null) return false;
+    return poolSet.has(row.espnId);
+  });
+
   const byKind: Record<string, number> = {};
-  for (const row of open) {
+  for (const row of relevant) {
     byKind[row.kind] = (byKind[row.kind] ?? 0) + 1;
   }
-  // Prefer team / single-source notices in the UI strip
-  const ranked = [...open].sort((a, b) => {
+  const ranked = [...relevant].sort((a, b) => {
     const rank = (k: string) =>
       k === "team_mismatch" ? 0 : k === "single_source_team" ? 1 : 2;
     return rank(a.kind) - rank(b.kind);
   });
-  const notices = ranked.slice(0, limit).map((row) => {
-    const who =
-      row.playerName?.trim() ||
-      (row.espnId ? `espn ${row.espnId}` : "player");
-    const kindLabel =
-      row.kind === "team_mismatch"
-        ? "team"
-        : row.kind === "ppr_mismatch"
-          ? "PPR"
-          : row.kind === "roster_fa_conflict"
-            ? "roster"
-            : row.kind === "single_source_team"
-              ? "single-source"
-              : row.kind;
-    const pending =
-      row.kind === "team_mismatch" &&
-      (row.detail ?? "").toLowerCase().includes("pending")
-        ? " — pending same-day roster move"
-        : row.kind === "single_source_team"
-          ? " — Sleeper-only team"
-          : "";
-    return `data check failed for ${who} (${kindLabel})${pending}`;
-  });
-  return { openCount: open.length, notices, byKind };
+  const notices = ranked.slice(0, limit).map((row) => formatDataIssueNotice(row));
+  return { openCount: relevant.length, notices, byKind };
 }
 
 async function upsertIssue(input: {
@@ -128,6 +203,7 @@ export async function runPoolDataValidation(options?: {
   faConflicts: number;
   checkedPlayers: number;
   teamsCorrected: number;
+  issuesResolved: number;
 }> {
   const season = options?.season ?? defaultEspnSeason();
   const roster = await buildAuthoritativeRosterMap({ forceRefresh: true });
@@ -137,6 +213,7 @@ export async function runPoolDataValidation(options?: {
   let checkedPlayers = 0;
 
   const authEntries = [...roster.byEspnId.values()];
+  const authByEspn = roster.byEspnId;
   const espnIds = authEntries.map((e) => e.espnId);
   const dbPlayers = await prisma.player.findMany({
     where: { espnId: { in: espnIds } },
@@ -144,37 +221,48 @@ export async function runPoolDataValidation(options?: {
   });
   const dbByEspn = new Map(dbPlayers.map((p) => [p.espnId, p]));
 
+  // Live team_mismatch / single_source only for picker-eligible pool candidates.
+  // CUT conflicts that exclude a player are recorded then immediately eligible
+  // for cleanup if we treat them as explained exclusions — we still upsert for
+  // audit but resolve non-pool issues at the end.
   for (const entry of authEntries) {
     checkedPlayers += 1;
     if (entry.teamMismatch) {
       teamMismatches += 1;
+      const cutTeam = cutTeamFromEvidence(entry);
+      const cutWeek = cutWeekFromEvidence(entry.evidence);
+      const club = cutTeam ? nflTeamFullName(cutTeam) : "their club";
+      const weekBit =
+        cutWeek != null ? ` in Week ${cutWeek}` : "";
       await upsertIssue({
         kind: "team_mismatch",
         espnId: entry.espnId,
         playerName: entry.name,
         season,
-        detail:
-          entry.evidence ??
-          `${entry.name}: Sleeper team ${entry.sleeperTeam ?? "—"} vs nflverse ${entry.nflverseTeam ?? "—"}`,
+        week: cutWeek,
+        detail: `${entry.name}: team unclear (${club} cut him${weekBit}), left out of player search`,
         sources: {
           sleeperTeam: entry.sleeperTeam,
           nflverseTeam: entry.nflverseTeam,
+          cutTeam,
+          cutWeek,
           resolvedTeam: entry.nflTeam,
           pendingSameDay: entry.pendingSameDay,
           evidence: entry.evidence,
+          pickerEligible: entry.pickerEligible,
         },
       });
     }
 
     if (entry.singleSourceTeam && entry.pickerEligible && entry.nflTeam !== "FA") {
+      const club = nflTeamFullName(entry.nflTeam);
+      const ps = entry.practiceSquad ? " practice squad" : "";
       await upsertIssue({
         kind: "single_source_team",
         espnId: entry.espnId,
         playerName: entry.name,
         season,
-        detail:
-          entry.evidence ??
-          `${entry.name}: team ${entry.nflTeam} from Sleeper only (nflverse weekly not confirming)`,
+        detail: `${entry.name}: team not yet confirmed by a second source (listed with the ${club}${ps})`,
         sources: {
           sleeperTeam: entry.sleeperTeam,
           nflverseTeam: entry.nflverseTeam,
@@ -187,7 +275,6 @@ export async function runPoolDataValidation(options?: {
 
     const db = dbByEspn.get(entry.espnId);
     if (!db) {
-      // Create missing Player rows for picker-eligible rostered athletes
       if (entry.pickerEligible && entry.nflTeam !== "FA") {
         await prisma.player.upsert({
           where: { espnId: entry.espnId },
@@ -212,26 +299,22 @@ export async function runPoolDataValidation(options?: {
       continue;
     }
 
-    // Correct FA when authority has a real team (Sleeper and/or nflverse ACT).
     const shouldHaveTeam = entry.nflTeam !== "FA" && entry.pickerEligible;
     if (shouldHaveTeam && (!db.nflTeam || db.nflTeam === "FA")) {
       faConflicts += 1;
-      await upsertIssue({
-        kind: "roster_fa_conflict",
-        espnId: entry.espnId,
-        playerName: entry.name,
-        season,
-        detail: `${entry.name}: database had FA/empty team but roster sources say ${entry.nflTeam}`,
-        sources: {
-          dbTeam: db.nflTeam,
-          authTeam: entry.nflTeam,
-          sleeperTeam: entry.sleeperTeam,
-          nflverseTeam: entry.nflverseTeam,
+      // Correct immediately — do not leave an open roster_fa_conflict banner
+      // after the fix (historical FA conflicts are closed in cleanup below).
+      await prisma.player.update({
+        where: { espnId: entry.espnId },
+        data: {
+          nflTeam: entry.nflTeam,
+          ...(entry.sleeperId ? { sleeperId: entry.sleeperId } : {}),
+          ...(entry.gsisId ? { gsisId: entry.gsisId } : {}),
+          updatedAt: new Date(),
         },
       });
-    }
-
-    if (shouldHaveTeam) {
+      teamsCorrected += 1;
+    } else if (shouldHaveTeam) {
       await prisma.player.update({
         where: { espnId: entry.espnId },
         data: {
@@ -247,7 +330,6 @@ export async function runPoolDataValidation(options?: {
       db.nflTeam &&
       db.nflTeam !== "FA"
     ) {
-      // Stale / cut / inactive — clear bogus team off the Player row
       await prisma.player.update({
         where: { espnId: entry.espnId },
         data: {
@@ -279,32 +361,51 @@ export async function runPoolDataValidation(options?: {
     pprMismatches = await validateNflversePprWeek({ season, week });
   }
 
-  const stillMismatch = new Set(
-    authEntries.filter((e) => e.teamMismatch).map((e) => e.espnId),
-  );
+  // Keep open only: (1) pending same-day team mismatches for picker-eligible
+  // players, (2) single-source teams still in the picker pool.
+  // Close CUT/excluded mismatches, stale FA conflicts, and duplicates.
   const stillSingleSource = new Set(
     authEntries
       .filter((e) => e.singleSourceTeam && e.pickerEligible && e.nflTeam !== "FA")
       .map((e) => e.espnId),
   );
-  const openTeam = await prisma.dataIssue.findMany({
-    where: {
-      resolved: false,
-      kind: { in: ["team_mismatch", "single_source_team"] },
-    },
+  const stillPendingMismatch = new Set(
+    authEntries
+      .filter((e) => e.teamMismatch && e.pendingSameDay && e.pickerEligible)
+      .map((e) => e.espnId),
+  );
+
+  const openAll = await prisma.dataIssue.findMany({
+    where: { resolved: false },
     select: { id: true, espnId: true, kind: true },
   });
-  for (const row of openTeam) {
-    if (row.espnId == null) continue;
-    const stillOpen =
-      row.kind === "team_mismatch"
-        ? stillMismatch.has(row.espnId)
-        : stillSingleSource.has(row.espnId);
-    if (!stillOpen) {
+  let issuesResolved = 0;
+  for (const row of openAll) {
+    const auth = row.espnId != null ? authByEspn.get(row.espnId) : undefined;
+    let keep = false;
+    if (row.kind === "single_source_team") {
+      keep = row.espnId != null && stillSingleSource.has(row.espnId);
+    } else if (row.kind === "team_mismatch") {
+      // Explained CUT / excluded players are not banner material
+      keep = row.espnId != null && stillPendingMismatch.has(row.espnId);
+    } else if (row.kind === "roster_fa_conflict") {
+      // Corrected or no longer applicable
+      keep = false;
+    } else if (row.kind === "ppr_mismatch" || row.kind === "projection_missing") {
+      keep = true;
+    } else {
+      keep = Boolean(auth?.pickerEligible);
+    }
+    // Also drop issues for stale / non-eligible players
+    if (auth && (auth.staleSleeper || !auth.pickerEligible) && row.kind !== "ppr_mismatch") {
+      keep = false;
+    }
+    if (!keep) {
       await prisma.dataIssue.update({
         where: { id: row.id },
         data: { resolved: true, updatedAt: new Date() },
       });
+      issuesResolved += 1;
     }
   }
 
@@ -314,6 +415,7 @@ export async function runPoolDataValidation(options?: {
     faConflicts,
     checkedPlayers,
     teamsCorrected,
+    issuesResolved,
   };
 }
 

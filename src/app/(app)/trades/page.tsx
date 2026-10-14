@@ -132,9 +132,9 @@ export default async function TradesPage({
     projectionsUpdatedAt: toolMeta.sleeperEmpty ? null : new Date().toISOString(),
     latestWeekMissing: false,
     warning: toolMeta.sleeperEmpty
-      ? "Sleeper projections unavailable — Proj cells show — (not ESPN relabeled)."
+      ? "Weekly projections unavailable — showing — where missing."
       : null,
-    scoringLabel: "Full PPR (nflverse box score)",
+    scoringLabel: "Full PPR",
   };
 
   return (

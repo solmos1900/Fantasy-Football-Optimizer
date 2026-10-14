@@ -365,7 +365,7 @@ export function InsightsBoard({
       )}
 
       <p className="text-[10px] text-emerald-950/35">
-        Points/injury/bye: ESPN · Usage/DVP: nflverse · Proj: Sleeper
+        Points, injury, bye, usage, matchup rank, and weekly projection
       </p>
 
       <RosterDialog

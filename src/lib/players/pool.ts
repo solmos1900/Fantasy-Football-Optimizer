@@ -695,7 +695,7 @@ export async function getNoLeaguePlayerPool(options?: {
     } else {
       warning = [
         warning,
-        "Sleeper full-PPR projections unavailable — showing — not ESPN 0.",
+        "Weekly projections unavailable — showing — where missing.",
       ]
         .filter(Boolean)
         .join(" ");
@@ -704,7 +704,7 @@ export async function getNoLeaguePlayerPool(options?: {
     const message = err instanceof Error ? err.message : String(err);
     warning = [
       warning,
-      `Sleeper projection overlay failed (${message}). Not using ESPN 0 as a stand-in.`,
+      `Weekly projections failed to load (${message}). Showing — where missing.`,
     ]
       .filter(Boolean)
       .join(" ");
@@ -733,7 +733,11 @@ export async function getNoLeaguePlayerPool(options?: {
   let dataIssueNotices: string[] = [];
   let dataIssueCount = 0;
   try {
-    const summary = await loadOpenDataIssueSummary({ limit: 8 });
+    const summary = await loadOpenDataIssueSummary({
+      limit: 8,
+      // Banner only covers players actually in this picker pool
+      poolEspnIds: players.map((p) => p.espnId),
+    });
     dataIssueNotices = summary.notices;
     dataIssueCount = summary.openCount;
   } catch {
@@ -748,7 +752,7 @@ export async function getNoLeaguePlayerPool(options?: {
     projectionsUpdatedAt: projectionsUpdatedAt?.toISOString() ?? null,
     latestWeekMissing,
     warning,
-    scoringLabel: "Full PPR (nflverse box · Sleeper proj)",
+    scoringLabel: "Full PPR",
     dataIssueNotices,
     dataIssueCount,
   };

@@ -27,7 +27,10 @@ import {
   hydrateTeammateInjuryIndex,
   type serializeTeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
-import { preferredProj } from "@/lib/insights/tool-display";
+import {
+  preferredProj,
+  preferredProjOrNull,
+} from "@/lib/insights/tool-display";
 
 export type TrendsProp =
   | Map<number, PlayerTrendView>
@@ -207,7 +210,7 @@ function SinglePlayerSearch({
                 </li>
               ) : (
                 suggestions.map((player) => {
-                  const proj = preferredProj(player, toolMeta);
+                  const proj = preferredProjOrNull(player, toolMeta);
                   return (
                     <li key={player.id} role="option" aria-selected={false}>
                       <button
@@ -234,7 +237,8 @@ function SinglePlayerSearch({
                             )}
                           </div>
                           <div className="mt-0.5 type-caption text-[#C026FF]">
-                            Projected {proj.toFixed(1)} this week (Sleeper)
+                            Projected {proj == null ? "—" : proj.toFixed(1)} this
+                            week
                           </div>
                         </div>
                       </button>
@@ -310,18 +314,22 @@ function VerdictCard({
 
       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-emerald-950/10 pt-4">
         <div>
-          <p className="type-eyebrow text-emerald-950/45">A · Proj (Sleeper)</p>
+          <p className="type-eyebrow text-emerald-950/45">A · Projected</p>
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
-            {result.sideA.projectedPoints.toFixed(1)}
+            {result.sideA.projectedPoints > 0
+              ? result.sideA.projectedPoints.toFixed(1)
+              : "—"}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
             {formatPlayerLabel(result.playerA.name, result.playerA.nflTeam)}
           </p>
         </div>
         <div>
-          <p className="type-eyebrow text-emerald-950/45">B · Proj (Sleeper)</p>
+          <p className="type-eyebrow text-emerald-950/45">B · Projected</p>
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
-            {result.sideB.projectedPoints.toFixed(1)}
+            {result.sideB.projectedPoints > 0
+              ? result.sideB.projectedPoints.toFixed(1)
+              : "—"}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
             {formatPlayerLabel(result.playerB.name, result.playerB.nflTeam)}
@@ -482,7 +490,7 @@ export function WhoToStart({
       )}
 
       <p className="type-body max-w-2xl text-sm text-emerald-950/65">
-        Same position · Sleeper full-PPR proj, form, injury, and matchup.
+        Same position · projection, form, injury, and matchup.
       </p>
 
       {suggestions.length > 0 && (
@@ -498,7 +506,7 @@ export function WhoToStart({
           </p>
           <ul className="flex flex-wrap gap-2">
             {suggestions.map((p) => {
-              const proj = preferredProj(p, toolMeta);
+              const proj = preferredProjOrNull(p, toolMeta);
               return (
                 <li key={p.id}>
                   <button
@@ -515,9 +523,9 @@ export function WhoToStart({
                         {p.isStarter ? "S" : "BN"}
                       </span>
                     )}
-                    {proj > 0 && (
+                    {proj != null && proj > 0 && (
                       <span className="type-caption shrink-0 text-[#C026FF]">
-                        {proj.toFixed(1)} Sleeper
+                        {proj.toFixed(1)}
                       </span>
                     )}
                   </button>

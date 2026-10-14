@@ -214,8 +214,8 @@ export function PlayerSignalRow({
           )}
           <span className="text-[10px] tabular-nums text-[#C026FF]">
             {signal.sleeperProj != null
-              ? `Projected ${dashNull(signal.sleeperProj)} this week (Sleeper)`
-              : "Projected — this week (Sleeper)"}
+              ? `Projected ${dashNull(signal.sleeperProj)} this week`
+              : "Projected — this week"}
           </span>
         </div>
       </div>

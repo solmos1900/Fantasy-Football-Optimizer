@@ -64,6 +64,49 @@ export function normalizeNflAbbrev(abbrev: string | null | undefined): string | 
   return ABBREV_ALIASES[upper] ?? upper;
 }
 
+/** Full club names for plain-English notices. */
+const NFL_TEAM_FULL_NAME: Readonly<Record<string, string>> = {
+  ARI: "Arizona Cardinals",
+  ATL: "Atlanta Falcons",
+  BAL: "Baltimore Ravens",
+  BUF: "Buffalo Bills",
+  CAR: "Carolina Panthers",
+  CHI: "Chicago Bears",
+  CIN: "Cincinnati Bengals",
+  CLE: "Cleveland Browns",
+  DAL: "Dallas Cowboys",
+  DEN: "Denver Broncos",
+  DET: "Detroit Lions",
+  GB: "Green Bay Packers",
+  HOU: "Houston Texans",
+  IND: "Indianapolis Colts",
+  JAX: "Jacksonville Jaguars",
+  KC: "Kansas City Chiefs",
+  LAC: "Los Angeles Chargers",
+  LAR: "Los Angeles Rams",
+  LV: "Las Vegas Raiders",
+  MIA: "Miami Dolphins",
+  MIN: "Minnesota Vikings",
+  NE: "New England Patriots",
+  NO: "New Orleans Saints",
+  NYG: "New York Giants",
+  NYJ: "New York Jets",
+  PHI: "Philadelphia Eagles",
+  PIT: "Pittsburgh Steelers",
+  SEA: "Seattle Seahawks",
+  SF: "San Francisco 49ers",
+  TB: "Tampa Bay Buccaneers",
+  TEN: "Tennessee Titans",
+  WSH: "Washington Commanders",
+};
+
+/** e.g. MIN → "Minnesota Vikings"; unknown abbrev returned as-is. */
+export function nflTeamFullName(abbrev: string | null | undefined): string {
+  const t = normalizeNflAbbrev(abbrev);
+  if (!t || t === "FA") return "free agency";
+  return NFL_TEAM_FULL_NAME[t] ?? t;
+}
+
 /**
  * Resolve a player's NFL team abbrev from ESPN fields.
  * Prefers an explicit abbreviation when present; otherwise uses the proTeamId table.
