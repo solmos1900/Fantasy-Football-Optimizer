@@ -15,7 +15,8 @@ export type DataIssueKind =
   | "team_mismatch"
   | "ppr_mismatch"
   | "roster_fa_conflict"
-  | "projection_missing";
+  | "projection_missing"
+  | "single_source_team";
 
 export type DataIssueSummary = {
   openCount: number;
@@ -37,7 +38,13 @@ export async function loadOpenDataIssueSummary(options?: {
   for (const row of open) {
     byKind[row.kind] = (byKind[row.kind] ?? 0) + 1;
   }
-  const notices = open.slice(0, limit).map((row) => {
+  // Prefer team / single-source notices in the UI strip
+  const ranked = [...open].sort((a, b) => {
+    const rank = (k: string) =>
+      k === "team_mismatch" ? 0 : k === "single_source_team" ? 1 : 2;
+    return rank(a.kind) - rank(b.kind);
+  });
+  const notices = ranked.slice(0, limit).map((row) => {
     const who =
       row.playerName?.trim() ||
       (row.espnId ? `espn ${row.espnId}` : "player");
@@ -48,12 +55,16 @@ export async function loadOpenDataIssueSummary(options?: {
           ? "PPR"
           : row.kind === "roster_fa_conflict"
             ? "roster"
-            : row.kind;
+            : row.kind === "single_source_team"
+              ? "single-source"
+              : row.kind;
     const pending =
       row.kind === "team_mismatch" &&
       (row.detail ?? "").toLowerCase().includes("pending")
         ? " — pending same-day roster move"
-        : "";
+        : row.kind === "single_source_team"
+          ? " — Sleeper-only team"
+          : "";
     return `data check failed for ${who} (${kindLabel})${pending}`;
   });
   return { openCount: open.length, notices, byKind };
@@ -155,6 +166,25 @@ export async function runPoolDataValidation(options?: {
       });
     }
 
+    if (entry.singleSourceTeam && entry.pickerEligible && entry.nflTeam !== "FA") {
+      await upsertIssue({
+        kind: "single_source_team",
+        espnId: entry.espnId,
+        playerName: entry.name,
+        season,
+        detail:
+          entry.evidence ??
+          `${entry.name}: team ${entry.nflTeam} from Sleeper only (nflverse weekly not confirming)`,
+        sources: {
+          sleeperTeam: entry.sleeperTeam,
+          nflverseTeam: entry.nflverseTeam,
+          resolvedTeam: entry.nflTeam,
+          practiceSquad: entry.practiceSquad,
+          evidence: entry.evidence,
+        },
+      });
+    }
+
     const db = dbByEspn.get(entry.espnId);
     if (!db) {
       // Create missing Player rows for picker-eligible rostered athletes
@@ -212,6 +242,20 @@ export async function runPoolDataValidation(options?: {
         },
       });
       if (db.nflTeam !== entry.nflTeam) teamsCorrected += 1;
+    } else if (
+      (entry.staleSleeper || entry.nflTeam === "FA" || !entry.pickerEligible) &&
+      db.nflTeam &&
+      db.nflTeam !== "FA"
+    ) {
+      // Stale / cut / inactive — clear bogus team off the Player row
+      await prisma.player.update({
+        where: { espnId: entry.espnId },
+        data: {
+          nflTeam: "FA",
+          updatedAt: new Date(),
+        },
+      });
+      teamsCorrected += 1;
     }
   }
 
@@ -238,12 +282,25 @@ export async function runPoolDataValidation(options?: {
   const stillMismatch = new Set(
     authEntries.filter((e) => e.teamMismatch).map((e) => e.espnId),
   );
+  const stillSingleSource = new Set(
+    authEntries
+      .filter((e) => e.singleSourceTeam && e.pickerEligible && e.nflTeam !== "FA")
+      .map((e) => e.espnId),
+  );
   const openTeam = await prisma.dataIssue.findMany({
-    where: { resolved: false, kind: "team_mismatch" },
-    select: { id: true, espnId: true },
+    where: {
+      resolved: false,
+      kind: { in: ["team_mismatch", "single_source_team"] },
+    },
+    select: { id: true, espnId: true, kind: true },
   });
   for (const row of openTeam) {
-    if (row.espnId != null && !stillMismatch.has(row.espnId)) {
+    if (row.espnId == null) continue;
+    const stillOpen =
+      row.kind === "team_mismatch"
+        ? stillMismatch.has(row.espnId)
+        : stillSingleSource.has(row.espnId);
+    if (!stillOpen) {
       await prisma.dataIssue.update({
         where: { id: row.id },
         data: { resolved: true, updatedAt: new Date() },

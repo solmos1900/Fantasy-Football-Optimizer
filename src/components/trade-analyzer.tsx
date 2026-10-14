@@ -25,6 +25,7 @@ import {
 } from "@/lib/insights/teammate-injury";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import { RosterStatusChips } from "@/components/roster-status-chips";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
 import { ToolPlayerCard } from "@/components/tool-player-card";
@@ -129,6 +130,7 @@ function PlayerPickRow({
             {formatPlayerLabel(player.name, player.nflTeam)}
           </span>
           <PositionChip position={player.position} />
+          <RosterStatusChips player={player} />
           {player.injuryStatus !== "ACTIVE" && (
             <span
               className={cn(
@@ -344,6 +346,7 @@ function PlayerSearchPicker({
                           {formatPlayerLabel(player.name, player.nflTeam)}
                         </span>
                         <PositionChip position={player.position} />
+                        <RosterStatusChips player={player} />
                         {blocked && (
                           <span className="type-caption text-orange-700">
                             On other side

@@ -17,6 +17,7 @@ import {
   type WhoToStartVerdict,
 } from "@/lib/insights/who-to-start";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import { RosterStatusChips } from "@/components/roster-status-chips";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
 import { ToolPlayerCard } from "@/components/tool-player-card";
@@ -220,6 +221,7 @@ function SinglePlayerSearch({
                             {formatPlayerLabel(player.name, player.nflTeam)}
                           </span>
                             <PositionChip position={player.position} />
+                            <RosterStatusChips player={player} />
                             {player.injuryStatus !== "ACTIVE" && (
                               <span
                                 className={cn(

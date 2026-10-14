@@ -1,19 +1,18 @@
 /**
  * Audit Sleeper ↔ nflverse team mismatches with evidence.
- * Resolves the historical 29 "mismatches" (mostly identity collisions)
- * using sleeper_id joins + most-recent-transaction priority.
- *
  * Run: npx tsx scripts/audit-team-mismatches.ts
  */
 
 import { buildAuthoritativeRosterMap } from "../src/lib/players/roster-authority";
 import { loadSleeperRosterDirectory } from "../src/lib/sleeper/players";
-import { loadNflverseWeeklyRoster } from "../src/lib/nflverse/weekly-roster";
+import {
+  loadNflverseWeeklyRoster,
+  normalizePlayerNameKey,
+} from "../src/lib/nflverse/weekly-roster";
 import { loadPlayerIdCrosswalk } from "../src/lib/nflverse/crosswalk";
 import { normalizeNflAbbrev } from "../src/lib/espn/pro-teams";
 import { prisma } from "../src/lib/db";
 
-/** The 29 espnIds previously flagged (often wrong identity via name match). */
 const HISTORIC_MISMATCH_SLEEPER_IDS = [
   { sid: "3702", label: "Andy Jones" },
   { sid: "13582", label: "Anthony Smith" },
@@ -64,47 +63,60 @@ async function main() {
     (e) => e.teamMismatch,
   );
   console.log("OPEN_TEAM_MISMATCHES", openMismatches.length);
-  console.log(
-    "PENDING_SAME_DAY",
-    roster.pendingSameDayCount ??
-      openMismatches.filter((e) => e.pendingSameDay).length,
-  );
+  console.log("PENDING_SAME_DAY", roster.pendingSameDayCount);
+  console.log("SINGLE_SOURCE", roster.singleSourceCount);
+  console.log("PRACTICE_SQUAD", roster.practiceSquadCount);
 
   console.log("\n## RESOLUTION_TABLE");
   console.log(
     "| Player | Sleeper team | nflverse weekly | True team | Evidence | Disposition |",
   );
-  console.log(
-    "| --- | --- | --- | --- | --- | --- |",
-  );
+  console.log("| --- | --- | --- | --- | --- | --- |");
 
-  const rows: Array<Record<string, unknown>> = [];
   for (const h of HISTORIC_MISMATCH_SLEEPER_IDS) {
     const sl = sleeper.bySleeperId.get(h.sid) ?? null;
-    const wk = weekly.bySleeperId.get(h.sid) ?? null;
+    let wk = weekly.bySleeperId.get(h.sid) ?? null;
+    if (!wk && sl?.gsisId) wk = weekly.byGsisId.get(sl.gsisId.trim()) ?? null;
+    if (!wk && sl) {
+      const key = `${normalizePlayerNameKey(sl.name)}|${sl.position}`;
+      wk = weekly.byNamePosUnique.get(key) ?? null;
+    }
+    // Name search for Gordon/Lang when Sleeper name differs slightly
+    if (!wk) {
+      const key = `${normalizePlayerNameKey(h.label)}|${sl?.position ?? "TE"}`;
+      wk = weekly.byNamePosUnique.get(key) ?? null;
+    }
+
     const auth =
       roster.bySleeperId.get(h.sid) ??
       (sl?.espnId != null ? roster.byEspnId.get(sl.espnId) : undefined) ??
-      (wk?.espnId != null ? roster.byEspnId.get(wk.espnId) : undefined);
-
-    // Stale players.csv team via wrong espn (what caused the old false mismatch)
-    const wrongEspn = sl?.espnId;
-    const gsis = wrongEspn != null ? crosswalk.espnToGsis.get(wrongEspn) : null;
-    const staleCsv = gsis ? crosswalk.meta.get(gsis) : null;
+      (wk?.espnId != null ? roster.byEspnId.get(wk.espnId) : undefined) ??
+      (wk?.gsisId
+        ? roster.byEspnId.get(crosswalk.gsisToEspn.get(wk.gsisId) ?? -1)
+        : undefined);
 
     const sleeperTeam = clean(sl?.team);
-    const weeklyTeam = wk && clean(wk.team);
+    const weeklyTeam = wk ? clean(wk.team) : null;
     const weeklyStatus = wk?.status ?? null;
-    const trueTeam = auth?.nflTeam && auth.nflTeam !== "FA" ? auth.nflTeam : sleeperTeam;
+    const trueTeam =
+      auth?.nflTeam && auth.nflTeam !== "FA" ? auth.nflTeam : "FA";
     const newsIso = sl?.newsUpdatedMs
       ? new Date(sl.newsUpdatedMs).toISOString()
       : null;
 
     let disposition: string;
-    if (auth?.teamMismatch) {
+    if (auth?.staleSleeper) {
+      disposition = "INACTIVE/FA (stale Sleeper 2021–23; no 2026 weekly)";
+    } else if (auth?.teamMismatch) {
       disposition = auth.pendingSameDay
         ? "PENDING_SAME_DAY (UI notice)"
-        : "UNEXPLAINED_MISMATCH";
+        : "DATAISSUE (flagged; excluded from pool)";
+    } else if (auth?.singleSourceTeam && auth.practiceSquad) {
+      disposition = "PRACTICE_SQUAD (Sleeper-only; UI Practice squad label)";
+    } else if (auth?.singleSourceTeam) {
+      disposition = "SINGLE_SOURCE (Sleeper-only; UI notice)";
+    } else if (auth?.practiceSquad) {
+      disposition = "PRACTICE_SQUAD (nflverse DEV; UI label)";
     } else if (
       wk &&
       weeklyStatus &&
@@ -113,82 +125,53 @@ async function main() {
       weeklyTeam !== sleeperTeam
     ) {
       disposition = "POST_CUT_SIGNING (Sleeper more recent)";
-    } else if (
-      wk &&
-      wk.espnId != null &&
-      wrongEspn != null &&
-      wk.espnId !== wrongEspn &&
-      staleCsv?.nflTeam &&
-      sleeperTeam &&
-      clean(staleCsv.nflTeam) !== sleeperTeam
-    ) {
-      disposition = "IDENTITY_COLLISION (Sleeper espn_id pointed at wrong nflverse row)";
-    } else if (
-      !wk &&
-      staleCsv?.nflTeam &&
-      sleeperTeam &&
-      clean(staleCsv.nflTeam) !== sleeperTeam &&
-      newsIso &&
-      newsIso.startsWith("2026")
-    ) {
-      disposition = "MOST_RECENT_TXN (Sleeper news; players.csv team stale)";
-    } else if (
-      !wk &&
-      staleCsv &&
-      (staleCsv.position !== (sl?.position ?? "") ||
-        (staleCsv.name &&
-          sl?.name &&
-          staleCsv.name.toLowerCase() !== sl.name.toLowerCase()))
-    ) {
-      disposition = "IDENTITY_COLLISION (name/espn matched wrong nflverse row)";
     } else if (sleeperTeam && weeklyTeam && sleeperTeam === weeklyTeam) {
-      disposition = "RESOLVED (Sleeper + weekly agree via sleeper_id)";
-    } else if (sleeperTeam && !wk) {
-      disposition = "RESOLVED (Sleeper only; weekly has no 2026 row)";
+      disposition = "RESOLVED (Sleeper + weekly agree via sleeper_id/gsis)";
+    } else if (!auth?.pickerEligible) {
+      disposition = "EXCLUDED from pool";
     } else {
       disposition = "RESOLVED (most-recent transaction wins)";
     }
 
+    // Browning note correction: previous team TB (not CIN)
+    const browningNote =
+      h.sid === "6111"
+        ? " previous team TB (not CIN; players.csv stale CIN from 2025); LAC practice squad"
+        : "";
+    const wayneNote =
+      h.sid === "11056"
+        ? " HOU waived week 6 / ~Oct 12; MIA is Sleeper-only"
+        : "";
+
     const evidenceParts = [
       newsIso ? `Sleeper news_updated ${newsIso}` : null,
       wk
-        ? `nflverse weekly week ${wk.week} ${wk.team} ${wk.status} (espn ${wk.espnId})`
+        ? `nflverse weekly week ${wk.week} ${wk.team} ${wk.status}${wk.espnId ? ` (espn ${wk.espnId})` : ""}${wk.gsisId ? ` gsis ${wk.gsisId}` : ""}${wk.sleeperId ? "" : " [no sleeper_id on weekly row]"}`
         : "nflverse weekly: no 2026 row",
-      staleCsv
-        ? `stale players.csv via espn ${wrongEspn}: ${staleCsv.name} ${staleCsv.nflTeam} ${staleCsv.status} ${staleCsv.position}`
-        : null,
       auth?.evidence ?? null,
+      browningNote || wayneNote || null,
     ].filter(Boolean);
 
-    const markdown = `| ${h.label} | ${sleeperTeam ?? "—"} | ${wk ? `${weeklyTeam ?? wk.team} (${weeklyStatus})` : "—"} | ${trueTeam ?? "—"} | ${evidenceParts.join("; ")} | ${disposition} |`;
-    console.log(markdown);
-
-    rows.push({
-      player: h.label,
-      sleeperId: h.sid,
-      sleeperTeam,
-      nflverseWeekly: wk
-        ? { team: weeklyTeam, status: weeklyStatus, week: wk.week, espnId: wk.espnId }
-        : null,
-      trueTeam,
-      evidence: evidenceParts,
-      disposition,
-      authMismatch: auth?.teamMismatch ?? false,
-      pendingSameDay: auth?.pendingSameDay ?? false,
-    });
+    console.log(
+      `| ${h.label} | ${sleeperTeam ?? "—"} | ${wk ? `${weeklyTeam ?? wk.team} (${weeklyStatus})` : "—"} | ${trueTeam}${auth?.practiceSquad ? " · PS" : ""} | ${evidenceParts.join("; ")} | ${disposition} |`,
+    );
   }
 
-  const unexplained = rows.filter(
-    (r) =>
-      r.disposition === "UNEXPLAINED_MISMATCH" ||
-      (r.authMismatch && !r.pendingSameDay),
-  );
-  console.log("\nUNEXPLAINED_COUNT", unexplained.length);
-  console.log("JSON_ROWS_START");
-  for (const r of rows) console.log(JSON.stringify(r));
-  console.log("JSON_ROWS_END");
+  console.log("\nUNEXPLAINED_OPEN_MISMATCHES", openMismatches.length);
+  for (const m of openMismatches) {
+    console.log(
+      JSON.stringify({
+        name: m.name,
+        espnId: m.espnId,
+        sleeper: m.sleeperTeam,
+        nflverse: m.nflverseTeam,
+        resolved: m.nflTeam,
+        evidence: m.evidence,
+        pending: m.pendingSameDay,
+      }),
+    );
+  }
 
-  // Sample 20 DB FAs vs Sleeper
   const fas = await prisma.player.findMany({
     where: {
       position: { in: ["QB", "RB", "WR", "TE"] },
@@ -205,17 +188,11 @@ async function main() {
     },
   });
   console.log("\n## FA_SAMPLE (20 of", fas.length, "DB FAs)");
-  console.log(
-    "| Player | espnId | DB | Sleeper team | Sleeper active | Auth eligible | Verdict |",
-  );
-  console.log("| --- | --- | --- | --- | --- | --- | --- |");
   let faOk = 0;
   let faBad = 0;
   for (const fa of fas.slice(0, 20)) {
     const sl =
-      (fa.sleeperId
-        ? sleeper.bySleeperId.get(fa.sleeperId)
-        : undefined) ??
+      (fa.sleeperId ? sleeper.bySleeperId.get(fa.sleeperId) : undefined) ??
       sleeper.byEspnId.get(fa.espnId) ??
       null;
     const auth = roster.byEspnId.get(fa.espnId);
@@ -224,11 +201,8 @@ async function main() {
     const trulyUnsigned = !sleeperRostered && !authEligible;
     if (trulyUnsigned) faOk += 1;
     else faBad += 1;
-    const verdict = trulyUnsigned
-      ? "UNSIGNED (ok)"
-      : `FALSE_FA sleeper=${sl?.team ?? "—"} auth=${auth?.nflTeam ?? "—"}`;
     console.log(
-      `| ${fa.name} | ${fa.espnId} | ${fa.nflTeam || "—"} | ${sl?.team ?? "—"} | ${sl?.active ?? "—"} | ${authEligible} | ${verdict} |`,
+      `| ${fa.name} | ${fa.espnId} | ${fa.nflTeam || "—"} | ${sl?.team ?? "—"} | ${trulyUnsigned ? "UNSIGNED (ok)" : "FALSE_FA"} |`,
     );
   }
   console.log("FA_SAMPLE_OK", faOk, "FA_SAMPLE_BAD", faBad);

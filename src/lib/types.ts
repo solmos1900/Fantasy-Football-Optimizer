@@ -94,6 +94,10 @@ export interface FantasyPlayer {
   recentWeeks?: WeeklyScore[];
   /** Slot vs outside / RB1 vs RB2 style role for defense comparisons. */
   role?: PlayerRole;
+  /** nflverse DEV / practice-squad designation for UI label. */
+  practiceSquad?: boolean;
+  /** Team resolved from a single source (usually Sleeper post-cut). */
+  singleSourceTeam?: boolean;
 }
 
 export interface FantasyTeam {

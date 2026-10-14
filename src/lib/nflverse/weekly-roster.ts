@@ -31,6 +31,15 @@ function cleanTeam(raw: string | null | undefined): string | null {
   return t;
 }
 
+export function normalizePlayerNameKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b(jr\.?|sr\.?|ii|iii|iv|v)\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 /** On-club statuses (not free agent). CUT/EXE/RET = released / retired. */
 export function isOnClubStatus(status: string): boolean {
   const s = status.trim().toUpperCase();
@@ -41,6 +50,10 @@ export function isOnClubStatus(status: string): boolean {
   return true;
 }
 
+export function isPracticeSquadStatus(status: string): boolean {
+  return status.trim().toUpperCase() === "DEV";
+}
+
 export function isPickerClubStatus(status: string): boolean {
   const s = status.trim().toUpperCase();
   // Practice-squad DEV can still be fantasy-relevant; CUT cannot.
@@ -49,7 +62,9 @@ export function isPickerClubStatus(status: string): boolean {
 
 /**
  * Load latest-week skill rows from nflverse weekly roster for the season.
- * Returns maps keyed by espnId and sleeperId for identity-safe joins.
+ * Primary identity: sleeper_id. Also index gsis_id and unique name|pos for
+ * weekly rows that lack sleeper_id (never use name when sleeper_id exists —
+ * e.g. Justin Jefferson WR vs LB).
  */
 export async function loadNflverseWeeklyRoster(options?: {
   season?: number;
@@ -58,6 +73,9 @@ export async function loadNflverseWeeklyRoster(options?: {
   maxWeek: number;
   byEspnId: Map<number, NflverseWeeklyRosterRow>;
   bySleeperId: Map<string, NflverseWeeklyRosterRow>;
+  byGsisId: Map<string, NflverseWeeklyRosterRow>;
+  /** Unique name|pos → row, only for rows missing sleeper_id. Ambiguous keys omitted. */
+  byNamePosUnique: Map<string, NflverseWeeklyRosterRow>;
   fetchedAt: string;
 }> {
   const season = options?.season ?? defaultEspnSeason();
@@ -65,6 +83,8 @@ export async function loadNflverseWeeklyRoster(options?: {
   const rows = parseCsv(text);
   const byEspnId = new Map<number, NflverseWeeklyRosterRow>();
   const bySleeperId = new Map<string, NflverseWeeklyRosterRow>();
+  const byGsisId = new Map<string, NflverseWeeklyRosterRow>();
+  const namePosCandidates = new Map<string, NflverseWeeklyRosterRow[]>();
   let maxWeek = 0;
 
   for (const row of rows) {
@@ -106,6 +126,31 @@ export async function loadNflverseWeeklyRoster(options?: {
       const prev = bySleeperId.get(sleeperId);
       if (!prev || week >= prev.week) bySleeperId.set(sleeperId, entry);
     }
+    if (gsisId) {
+      const prev = byGsisId.get(gsisId);
+      if (!prev || week >= prev.week) byGsisId.set(gsisId, entry);
+    }
+    // Name|pos fallback only for rows that lack sleeper_id (sid join is primary).
+    if (!sleeperId) {
+      const key = `${normalizePlayerNameKey(name)}|${pos}`;
+      const list = namePosCandidates.get(key) ?? [];
+      list.push(entry);
+      namePosCandidates.set(key, list);
+    }
+  }
+
+  const byNamePosUnique = new Map<string, NflverseWeeklyRosterRow>();
+  for (const [key, list] of namePosCandidates) {
+    // Collapse to latest week per key; skip if multiple distinct gsis identities
+    const byGsis = new Map<string, NflverseWeeklyRosterRow>();
+    for (const e of list) {
+      const g = e.gsisId ?? `anon-${e.name}`;
+      const prev = byGsis.get(g);
+      if (!prev || e.week >= prev.week) byGsis.set(g, e);
+    }
+    if (byGsis.size !== 1) continue; // ambiguous name — do not join
+    const only = [...byGsis.values()][0]!;
+    byNamePosUnique.set(key, only);
   }
 
   return {
@@ -113,6 +158,8 @@ export async function loadNflverseWeeklyRoster(options?: {
     maxWeek,
     byEspnId,
     bySleeperId,
+    byGsisId,
+    byNamePosUnique,
     fetchedAt: new Date().toISOString(),
   };
 }
