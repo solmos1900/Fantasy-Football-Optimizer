@@ -232,6 +232,40 @@ function unavailable(player: FantasyPlayer): boolean {
   );
 }
 
+/** Name the higher side and the positive gap (never a bare negative). */
+function leaderGap(
+  labelA: string,
+  a: number,
+  labelB: string,
+  b: number,
+  eps = 0.05,
+): {
+  leader: string;
+  trailer: string;
+  leaderVal: number;
+  trailerVal: number;
+  abs: number;
+} | null {
+  const abs = Math.abs(a - b);
+  if (abs < eps) return null;
+  if (a >= b) {
+    return {
+      leader: labelA,
+      trailer: labelB,
+      leaderVal: a,
+      trailerVal: b,
+      abs,
+    };
+  }
+  return {
+    leader: labelB,
+    trailer: labelA,
+    leaderVal: b,
+    trailerVal: a,
+    abs,
+  };
+}
+
 function onBye(player: FantasyPlayer): boolean {
   return (player.opponent ?? "").toUpperCase() === "BYE";
 }
@@ -415,21 +449,40 @@ export function compareWhoToStart(
   }
 
   const call = forced ?? verdictFromProjEdge(edge, labelA, labelB);
-  const projDelta = sideA.projectedPoints - sideB.projectedPoints;
   const formDelta =
     sideA.recentAvg != null && sideB.recentAvg != null
       ? sideA.recentAvg - sideB.recentAvg
       : null;
 
-  const reasons: string[] = [
-    call.summary,
-    `Projected this week (Sleeper): ${labelA} ${sideA.projectedPoints.toFixed(1)} vs ${labelB} ${sideB.projectedPoints.toFixed(1)} (${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} for ${labelA}).`,
-  ];
+  // WHY gaps always from the leader's view — positive wording, no bare negatives.
+  const projLead = leaderGap(
+    labelA,
+    sideA.projectedPoints,
+    labelB,
+    sideB.projectedPoints,
+  );
+  const projReason = projLead
+    ? `Projected this week (Sleeper): ${projLead.leader} ${projLead.leaderVal.toFixed(1)} vs ${projLead.trailer} ${projLead.trailerVal.toFixed(1)} (+${projLead.abs.toFixed(1)} for ${projLead.leader}).`
+    : `Projected this week (Sleeper): ${labelA} ${sideA.projectedPoints.toFixed(1)} vs ${labelB} ${sideB.projectedPoints.toFixed(1)} (even).`;
 
-  if (formDelta != null) {
-    reasons.push(
-      `Recent form: ${labelA} about ${formDelta >= 0 ? "+" : ""}${formDelta.toFixed(1)} points per game vs ${labelB} over recent completed weeks (full PPR).`,
+  const reasons: string[] = [call.summary, projReason];
+
+  if (formDelta != null && sideA.recentAvg != null && sideB.recentAvg != null) {
+    const formLead = leaderGap(
+      labelA,
+      sideA.recentAvg,
+      labelB,
+      sideB.recentAvg,
     );
+    if (formLead) {
+      reasons.push(
+        `Recent form: ${formLead.leader} has averaged ${formLead.abs.toFixed(1)} more points per game over the last 3 games (${formLead.leaderVal.toFixed(1)} vs ${formLead.trailerVal.toFixed(1)}).`,
+      );
+    } else {
+      reasons.push(
+        `Recent form: both about ${sideA.recentAvg.toFixed(1)} points per game over the last 3 games.`,
+      );
+    }
   }
 
   if (sideA.injuryNote) reasons.push(sideA.injuryNote);

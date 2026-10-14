@@ -212,6 +212,59 @@ assert.match(tradeIneligibleReason(noStats) ?? "", /2026 stats/i);
     );
     assert.ok(!/projects .+ more points/i.test(outCmp.headline));
   }
+
+  // WHY form / proj lines: leader view, no bare negatives (Bijan 26.3 vs Gibbs 32.3)
+  const bijanForm = player({
+    id: "bijan-form",
+    name: "Bijan Robinson",
+    nflTeam: "ATL",
+    opponent: "CHI",
+    projectedPoints: 25.6,
+    recentWeeks: [
+      { week: 3, points: 35.3 },
+      { week: 4, points: 27.7 },
+      { week: 5, points: 15.8 },
+    ],
+  });
+  const gibbsForm = player({
+    id: "gibbs-form",
+    name: "Jahmyr Gibbs",
+    nflTeam: "DET",
+    opponent: "BYE",
+    projectedPoints: 0,
+    recentWeeks: [
+      { week: 3, points: 41.4 },
+      { week: 4, points: 17.7 },
+      { week: 5, points: 37.7 },
+    ],
+  });
+  const formCmp = compareWhoToStart(league, bijanForm, gibbsForm);
+  assert.equal(formCmp.ok, true);
+  if (formCmp.ok) {
+    const formLine = formCmp.reasons.find((r) => r.startsWith("Recent form:"));
+    assert.ok(formLine, "missing Recent form reason");
+    assert.match(
+      formLine!,
+      /Recent form: Jahmyr Gibbs \(DET\) has averaged 6\.0 more points per game over the last 3 games \(32\.3 vs 26\.3\)\./,
+    );
+    assert.ok(!/about -/i.test(formLine!));
+    assert.ok(!/ -?\d+\.\d+ points per game vs /i.test(formLine!));
+
+    const projLine = formCmp.reasons.find((r) =>
+      r.startsWith("Projected this week"),
+    );
+    assert.ok(projLine);
+    // Leader is Bijan on proj (25.6 vs 0) — positive for leader, never "-X for A"
+    assert.match(projLine!, /\(\+25\.6 for Bijan Robinson \(ATL\)\)/);
+    assert.ok(!/\(-/.test(projLine!));
+
+    for (const line of formCmp.reasons) {
+      assert.ok(
+        !/about\s+-\d/.test(line),
+        `WHY line has negative-from-A wording: ${line}`,
+      );
+    }
+  }
 }
 
 console.log("verify-trade-benefits: ok");
