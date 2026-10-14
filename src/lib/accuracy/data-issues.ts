@@ -49,7 +49,12 @@ export async function loadOpenDataIssueSummary(options?: {
           : row.kind === "roster_fa_conflict"
             ? "roster"
             : row.kind;
-    return `data check failed for ${who} (${kindLabel})`;
+    const pending =
+      row.kind === "team_mismatch" &&
+      (row.detail ?? "").toLowerCase().includes("pending")
+        ? " — pending same-day roster move"
+        : "";
+    return `data check failed for ${who} (${kindLabel})${pending}`;
   });
   return { openCount: open.length, notices, byKind };
 }
@@ -137,11 +142,15 @@ export async function runPoolDataValidation(options?: {
         espnId: entry.espnId,
         playerName: entry.name,
         season,
-        detail: `${entry.name}: Sleeper team ${entry.sleeperTeam ?? "—"} vs nflverse ${entry.nflverseTeam ?? "—"}`,
+        detail:
+          entry.evidence ??
+          `${entry.name}: Sleeper team ${entry.sleeperTeam ?? "—"} vs nflverse ${entry.nflverseTeam ?? "—"}`,
         sources: {
           sleeperTeam: entry.sleeperTeam,
           nflverseTeam: entry.nflverseTeam,
           resolvedTeam: entry.nflTeam,
+          pendingSameDay: entry.pendingSameDay,
+          evidence: entry.evidence,
         },
       });
     }

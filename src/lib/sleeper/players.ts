@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { secureFetchJson } from "@/lib/http/secure-fetch";
 import { sleeperNameTeamKey } from "@/lib/sleeper/projections";
+import { normalizeNflAbbrev } from "@/lib/espn/pro-teams";
 
 const SLEEPER_PLAYERS_URL = "https://api.sleeper.app/v1/players/nfl";
 
@@ -22,6 +23,8 @@ const SleeperPlayerSchema = z
     status: z.string().nullish(),
     active: z.boolean().nullish(),
     injury_status: z.string().nullish(),
+    news_updated: z.union([z.string(), z.number(), z.null()]).optional(),
+    gsis_id: z.string().nullish(),
   })
   .passthrough();
 
@@ -37,21 +40,31 @@ export type SleeperRosterPlayer = {
   status: string;
   active: boolean;
   nameTeamKey: string;
+  /** Sleeper news_updated epoch ms — proxy for most recent roster/news event. */
+  newsUpdatedMs: number | null;
+  gsisId: string | null;
 };
 
 const SKILL = new Set(["QB", "RB", "WR", "TE"]);
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-let cache: { at: number; byEspn: Map<number, SleeperRosterPlayer>; all: SleeperRosterPlayer[] } | null =
-  null;
+let cache: {
+  at: number;
+  byEspn: Map<number, SleeperRosterPlayer>;
+  bySleeper: Map<string, SleeperRosterPlayer>;
+  all: SleeperRosterPlayer[];
+} | null = null;
 
 function normalizeTeam(team: string | null | undefined): string | null {
-  const t = (team ?? "").trim().toUpperCase();
+  const t = normalizeNflAbbrev((team ?? "").trim().toUpperCase());
   if (!t || t === "FA" || t === "NONE") return null;
   return t;
 }
 
-function isActiveStatus(status: string, active: boolean | null | undefined): boolean {
+function isActiveStatus(
+  status: string,
+  active: boolean | null | undefined,
+): boolean {
   if (active === false) return false;
   const s = status.trim().toLowerCase();
   if (!s) return active === true;
@@ -67,13 +80,24 @@ function isActiveStatus(status: string, active: boolean | null | undefined): boo
   return s === "active";
 }
 
+function parseNewsUpdatedMs(
+  raw: string | number | null | undefined,
+): number | null {
+  if (raw == null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  // Sleeper uses epoch milliseconds
+  return n < 1e12 ? n * 1000 : n;
+}
+
 /**
- * Load Sleeper /players/nfl skill directory keyed by ESPN id (+ name|team index).
+ * Load Sleeper /players/nfl skill directory keyed by ESPN id (+ sleeper id).
  */
 export async function loadSleeperRosterDirectory(options?: {
   forceRefresh?: boolean;
 }): Promise<{
   byEspnId: Map<number, SleeperRosterPlayer>;
+  bySleeperId: Map<string, SleeperRosterPlayer>;
   byNameTeam: Map<string, SleeperRosterPlayer>;
   allSkill: SleeperRosterPlayer[];
   fetchedAt: string;
@@ -87,6 +111,7 @@ export async function loadSleeperRosterDirectory(options?: {
     for (const p of cache.all) byNameTeam.set(p.nameTeamKey, p);
     return {
       byEspnId: cache.byEspn,
+      bySleeperId: cache.bySleeper,
       byNameTeam,
       allSkill: cache.all,
       fetchedAt: new Date(cache.at).toISOString(),
@@ -100,6 +125,7 @@ export async function loadSleeperRosterDirectory(options?: {
   );
 
   const byEspn = new Map<number, SleeperRosterPlayer>();
+  const bySleeper = new Map<string, SleeperRosterPlayer>();
   const byNameTeam = new Map<string, SleeperRosterPlayer>();
   const all: SleeperRosterPlayer[] = [];
 
@@ -110,15 +136,17 @@ export async function loadSleeperRosterDirectory(options?: {
     if (!SKILL.has(pos)) continue;
 
     const name =
-      (row.full_name ??
-        [row.first_name, row.last_name].filter(Boolean).join(" ")).trim() ||
-      sid;
+      (
+        row.full_name ??
+        [row.first_name, row.last_name].filter(Boolean).join(" ")
+      ).trim() || sid;
     const espnRaw = Number(row.espn_id);
     const espnId =
       Number.isFinite(espnRaw) && espnRaw > 0 ? espnRaw : null;
     const team = normalizeTeam(row.team);
     const status = (row.status ?? "").trim() || "Unknown";
     const active = isActiveStatus(status, row.active ?? null);
+    const gsisRaw = (row.gsis_id ?? "").trim();
     const entry: SleeperRosterPlayer = {
       sleeperId: sid,
       espnId,
@@ -128,17 +156,22 @@ export async function loadSleeperRosterDirectory(options?: {
       status,
       active,
       nameTeamKey: sleeperNameTeamKey(name, team),
+      newsUpdatedMs: parseNewsUpdatedMs(row.news_updated),
+      gsisId: gsisRaw || null,
     };
     all.push(entry);
+    bySleeper.set(sid, entry);
+    // Prefer first mapping; weekly roster may override espn elsewhere
     if (espnId != null && !byEspn.has(espnId)) byEspn.set(espnId, entry);
     if (!byNameTeam.has(entry.nameTeamKey)) {
       byNameTeam.set(entry.nameTeamKey, entry);
     }
   }
 
-  cache = { at: Date.now(), byEspn, all };
+  cache = { at: Date.now(), byEspn, bySleeper, all };
   return {
     byEspnId: byEspn,
+    bySleeperId: bySleeper,
     byNameTeam,
     allSkill: all,
     fetchedAt: new Date().toISOString(),

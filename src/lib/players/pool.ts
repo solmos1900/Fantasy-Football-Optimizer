@@ -156,6 +156,21 @@ async function ensureCompletedWeekIngest(options: {
 async function persistPublicPool(players: FantasyPlayer[], season: number, week: number) {
   const now = new Date();
   for (const player of players) {
+    const incomingTeam = (player.nflTeam ?? "").trim().toUpperCase();
+    const incomingIsFa = !incomingTeam || incomingTeam === "FA";
+    // Never let ESPN public (often proTeamId=0 → FA) wipe a real team that
+    // Sleeper/nflverse authority already stored on the Player row.
+    const existing = incomingIsFa
+      ? await prisma.player.findUnique({
+          where: { espnId: player.espnId },
+          select: { nflTeam: true },
+        })
+      : null;
+    const existingTeam = (existing?.nflTeam ?? "").trim().toUpperCase();
+    const keepExistingTeam =
+      incomingIsFa && existingTeam && existingTeam !== "FA";
+    const nflTeam = keepExistingTeam ? existing!.nflTeam! : player.nflTeam;
+
     const dbPlayer = await prisma.player.upsert({
       where: { espnId: player.espnId },
       create: {
@@ -168,7 +183,7 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
       update: {
         name: player.name,
         position: player.position,
-        nflTeam: player.nflTeam,
+        nflTeam,
         updatedAt: now,
       },
     });
@@ -571,23 +586,53 @@ export async function getNoLeaguePlayerPool(options?: {
     const applied = applyRosterAuthorityToPool(players, roster.byEspnId);
     players = applied.players;
     if (applied.teamCorrections > 0 || applied.excluded > 0) {
-      // Persist corrected teams for picker-eligible players
+      // Persist corrected teams for every picker-eligible pool player
+      // (not a capped slice — ESPN FA stubs can sit anywhere in the sort).
       const now = new Date();
-      await Promise.all(
-        players.slice(0, 400).map(async (p) => {
-          const auth = roster.byEspnId.get(p.espnId);
-          if (!auth?.pickerEligible) return;
-          await prisma.player.updateMany({
-            where: { espnId: p.espnId },
-            data: {
-              nflTeam: auth.nflTeam,
-              ...(auth.sleeperId ? { sleeperId: auth.sleeperId } : {}),
-              ...(auth.gsisId ? { gsisId: auth.gsisId } : {}),
-              updatedAt: now,
-            },
-          });
-        }),
-      );
+      const BATCH = 100;
+      for (let i = 0; i < players.length; i += BATCH) {
+        const chunk = players.slice(i, i + BATCH);
+        await Promise.all(
+          chunk.map(async (p) => {
+            const auth = roster.byEspnId.get(p.espnId);
+            if (!auth?.pickerEligible || auth.nflTeam === "FA") return;
+            await prisma.player.updateMany({
+              where: { espnId: p.espnId },
+              data: {
+                nflTeam: auth.nflTeam,
+                ...(auth.sleeperId ? { sleeperId: auth.sleeperId } : {}),
+                ...(auth.gsisId ? { gsisId: auth.gsisId } : {}),
+                updatedAt: now,
+              },
+            });
+          }),
+        );
+      }
+    }
+
+    // Also correct any DB FA rows that authority says are rostered but were
+    // never in the ESPN public pool list (practice-squad / low-owned).
+    const faStubs = await prisma.player.findMany({
+      where: {
+        position: { in: ["QB", "RB", "WR", "TE"] },
+        OR: [{ nflTeam: null }, { nflTeam: "FA" }, { nflTeam: "" }],
+      },
+      select: { espnId: true },
+      take: 2000,
+    });
+    const nowFa = new Date();
+    for (const stub of faStubs) {
+      const auth = roster.byEspnId.get(stub.espnId);
+      if (!auth?.pickerEligible || auth.nflTeam === "FA") continue;
+      await prisma.player.update({
+        where: { espnId: stub.espnId },
+        data: {
+          nflTeam: auth.nflTeam,
+          ...(auth.sleeperId ? { sleeperId: auth.sleeperId } : {}),
+          ...(auth.gsisId ? { gsisId: auth.gsisId } : {}),
+          updatedAt: nowFa,
+        },
+      });
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

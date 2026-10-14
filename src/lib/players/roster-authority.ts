@@ -1,15 +1,23 @@
 /**
  * Authoritative NFL team + picker eligibility for the no-league pool.
  *
- * Primary: Sleeper /players/nfl (team + status + active).
- * Cross-check: nflverse players.csv (latest_team + status + espn_id).
+ * Identity: join Sleeper ↔ nflverse weekly roster on sleeper_id (never name).
+ * Team: most recent transaction / news wins (Sleeper news_updated vs weekly week).
  * Never treat an NFL-rostered player as FA.
  */
 
-import { loadSleeperRosterDirectory, type SleeperRosterPlayer } from "@/lib/sleeper/players";
-import { loadPlayerIdCrosswalk } from "@/lib/nflverse/crosswalk";
-import { sleeperNameTeamKey } from "@/lib/sleeper/projections";
+import {
+  loadSleeperRosterDirectory,
+  type SleeperRosterPlayer,
+} from "@/lib/sleeper/players";
+import {
+  isOnClubStatus,
+  isPickerClubStatus,
+  loadNflverseWeeklyRoster,
+  type NflverseWeeklyRosterRow,
+} from "@/lib/nflverse/weekly-roster";
 import { normalizeNflAbbrev } from "@/lib/espn/pro-teams";
+import { defaultEspnSeason } from "@/lib/season";
 
 export type AuthoritativeRosterEntry = {
   espnId: number;
@@ -25,7 +33,15 @@ export type AuthoritativeRosterEntry = {
   excludeReason: string | null;
   sleeperTeam: string | null;
   nflverseTeam: string | null;
+  /**
+   * True only for unexplained same-identity team conflicts (typically same-day
+   * pending moves). Identity collisions are NOT mismatches.
+   */
   teamMismatch: boolean;
+  /** Evidence / resolution notes for audits. */
+  evidence: string | null;
+  /** Pending same-day move that needs a UI notice. */
+  pendingSameDay: boolean;
 };
 
 function cleanTeam(raw: string | null | undefined): string | null {
@@ -35,183 +51,320 @@ function cleanTeam(raw: string | null | undefined): string | null {
   return t;
 }
 
-function nflverseActive(status: string | null | undefined): boolean {
-  const s = (status ?? "").trim().toUpperCase();
-  if (!s) return false;
-  if (s === "ACT" || s === "ACTIVE") return true;
-  // IR / PUP still on a roster — keep team, still picker-eligible if Sleeper agrees
-  if (s === "INJURED RESERVE" || s === "IR" || s === "PUP" || s === "NFI") {
-    return true;
+/** Approximate end-of-week timestamp for nflverse weekly roster rows. */
+function weeklyRosterApproxMs(season: number, week: number): number {
+  // NFL regular season roughly starts first Thursday after Labor Day.
+  // 2025: Sep 4; 2026: Sep 10. Use Sep 1 + (week)*7d as a stable lower bound;
+  // Sleeper news_updated for mid-week moves will still beat prior weeks.
+  const seasonStart = Date.UTC(season, 8, 1); // Sep 1 UTC
+  return seasonStart + week * 7 * 24 * 60 * 60 * 1000;
+}
+
+function sameUtcDay(aMs: number, bMs: number): boolean {
+  const a = new Date(aMs);
+  const b = new Date(bMs);
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
+function isRecentUtcDay(ms: number, nowMs: number): boolean {
+  return sameUtcDay(ms, nowMs);
+}
+
+type TeamClaim = {
+  team: string | null;
+  atMs: number;
+  source: "sleeper" | "nflverse_weekly";
+  onClub: boolean;
+  status: string;
+};
+
+function resolveTeam(options: {
+  sleeper: SleeperRosterPlayer | null;
+  weekly: NflverseWeeklyRosterRow | null;
+  season: number;
+  nowMs: number;
+}): {
+  nflTeam: string | null;
+  teamMismatch: boolean;
+  pendingSameDay: boolean;
+  evidence: string;
+  sleeperTeam: string | null;
+  nflverseTeam: string | null;
+} {
+  const sleeperTeam = cleanTeam(options.sleeper?.team);
+  const weeklyOnClub =
+    options.weekly != null && isOnClubStatus(options.weekly.status);
+  const nflverseTeam = weeklyOnClub
+    ? cleanTeam(options.weekly?.team)
+    : null;
+  const weeklyStatus = options.weekly?.status ?? "";
+
+  const claims: TeamClaim[] = [];
+  if (options.sleeper) {
+    claims.push({
+      team: sleeperTeam,
+      atMs: options.sleeper.newsUpdatedMs ?? 0,
+      source: "sleeper",
+      onClub: Boolean(options.sleeper.active && sleeperTeam),
+      status: options.sleeper.status,
+    });
   }
-  return false;
+  if (options.weekly) {
+    claims.push({
+      team: cleanTeam(options.weekly.team),
+      atMs: weeklyRosterApproxMs(options.season, options.weekly.week),
+      source: "nflverse_weekly",
+      onClub: weeklyOnClub,
+      status: weeklyStatus,
+    });
+  }
+
+  // Prefer most recent on-club claim; if weekly is CUT and Sleeper has a team,
+  // Sleeper is a post-cut signing and wins when its news is at/after that week.
+  const onClubClaims = claims.filter((c) => c.onClub && c.team);
+  onClubClaims.sort((a, b) => b.atMs - a.atMs);
+
+  let nflTeam: string | null = onClubClaims[0]?.team ?? null;
+  let evidence = "";
+  let teamMismatch = false;
+  let pendingSameDay = false;
+
+  if (onClubClaims.length === 0) {
+    evidence =
+      options.weekly && !weeklyOnClub
+        ? `nflverse week ${options.weekly.week} status ${weeklyStatus} (not on club); Sleeper team ${sleeperTeam ?? "—"}`
+        : `no on-club team (Sleeper ${sleeperTeam ?? "—"}, weekly ${options.weekly?.team ?? "—"})`;
+    return {
+      nflTeam: null,
+      teamMismatch: false,
+      pendingSameDay: false,
+      evidence,
+      sleeperTeam,
+      nflverseTeam,
+    };
+  }
+
+  const winner = onClubClaims[0]!;
+  nflTeam = winner.team;
+  const winnerNews =
+    winner.atMs > 0 ? new Date(winner.atMs).toISOString() : "unknown";
+  evidence = `resolved ${nflTeam} via ${winner.source} @ ${winnerNews}`;
+
+  // True conflict: two on-club teams for the SAME sleeper identity.
+  if (
+    onClubClaims.length >= 2 &&
+    onClubClaims[0]!.team !== onClubClaims[1]!.team
+  ) {
+    const a = onClubClaims[0]!;
+    const b = onClubClaims[1]!;
+    const sleeperClaim = claims.find((c) => c.source === "sleeper");
+    const weeklyClaim = claims.find((c) => c.source === "nflverse_weekly");
+
+    // Post-cut signing: weekly not on club (CUT) already filtered; both on-club.
+    const recentPending =
+      (sleeperClaim?.atMs != null &&
+        sleeperClaim.atMs > 0 &&
+        isRecentUtcDay(sleeperClaim.atMs, options.nowMs)) ||
+      (a.atMs > 0 && b.atMs > 0 && sameUtcDay(a.atMs, b.atMs));
+
+    if (recentPending) {
+      teamMismatch = true;
+      pendingSameDay = true;
+      evidence = `pending same-day: Sleeper ${sleeperTeam} (${sleeperClaim?.atMs ? new Date(sleeperClaim.atMs).toISOString() : "—"}) vs nflverse ${nflverseTeam} week ${options.weekly?.week ?? "?"} ${weeklyStatus}; using most recent ${nflTeam}`;
+    } else {
+      evidence = `most-recent wins: Sleeper ${sleeperTeam} @ ${sleeperClaim?.atMs ? new Date(sleeperClaim.atMs).toISOString() : "—"} vs nflverse ${weeklyClaim?.team ?? "—"} week ${options.weekly?.week ?? "?"} ${weeklyStatus}; chose ${nflTeam}`;
+    }
+  } else if (
+    options.weekly &&
+    !weeklyOnClub &&
+    sleeperTeam &&
+    cleanTeam(options.weekly.team) &&
+    cleanTeam(options.weekly.team) !== sleeperTeam
+  ) {
+    // e.g. Jared Wayne: HOU CUT week 6, Sleeper MIA — Sleeper is post-cut signing
+    evidence = `post-cut signing: nflverse week ${options.weekly.week} ${options.weekly.team} ${weeklyStatus}; Sleeper ${sleeperTeam} @ ${options.sleeper?.newsUpdatedMs ? new Date(options.sleeper.newsUpdatedMs).toISOString() : "—"}; chose ${nflTeam}`;
+  } else if (sleeperTeam && nflverseTeam && sleeperTeam === nflverseTeam) {
+    evidence = `Sleeper+nflverse agree ${nflTeam} (week ${options.weekly?.week ?? "?"})`;
+  }
+
+  return {
+    nflTeam,
+    teamMismatch,
+    pendingSameDay,
+    evidence,
+    sleeperTeam,
+    nflverseTeam,
+  };
 }
 
 /**
  * Build espnId → authoritative roster for skill players.
- * Prefer Sleeper team when present; else nflverse latest_team when ACT.
+ * Join on sleeper_id; prefer weekly roster espn_id over Sleeper's (often wrong).
  */
 export async function buildAuthoritativeRosterMap(options?: {
   forceRefresh?: boolean;
 }): Promise<{
   byEspnId: Map<number, AuthoritativeRosterEntry>;
+  bySleeperId: Map<string, AuthoritativeRosterEntry>;
   fetchedAt: string;
   sleeperSkillActiveWithTeam: number;
   nflverseActWithTeam: number;
+  teamMismatchCount: number;
+  pendingSameDayCount: number;
 }> {
-  const [sleeper, crosswalk] = await Promise.all([
+  const season = defaultEspnSeason();
+  const nowMs = Date.now();
+  const [sleeper, weekly] = await Promise.all([
     loadSleeperRosterDirectory({ forceRefresh: options?.forceRefresh }),
-    loadPlayerIdCrosswalk(),
+    loadNflverseWeeklyRoster({ season }),
   ]);
-
-  // nflverse meta is keyed by gsis — invert to espn
-  type NvMeta = {
-    name: string;
-    position: string;
-    nflTeam: string | null;
-    status: string | null;
-    gsisId: string;
-  };
-  const nvByEspn = new Map<number, NvMeta>();
-  let nflverseActWithTeam = 0;
-
-  // Re-read status from players.csv via crosswalk meta (latest_team only today).
-  // Enrich by scanning crosswalk meta + espn map.
-  for (const [gsisId, meta] of crosswalk.meta) {
-    const espnId = crosswalk.gsisToEspn.get(gsisId);
-    if (espnId == null) continue;
-    const team = cleanTeam(meta.nflTeam);
-    const status = (meta.status ?? "").trim().toUpperCase() || null;
-    // Skip clearly retired / past seasons with no team
-    if (!team && status && !nflverseActive(status)) continue;
-    const entry: NvMeta = {
-      name: meta.name,
-      position: meta.position,
-      nflTeam: team,
-      status: status ?? (team ? "ACT" : null),
-      gsisId,
-    };
-    // Prefer ACT rows when duplicates exist
-    const prev = nvByEspn.get(espnId);
-    if (
-      !prev ||
-      (nflverseActive(status) && !nflverseActive(prev.status)) ||
-      (team && !prev.nflTeam)
-    ) {
-      nvByEspn.set(espnId, entry);
-    }
-    if (team && nflverseActive(status ?? "ACT")) nflverseActWithTeam += 1;
-  }
-
-  const byEspnId = new Map<number, AuthoritativeRosterEntry>();
-
-  const sleeperByName = new Map<string, SleeperRosterPlayer>();
-  for (const p of sleeper.allSkill) {
-    sleeperByName.set(sleeperNameTeamKey(p.name, p.team), p);
-    // Also index by name alone for espn-less Sleeper rows matched via nflverse
-    const nameOnly = sleeperNameTeamKey(p.name, null);
-    if (!sleeperByName.has(nameOnly)) sleeperByName.set(nameOnly, p);
-  }
 
   let sleeperSkillActiveWithTeam = 0;
   for (const p of sleeper.allSkill) {
     if (p.active && p.team) sleeperSkillActiveWithTeam += 1;
   }
 
-  // Union of espn ids from Sleeper + nflverse
-  const espnIds = new Set<number>([
-    ...sleeper.byEspnId.keys(),
-    ...nvByEspn.keys(),
-  ]);
-
-  // Sleeper players missing espn_id: attach via nflverse name match
-  for (const p of sleeper.allSkill) {
-    if (p.espnId != null) continue;
-    // Find nflverse espn by display name
-    for (const [espnId, nv] of nvByEspn) {
-      if (nv.name.toLowerCase() === p.name.toLowerCase()) {
-        if (!sleeper.byEspnId.has(espnId)) {
-          sleeper.byEspnId.set(espnId, { ...p, espnId });
-          espnIds.add(espnId);
-        }
-        break;
-      }
-    }
+  let nflverseActWithTeam = 0;
+  for (const row of weekly.bySleeperId.values()) {
+    if (row.team && isOnClubStatus(row.status)) nflverseActWithTeam += 1;
   }
 
-  for (const espnId of espnIds) {
-    const sl = sleeper.byEspnId.get(espnId) ?? null;
-    const nv = nvByEspn.get(espnId) ?? null;
-    const sleeperTeam = cleanTeam(sl?.team);
-    const nflverseTeam = cleanTeam(nv?.nflTeam);
+  const byEspnId = new Map<number, AuthoritativeRosterEntry>();
+  const bySleeperId = new Map<string, AuthoritativeRosterEntry>();
+  let teamMismatchCount = 0;
+  let pendingSameDayCount = 0;
 
-    // Never FA when either source says rostered on a team
-    let nflTeam = sleeperTeam ?? nflverseTeam;
-    if (!nflTeam) {
-      // Truly unrostered
-      const name = sl?.name ?? nv?.name ?? `espn-${espnId}`;
-      const position = (sl?.position ?? nv?.position ?? "WR").toUpperCase();
-      byEspnId.set(espnId, {
-        espnId,
-        name,
-        position,
-        nflTeam: "FA",
-        sleeperId: sl?.sleeperId ?? null,
-        gsisId: nv?.gsisId ?? crosswalk.espnToGsis.get(espnId) ?? null,
-        pickerEligible: false,
-        excludeReason: "No 2026 NFL team (unsigned / free agent)",
-        sleeperTeam,
-        nflverseTeam,
-        teamMismatch: false,
-      });
+  // Index weekly rows that lack sleeper_id by espn for fill-in only
+  const weeklyByEspnOnly = weekly.byEspnId;
+
+  for (const sl of sleeper.allSkill) {
+    const wk = weekly.bySleeperId.get(sl.sleeperId) ?? null;
+    // Canonical espn: weekly (identity-safe) first, else Sleeper
+    const espnId = wk?.espnId ?? sl.espnId;
+    if (espnId == null || espnId <= 0) {
+      // No stable espn key — skip map (pool/DB are espn-keyed). Still track by sleeper.
+      const resolved = resolveTeam({ sleeper: sl, weekly: wk, season, nowMs });
+      if (!resolved.nflTeam) continue;
+      // Without espnId we cannot attach to FantasyPlayer pool; skip.
       continue;
     }
 
-    const teamMismatch =
-      sleeperTeam != null &&
-      nflverseTeam != null &&
-      sleeperTeam !== nflverseTeam;
+    // If Sleeper's espn_id disagrees with weekly's for this sleeper_id, ignore
+    // Sleeper's espn for indexing (prevents Ryan Izzo / Conklin collisions).
+    const resolved = resolveTeam({ sleeper: sl, weekly: wk, season, nowMs });
+    const name = wk?.name || sl.name;
+    const position = (wk?.position || sl.position).toUpperCase();
+    const gsisId = wk?.gsisId ?? sl.gsisId;
 
-    // Prefer Sleeper when both present and disagree — log mismatch separately
-    if (sleeperTeam) nflTeam = sleeperTeam;
-
-    const sleeperOk = sl ? sl.active && sleeperTeam != null : false;
-    const nvOk = nflverseTeam != null && nflverseActive(nv?.status);
-    const pickerEligible = sleeperOk || (nvOk && (sl == null || sl.active !== false));
-
+    let pickerEligible = false;
     let excludeReason: string | null = null;
-    if (!pickerEligible) {
-      if (sl && !sl.active) {
-        excludeReason = `Inactive on Sleeper (${sl.status})`;
-      } else if (!sleeperTeam && !nflverseTeam) {
-        excludeReason = "No NFL team";
-      } else {
-        excludeReason = "Not on an active NFL roster";
+    if (resolved.nflTeam) {
+      const sleeperOk = sl.active && resolved.sleeperTeam != null;
+      const weeklyOk =
+        wk != null &&
+        isPickerClubStatus(wk.status) &&
+        cleanTeam(wk.team) != null;
+      pickerEligible = sleeperOk || (weeklyOk && sl.active !== false);
+      if (!pickerEligible) {
+        if (!sl.active) {
+          excludeReason = `Inactive on Sleeper (${sl.status})`;
+        } else {
+          excludeReason = "Not on an active NFL roster";
+        }
       }
+    } else {
+      excludeReason = "No 2026 NFL team (unsigned / free agent)";
     }
 
-    const name = sl?.name ?? nv?.name ?? `espn-${espnId}`;
-    const position = (sl?.position ?? nv?.position ?? "WR").toUpperCase();
+    if (resolved.teamMismatch) teamMismatchCount += 1;
+    if (resolved.pendingSameDay) pendingSameDayCount += 1;
 
-    byEspnId.set(espnId, {
+    const entry: AuthoritativeRosterEntry = {
       espnId,
       name,
       position,
-      nflTeam,
-      sleeperId: sl?.sleeperId ?? null,
-      gsisId: nv?.gsisId ?? crosswalk.espnToGsis.get(espnId) ?? null,
+      nflTeam: resolved.nflTeam ?? "FA",
+      sleeperId: sl.sleeperId,
+      gsisId,
       pickerEligible,
       excludeReason,
-      sleeperTeam,
-      nflverseTeam,
-      teamMismatch,
+      sleeperTeam: resolved.sleeperTeam,
+      nflverseTeam: resolved.nflverseTeam,
+      teamMismatch: resolved.teamMismatch,
+      evidence: resolved.evidence,
+      pendingSameDay: resolved.pendingSameDay,
+    };
+
+    bySleeperId.set(sl.sleeperId, entry);
+    // Prefer entry that has sleeper join when colliding on espn
+    const prev = byEspnId.get(espnId);
+    if (!prev || (entry.sleeperId && !prev.sleeperId)) {
+      byEspnId.set(espnId, entry);
+    } else if (prev.sleeperId === entry.sleeperId) {
+      byEspnId.set(espnId, entry);
+    }
+  }
+
+  // Weekly-only skill players (no Sleeper skill row) — still register team
+  for (const [sid, wk] of weekly.bySleeperId) {
+    if (bySleeperId.has(sid)) continue;
+    if (!wk.espnId) continue;
+    if (byEspnId.has(wk.espnId)) continue;
+    const onClub = isOnClubStatus(wk.status) && cleanTeam(wk.team);
+    const entry: AuthoritativeRosterEntry = {
+      espnId: wk.espnId,
+      name: wk.name,
+      position: wk.position,
+      nflTeam: onClub ? cleanTeam(wk.team)! : "FA",
+      sleeperId: sid,
+      gsisId: wk.gsisId,
+      pickerEligible: Boolean(onClub && isPickerClubStatus(wk.status)),
+      excludeReason: onClub
+        ? null
+        : `nflverse week ${wk.week} status ${wk.status}`,
+      sleeperTeam: null,
+      nflverseTeam: onClub ? cleanTeam(wk.team) : null,
+      teamMismatch: false,
+      evidence: `weekly-only week ${wk.week} ${wk.team} ${wk.status}`,
+      pendingSameDay: false,
+    };
+    byEspnId.set(wk.espnId, entry);
+    bySleeperId.set(sid, entry);
+  }
+
+  // Fill espn-only weekly rows that never got a sleeper_id (rare)
+  for (const [espnId, wk] of weeklyByEspnOnly) {
+    if (byEspnId.has(espnId)) continue;
+    const onClub = isOnClubStatus(wk.status) && cleanTeam(wk.team);
+    byEspnId.set(espnId, {
+      espnId,
+      name: wk.name,
+      position: wk.position,
+      nflTeam: onClub ? cleanTeam(wk.team)! : "FA",
+      sleeperId: wk.sleeperId,
+      gsisId: wk.gsisId,
+      pickerEligible: Boolean(onClub && isPickerClubStatus(wk.status)),
+      excludeReason: onClub ? null : `nflverse week ${wk.week} status ${wk.status}`,
+      sleeperTeam: null,
+      nflverseTeam: onClub ? cleanTeam(wk.team) : null,
+      teamMismatch: false,
+      evidence: `weekly espn-only week ${wk.week}`,
+      pendingSameDay: false,
     });
   }
 
   return {
     byEspnId,
+    bySleeperId,
     fetchedAt: sleeper.fetchedAt,
     sleeperSkillActiveWithTeam,
     nflverseActWithTeam,
+    teamMismatchCount,
+    pendingSameDayCount,
   };
 }
 
