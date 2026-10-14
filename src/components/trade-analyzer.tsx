@@ -18,7 +18,7 @@ import {
   comparePlayerPackages,
   type TradeAnalysis,
 } from "@/lib/insights/trade-analyzer";
-import { chipValue } from "@/lib/insights/trade-value";
+import { chipValue, chipValueOrNull } from "@/lib/insights/trade-value";
 import {
   hydrateTeammateInjuryIndex,
   type serializeTeammateInjuryIndex,
@@ -33,6 +33,9 @@ import { WeekAxisLegend } from "@/components/insights/week-points-strip";
 import {
   preferredProj,
   preferredProjOrNull,
+  projectionCaption,
+  missingValueReason,
+  hasTradeValueInputs,
   type ToolDisplayMeta,
 } from "@/lib/insights/tool-display";
 import { impactsForPlayer } from "@/lib/insights/teammate-injury";
@@ -108,10 +111,10 @@ function PlayerPickRow({
   player: FantasyPlayer;
   selected: boolean;
   onToggle: () => void;
-  chip: number;
+  chip: number | null;
   toolMeta?: ToolDisplayMeta | null;
 }) {
-  const proj = preferredProjOrNull(player, toolMeta);
+  const missing = missingValueReason(player, toolMeta);
   return (
     <label
       className={cn(
@@ -144,15 +147,15 @@ function PlayerPickRow({
           )}
         </div>
         <div className="mt-0.5 type-caption text-[#C026FF]">
-          Projected {proj == null ? "—" : proj.toFixed(1)} this week
+          {projectionCaption(player, toolMeta)}
           {player.isStarter ? " · starter" : " · bench"}
         </div>
       </div>
       <div className="text-right type-caption text-emerald-950/50">
         <div className="type-stat text-base leading-none text-emerald-950">
-          {chip.toFixed(1)}
+          {chip == null ? "—" : chip.toFixed(1)}
         </div>
-        <div>Trade value</div>
+        <div>{missing ?? "Trade value"}</div>
       </div>
     </label>
   );
@@ -355,17 +358,22 @@ function PlayerSearchPicker({
                         )}
                       </div>
                       <div className="mt-0.5 type-caption text-[#C026FF]">
-                        {(() => {
-                          const proj = preferredProjOrNull(player, toolMeta);
-                          return `Projected ${proj == null ? "—" : proj.toFixed(1)} this week`;
-                        })()}
+                        {projectionCaption(player, toolMeta)}
                       </div>
                     </div>
                     <div className="text-right type-caption text-emerald-950/50">
                       <div className="type-stat text-base leading-none text-emerald-950">
-                        {chipValue(player, trends).toFixed(1)}
+                        {(() => {
+                          if (!hasTradeValueInputs(player, toolMeta)) {
+                            return "—";
+                          }
+                          const chip = chipValueOrNull(player, trends);
+                          return chip == null ? "—" : chip.toFixed(1);
+                        })()}
                       </div>
-                      <div>Trade value</div>
+                      <div>
+                        {missingValueReason(player, toolMeta) ?? "Trade value"}
+                      </div>
                     </div>
                   </button>
                 </li>
@@ -1023,7 +1031,7 @@ export function TradeAnalyzer({
                     player={p}
                     selected={giveIds.has(p.id)}
                     onToggle={() => toggleGive(p.id)}
-                    chip={chipValue(p, trends)}
+                    chip={chipValueOrNull(p, trends)}
                     toolMeta={toolMeta}
                   />
                 ))}
@@ -1120,7 +1128,7 @@ export function TradeAnalyzer({
                     player={p}
                     selected={receiveIds.has(p.id)}
                     onToggle={() => toggleReceive(p.id)}
-                    chip={chipValue(p, trends)}
+                    chip={chipValueOrNull(p, trends)}
                     toolMeta={toolMeta}
                   />
                 ))}

@@ -30,6 +30,7 @@ import {
 import {
   preferredProj,
   preferredProjOrNull,
+  projectionCaption,
 } from "@/lib/insights/tool-display";
 
 export type TrendsProp =
@@ -209,9 +210,7 @@ function SinglePlayerSearch({
                     : `No players match “${query.trim()}”.`}
                 </li>
               ) : (
-                suggestions.map((player) => {
-                  const proj = preferredProjOrNull(player, toolMeta);
-                  return (
+                suggestions.map((player) => (
                     <li key={player.id} role="option" aria-selected={false}>
                       <button
                         type="button"
@@ -237,14 +236,12 @@ function SinglePlayerSearch({
                             )}
                           </div>
                           <div className="mt-0.5 type-caption text-[#C026FF]">
-                            Projected {proj == null ? "—" : proj.toFixed(1)} this
-                            week
+                            {projectionCaption(player, toolMeta)}
                           </div>
                         </div>
                       </button>
                     </li>
-                  );
-                })
+                  ))
               )}
             </ul>
           )}
@@ -316,23 +313,27 @@ function VerdictCard({
         <div>
           <p className="type-eyebrow text-emerald-950/45">A · Projected</p>
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
-            {result.sideA.projectedPoints > 0
-              ? result.sideA.projectedPoints.toFixed(1)
-              : "—"}
+            {preferredProjOrNull(result.playerA, toolMeta) == null
+              ? "—"
+              : result.sideA.projectedPoints.toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
-            {formatPlayerLabel(result.playerA.name, result.playerA.nflTeam)}
+            {preferredProjOrNull(result.playerA, toolMeta) == null
+              ? "No projection this week"
+              : formatPlayerLabel(result.playerA.name, result.playerA.nflTeam)}
           </p>
         </div>
         <div>
           <p className="type-eyebrow text-emerald-950/45">B · Projected</p>
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
-            {result.sideB.projectedPoints > 0
-              ? result.sideB.projectedPoints.toFixed(1)
-              : "—"}
+            {preferredProjOrNull(result.playerB, toolMeta) == null
+              ? "—"
+              : result.sideB.projectedPoints.toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
-            {formatPlayerLabel(result.playerB.name, result.playerB.nflTeam)}
+            {preferredProjOrNull(result.playerB, toolMeta) == null
+              ? "No projection this week"
+              : formatPlayerLabel(result.playerB.name, result.playerB.nflTeam)}
           </p>
         </div>
       </div>

@@ -148,7 +148,7 @@ export function injuryNoteFor(player: FantasyPlayer): string | null {
 
 export function sleeperProjLine(proj: number | null): string {
   if (proj == null || !Number.isFinite(proj)) {
-    return "Projected — this week";
+    return "No projection this week";
   }
   return `Projected ${proj.toFixed(1)} this week`;
 }
@@ -172,6 +172,44 @@ export function preferredProjOrNull(
     return player.projectedPoints;
   }
   return null;
+}
+
+/** Owner-facing projection caption (never "Projected —" / fake 0). */
+export function projectionCaption(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): string {
+  return sleeperProjLine(preferredProjOrNull(player, meta));
+}
+
+/** True when recentWeeks has at least one finite scored week. */
+export function hasRecentWeekStats(player: FantasyPlayer): boolean {
+  return (player.recentWeeks ?? []).some(
+    (w) => typeof w.points === "number" && Number.isFinite(w.points),
+  );
+}
+
+/**
+ * Trade-value chips need a real projection and/or 2026 week stats.
+ * Without either, UI must show — (never a fabricated 0.0).
+ */
+export function hasTradeValueInputs(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): boolean {
+  return preferredProjOrNull(player, meta) != null || hasRecentWeekStats(player);
+}
+
+/** Why trade value / projection is blank — owner-facing. */
+export function missingValueReason(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): string | null {
+  if (hasTradeValueInputs(player, meta)) return null;
+  if (preferredProjOrNull(player, meta) == null && !hasRecentWeekStats(player)) {
+    return "No projection yet";
+  }
+  return "No projection yet";
 }
 
 export function dvpMapToRecord(
@@ -288,7 +326,7 @@ export function buildToolPlayerCard(
 
   const sleeperLine = hasSleeper
     ? sleeperProjLine(sleeperProj)
-    : "Projected — this week";
+    : "No projection this week";
 
   return {
     player,
