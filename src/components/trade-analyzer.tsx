@@ -141,7 +141,7 @@ function PlayerPickRow({
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium text-emerald-950">
+          <span className="break-words font-medium text-emerald-950">
             {formatPlayerLabel(player.name, player.nflTeam)}
           </span>
           <PositionChip position={player.position} />
@@ -261,7 +261,7 @@ function PlayerSearchPicker({
                 className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-orange-700/25 bg-orange-50 px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-700/45"
                 aria-label={`Remove ${formatPlayerLabel(player.name, player.nflTeam)}`}
               >
-                <span className="truncate">
+                <span className="break-words">
                   {formatPlayerLabel(player.name, player.nflTeam)}
                 </span>
                 <PositionChip position={player.position} />
@@ -582,8 +582,8 @@ function LeanResultsCard({
         </p>
       )}
 
-      <div className="mt-4 grid gap-4">
-        <div className="space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
+      <div className="mt-4 grid grid-cols-1 gap-4">
+        <div className="w-full space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">{giveLabel}</p>
           {give.map((p) => (
             <ToolPlayerCard
@@ -595,7 +595,7 @@ function LeanResultsCard({
             />
           ))}
         </div>
-        <div className="space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
+        <div className="w-full space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">{getLabel}</p>
           {receive.map((p) => (
             <ToolPlayerCard

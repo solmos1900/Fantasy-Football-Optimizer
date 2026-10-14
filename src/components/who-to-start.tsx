@@ -128,8 +128,8 @@ function SinglePlayerSearch({
 
       {selected ? (
         <div className="rounded-xl border border-emerald-950/12 bg-[var(--kraft)] px-3 py-2.5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-3">
+            <div className="w-full min-w-0 flex-1 overflow-visible">
               <ToolPlayerCard
                 player={selected}
                 toolMeta={toolMeta}
@@ -216,9 +216,9 @@ function SinglePlayerSearch({
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="truncate font-medium text-emerald-950">
-                              {formatPlayerLabel(player.name, player.nflTeam)}
-                            </span>
+                          <span className="break-words font-medium text-emerald-950">
+                            {formatPlayerLabel(player.name, player.nflTeam)}
+                          </span>
                             <PositionChip position={player.position} />
                             {player.injuryStatus !== "ACTIVE" && (
                               <span
@@ -281,10 +281,10 @@ function VerdictCard({
         </p>
       )}
 
-      <div className="mt-5 grid gap-4 border-t border-emerald-950/10 pt-4">
-        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
+      <div className="mt-5 grid grid-cols-1 gap-4 border-t border-emerald-950/10 pt-4">
+        <div className="w-full rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">A</p>
-          <div className="mt-2">
+          <div className="mt-2 w-full">
             <ToolPlayerCard
               player={result.playerA}
               toolMeta={toolMeta}
@@ -293,9 +293,9 @@ function VerdictCard({
             />
           </div>
         </div>
-        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
+        <div className="w-full rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">B</p>
-          <div className="mt-2">
+          <div className="mt-2 w-full">
             <ToolPlayerCard
               player={result.playerB}
               toolMeta={toolMeta}
@@ -505,7 +505,7 @@ export function WhoToStart({
                     className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-950/15 bg-[var(--kraft)] px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-600/45 hover:bg-orange-50/40"
                   >
                     <PositionChip position={p.position} />
-                    <span className="truncate">
+                    <span className="break-words">
                       {formatPlayerLabel(p.name, p.nflTeam)}
                     </span>
                     {!noLeague && (
@@ -526,7 +526,7 @@ export function WhoToStart({
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6">
         <section className="surface-card space-y-3 p-4 sm:p-5">
           <SinglePlayerSearch
             label={noLeague ? "Search NFL players" : "Search league pool"}

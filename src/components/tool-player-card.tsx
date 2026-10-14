@@ -51,7 +51,7 @@ export function ToolPlayerCard({
     <div className={cn("w-full space-y-2", compact && "space-y-1.5")}>
       <div className="flex flex-wrap items-center gap-1.5">
         <PositionChip position={player.position} />
-        <h3 className="text-sm font-semibold leading-snug text-emerald-950 break-words">
+        <h3 className="max-w-full text-sm font-semibold leading-snug text-emerald-950 whitespace-normal break-words [overflow-wrap:anywhere]">
           {card.label}
         </h3>
         {card.injuryTag && (
