@@ -13,7 +13,15 @@ import {
  * Call after sync or from Insights — stores weekly proj/actual snapshots
  * and recomputes PlayerTrendMetric rows.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const { enforceRateLimit } = await import("@/lib/http/api-guard");
+  const limited = enforceRateLimit(request, {
+    bucket: "trends-refresh",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

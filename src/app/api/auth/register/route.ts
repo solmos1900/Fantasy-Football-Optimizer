@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { hashPassword, isValidEmail, isValidPassword } from "@/lib/password";
+import { enforceRateLimit } from "@/lib/http/api-guard";
 
 const RegisterSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
@@ -10,6 +11,13 @@ const RegisterSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, {
+    bucket: "register",
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();

@@ -10,6 +10,7 @@ import {
   runGoldenAccuracyCheck,
 } from "@/lib/accuracy/golden-check";
 import { fillEspnGamelogGaps } from "@/lib/players/fill-espn-gaps";
+import { runPoolDataValidation } from "@/lib/accuracy/data-issues";
 
 export const runtime = "nodejs";
 /** Weekly CSV fetch + batch upserts can exceed the default hobby limit. */
@@ -97,7 +98,24 @@ export async function GET(request: Request) {
       };
     }
 
-    return NextResponse.json({ ok: true, ...result, espnGaps, golden });
+    let poolValidation = null;
+    try {
+      poolValidation = await runPoolDataValidation({ season, week });
+      console.info("[cron/nflverse-usage] pool validation", poolValidation);
+    } catch (vErr) {
+      console.error("[cron/nflverse-usage] pool validation error", vErr);
+      poolValidation = {
+        error: vErr instanceof Error ? vErr.message : "pool validation failed",
+      };
+    }
+
+    return NextResponse.json({
+      ok: true,
+      ...result,
+      espnGaps,
+      golden,
+      poolValidation,
+    });
   } catch (err) {
     console.error("[cron/nflverse-usage] failed", err);
     const message = err instanceof Error ? err.message : "nflverse ingest failed";

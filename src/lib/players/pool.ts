@@ -18,6 +18,15 @@ import {
   formatOpponentLabel,
 } from "@/lib/espn/scoreboard";
 import { defaultEspnSeason } from "@/lib/season";
+import {
+  applyRosterAuthorityToPool,
+  buildAuthoritativeRosterMap,
+} from "@/lib/players/roster-authority";
+import {
+  fetchSleeperProjections,
+  sleeperProjForPlayer,
+} from "@/lib/sleeper/projections";
+import { loadOpenDataIssueSummary } from "@/lib/accuracy/data-issues";
 import type {
   FantasyPlayer,
   InjuryStatus,
@@ -42,6 +51,9 @@ export type PlayerPoolFreshness = {
   /** Human-readable refresh / coverage problem — never silent stale-as-current. */
   warning: string | null;
   scoringLabel: string;
+  /** Open cross-source data issues (Sleeper ↔ nflverse). */
+  dataIssueNotices?: string[];
+  dataIssueCount?: number;
 };
 
 export type PlayerPoolBundle = {
@@ -419,9 +431,11 @@ async function loadPlayersFromDb(options: {
       espnId: p.espnId,
       name: p.name,
       position: p.position as PlayerPosition,
+      // Team corrected later by roster authority (never leave rostered as FA).
       nflTeam: p.nflTeam ?? "FA",
       injuryStatus: injuryFromNote(current?.gameScriptNote),
-      projectedPoints: current?.projectedPpr ?? 0,
+      // ESPN projectedPpr is storage-only until Sleeper overlay; do not treat 0 as real.
+      projectedPoints: 0,
       actualPoints: current?.actualPpr ?? 0,
       percentOwned: 0,
       percentStarted: 0,
@@ -518,9 +532,11 @@ export async function getNoLeaguePlayerPool(options?: {
         const byId = new Map(players.map((p) => [p.espnId, p]));
         for (const p of fresh) {
           const prev = byId.get(p.espnId);
+          // Keep ESPN for injury/ownership only — projections come from Sleeper overlay.
           byId.set(p.espnId, {
             ...(prev ?? p),
             ...p,
+            projectedPoints: prev?.projectedPoints ?? 0,
             recentWeeks:
               p.recentWeeks?.length ? p.recentWeeks : prev?.recentWeeks,
           });
@@ -548,6 +564,83 @@ export async function getNoLeaguePlayerPool(options?: {
     }
   }
 
+  // Authoritative roster: Sleeper team + active, cross-checked with nflverse.
+  // Never treat an NFL-rostered player as FA; drop inactive/retired/unsigned.
+  try {
+    const roster = await buildAuthoritativeRosterMap();
+    const applied = applyRosterAuthorityToPool(players, roster.byEspnId);
+    players = applied.players;
+    if (applied.teamCorrections > 0 || applied.excluded > 0) {
+      // Persist corrected teams for picker-eligible players
+      const now = new Date();
+      await Promise.all(
+        players.slice(0, 400).map(async (p) => {
+          const auth = roster.byEspnId.get(p.espnId);
+          if (!auth?.pickerEligible) return;
+          await prisma.player.updateMany({
+            where: { espnId: p.espnId },
+            data: {
+              nflTeam: auth.nflTeam,
+              ...(auth.sleeperId ? { sleeperId: auth.sleeperId } : {}),
+              ...(auth.gsisId ? { gsisId: auth.gsisId } : {}),
+              updatedAt: now,
+            },
+          });
+        }),
+      );
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    warning = [
+      warning,
+      `Roster authority refresh failed (${message}). Filtering known FA/empty-team rows only.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    players = players.filter((p) => {
+      const t = (p.nflTeam ?? "").trim().toUpperCase();
+      return t !== "" && t !== "FA";
+    });
+  }
+
+  // Sleeper full-PPR projections only — never fall back to ESPN 0 for display math.
+  try {
+    const sleeper = await fetchSleeperProjections({
+      season,
+      week: weekSnap.currentWeek,
+    });
+    let sleeperHits = 0;
+    players = players.map((p) => {
+      const proj = sleeperProjForPlayer(sleeper, p);
+      if (proj != null && Number.isFinite(proj)) {
+        sleeperHits += 1;
+        return { ...p, projectedPoints: proj };
+      }
+      // Missing Sleeper proj → 0 internally; UI must show "—" via toolMeta (not ESPN).
+      return { ...p, projectedPoints: 0 };
+    });
+    players = players.sort((a, b) => b.projectedPoints - a.projectedPoints);
+    if (!sleeper.emptyFeed && sleeperHits > 0) {
+      projectionsUpdatedAt = new Date(sleeper.fetchedAt);
+    } else {
+      warning = [
+        warning,
+        "Sleeper full-PPR projections unavailable — showing — not ESPN 0.",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    warning = [
+      warning,
+      `Sleeper projection overlay failed (${message}). Not using ESPN 0 as a stand-in.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    players = players.map((p) => ({ ...p, projectedPoints: 0 }));
+  }
+
   // Stamp real opponents / BYE for the upcoming (current) week.
   try {
     const board = await fetchEspnScoreboard(weekSnap.currentWeek, season);
@@ -567,6 +660,16 @@ export async function getNoLeaguePlayerPool(options?: {
     // Leave opponents unset rather than inventing matchups.
   }
 
+  let dataIssueNotices: string[] = [];
+  let dataIssueCount = 0;
+  try {
+    const summary = await loadOpenDataIssueSummary({ limit: 8 });
+    dataIssueNotices = summary.notices;
+    dataIssueCount = summary.openCount;
+  } catch {
+    // Table may not exist until migrate — ignore.
+  }
+
   const freshness: PlayerPoolFreshness = {
     season,
     currentWeek: weekSnap.currentWeek,
@@ -575,7 +678,9 @@ export async function getNoLeaguePlayerPool(options?: {
     projectionsUpdatedAt: projectionsUpdatedAt?.toISOString() ?? null,
     latestWeekMissing,
     warning,
-    scoringLabel: "Full PPR (nflverse box score)",
+    scoringLabel: "Full PPR (nflverse box · Sleeper proj)",
+    dataIssueNotices,
+    dataIssueCount,
   };
 
   const contextLeague: LeagueData = {

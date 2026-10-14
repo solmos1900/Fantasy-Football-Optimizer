@@ -46,6 +46,22 @@ export function PoolFreshnessBanner({
           {goldenCheck.failures[0] ?? "see cron logs"}.
         </p>
       )}
+      {freshness.dataIssueCount != null && freshness.dataIssueCount > 0 && (
+        <div
+          role="alert"
+          className="space-y-1 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
+          <p className="font-semibold">
+            Data check: {freshness.dataIssueCount} open issue
+            {freshness.dataIssueCount === 1 ? "" : "s"}
+          </p>
+          <ul className="list-inside list-disc text-[13px] leading-snug">
+            {(freshness.dataIssueNotices ?? []).slice(0, 5).map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

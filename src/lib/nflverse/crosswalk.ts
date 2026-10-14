@@ -10,10 +10,17 @@ export type PlayerIdCrosswalk = {
   gsisToEspn: Map<string, number>;
   /** espnId → gsis_id */
   espnToGsis: Map<number, string>;
-  /** gsis_id → display name / position / team hints */
+  /** gsis_id → display name / position / team / status hints */
   meta: Map<
     string,
-    { name: string; position: string; nflTeam: string | null }
+    {
+      name: string;
+      position: string;
+      nflTeam: string | null;
+      /** nflverse status code, e.g. ACT */
+      status: string | null;
+      lastSeason: number | null;
+    }
   >;
 };
 
@@ -24,7 +31,13 @@ export async function loadPlayerIdCrosswalk(): Promise<PlayerIdCrosswalk> {
   const espnToGsis = new Map<number, string>();
   const meta = new Map<
     string,
-    { name: string; position: string; nflTeam: string | null }
+    {
+      name: string;
+      position: string;
+      nflTeam: string | null;
+      status: string | null;
+      lastSeason: number | null;
+    }
   >();
 
   for (const row of rows) {
@@ -34,7 +47,9 @@ export async function loadPlayerIdCrosswalk(): Promise<PlayerIdCrosswalk> {
     const name = (row.display_name ?? row.football_name ?? "").trim() || gsisId;
     const position = (row.position ?? "").trim().toUpperCase() || "UNK";
     const nflTeam = (row.latest_team ?? "").trim() || null;
-    meta.set(gsisId, { name, position, nflTeam });
+    const status = (row.status ?? "").trim().toUpperCase() || null;
+    const lastSeason = parseOptionalInt(row.last_season);
+    meta.set(gsisId, { name, position, nflTeam, status, lastSeason });
     if (espnId == null || espnId <= 0) continue;
     gsisToEspn.set(gsisId, espnId);
     // Prefer first mapping; later duplicates are rare

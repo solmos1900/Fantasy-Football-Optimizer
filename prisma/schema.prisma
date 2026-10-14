@@ -531,3 +531,25 @@ model EspnRawResponse {
   @@unique([espnLeagueId, season, view, week])
   @@index([espnLeagueId, season])
 }
+
+/// Cross-source data quality issues (Sleeper ↔ nflverse team / PPR).
+/// Surfaced in UI as "data check failed for X" — never silent.
+model DataIssue {
+  id         String   @id @default(cuid())
+  /// team_mismatch | ppr_mismatch | roster_fa_conflict | projection_missing
+  kind       String
+  espnId     Int?
+  playerName String?
+  season     Int?
+  week       Int?
+  detail     String
+  /// JSON blob with source values for debugging
+  sources    String?
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([resolved, kind])
+  @@index([espnId])
+  @@index([createdAt])
+}

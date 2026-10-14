@@ -247,13 +247,11 @@ export function buildToolPlayerCard(
   const dvpMap = dvpMapFromRecord(meta?.dvpByKey);
   const currentWeek = meta?.currentWeek ?? 1;
   const statsThroughWeek = meta?.statsThroughWeek ?? 0;
+  // Sleeper only — never fall back to ESPN/pool 0 as a labeled projection.
+  const fromMeta = meta?.sleeperByEspnId?.[String(player.espnId)];
   const sleeperProj =
-    meta?.sleeperByEspnId?.[String(player.espnId)] ??
-    (Number.isFinite(player.projectedPoints) ? player.projectedPoints : null);
-  // Prefer labeled Sleeper when present; fall back to pool proj only for strip.
-  const hasSleeper =
-    meta?.sleeperByEspnId?.[String(player.espnId)] != null &&
-    !meta?.sleeperEmpty;
+    fromMeta != null && Number.isFinite(fromMeta) ? fromMeta : null;
+  const hasSleeper = sleeperProj != null && !meta?.sleeperEmpty;
 
   const matchup = dvpForPlayer(dvpMap, player.opponent, player.position);
   const byeThisWeek = (player.opponent ?? "").toUpperCase() === "BYE";
@@ -261,23 +259,23 @@ export function buildToolPlayerCard(
     player,
     currentWeek,
     statsThroughWeek,
-    sleeperProj: hasSleeper
-      ? sleeperProj
-      : meta?.sleeperEmpty
-        ? null
-        : sleeperProj,
+    sleeperProj: hasSleeper ? sleeperProj : null,
   });
 
   // Suppress unused warning — teammate chips rendered by callers
   void teammateImpacts;
+
+  const sleeperLine = hasSleeper
+    ? sleeperProjLine(sleeperProj)
+    : "Projected — this week (Sleeper) · projection unavailable";
 
   return {
     player,
     label: formatPlayerLabel(player.name, player.nflTeam),
     weeks,
     matchup,
-    sleeperProj: hasSleeper ? sleeperProj : sleeperProj,
-    sleeperLine: sleeperProjLine(hasSleeper ? sleeperProj : sleeperProj),
+    sleeperProj: hasSleeper ? sleeperProj : null,
+    sleeperLine,
     formLine: formImpactLine(player),
     injuryTag: injuryTagFor(player.injuryStatus),
     injuryNote: injuryNoteFor(player),
@@ -285,14 +283,27 @@ export function buildToolPlayerCard(
   };
 }
 
-/** Preferred projection for verdict math: Sleeper when known, else pool proj. */
+/**
+ * Preferred projection for verdict math: Sleeper full-PPR only.
+ * Never falls back to ESPN 0 — missing → 0 for ranking (UI shows —).
+ * Pool builders should already overlay Sleeper onto player.projectedPoints.
+ */
 export function preferredProj(
   player: FantasyPlayer,
   meta?: ToolDisplayMeta | null,
 ): number {
   const fromSleeper = meta?.sleeperByEspnId?.[String(player.espnId)];
   if (fromSleeper != null && Number.isFinite(fromSleeper)) return fromSleeper;
-  return player.projectedPoints;
+  // Pool may already carry Sleeper onto projectedPoints (never ESPN after overlay).
+  if (
+    meta == null &&
+    typeof player.projectedPoints === "number" &&
+    Number.isFinite(player.projectedPoints) &&
+    player.projectedPoints > 0
+  ) {
+    return player.projectedPoints;
+  }
+  return 0;
 }
 
 export function positionPlural(position: PlayerPosition): string {

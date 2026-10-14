@@ -1,15 +1,38 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { connectEspnLeague } from "@/lib/league/service";
 import { defaultEspnSeason } from "@/lib/season";
+import { enforceRateLimit } from "@/lib/http/api-guard";
+
+const ConnectBodySchema = z.object({
+  mode: z.string().optional(),
+  leagueId: z.union([z.string(), z.number()]).optional(),
+  season: z.coerce.number().optional(),
+  teamId: z.coerce.number().optional(),
+  swid: z.string().optional(),
+  espnS2: z.string().optional(),
+});
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, {
+    bucket: "league-connect",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  const raw = await request.json().catch(() => ({}));
+  const parsed = ConnectBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const body = parsed.data;
   const mode = body.mode as string | undefined;
 
   try {

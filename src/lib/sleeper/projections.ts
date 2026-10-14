@@ -14,6 +14,7 @@
  */
 
 import { defaultEspnSeason } from "@/lib/season";
+import { secureFetch } from "@/lib/http/secure-fetch";
 
 export type SleeperProjectionMap = {
   /** espnId → full-PPR projection for the requested week */
@@ -80,13 +81,20 @@ async function loadSleeperPlayers(): Promise<{
       sleeperMeta: playersCache.sleeperMeta,
     };
   }
-  const res = await fetch("https://api.sleeper.app/v1/players/nfl", {
+  const res = await secureFetch("https://api.sleeper.app/v1/players/nfl", {
+    timeoutMs: 45_000,
+    retries: 2,
     next: { revalidate: 21600 },
   });
   if (!res.ok) {
     throw new Error(`Sleeper players HTTP ${res.status}`);
   }
-  const raw = (await res.json()) as Record<string, SleeperPlayer>;
+  const rawUnknown: unknown = await res.json();
+  // Loose parse — Sleeper directory is huge; reject non-objects only.
+  if (!rawUnknown || typeof rawUnknown !== "object") {
+    throw new Error("Sleeper players: invalid JSON shape");
+  }
+  const raw = rawUnknown as Record<string, SleeperPlayer>;
   const espnToSleeper = new Map<number, string>();
   const sleeperMeta = new Map<
     string,
@@ -148,9 +156,9 @@ export async function fetchSleeperProjections(options?: {
   try {
     const [{ espnToSleeper, sleeperMeta }, projRes] = await Promise.all([
       loadSleeperPlayers(),
-      fetch(
+      secureFetch(
         `https://api.sleeper.app/projections/nfl/${season}/${week}?season_type=regular`,
-        { next: { revalidate: 600 } },
+        { timeoutMs: 30_000, retries: 2, next: { revalidate: 600 } },
       ),
     ]);
 
@@ -165,9 +173,21 @@ export async function fetchSleeperProjections(options?: {
       };
     }
 
-    const raw = (await projRes.json()) as
-      | SleeperProjRow[]
-      | Record<string, SleeperProjRow>;
+    const rawParsed: unknown = await projRes.json();
+    if (
+      rawParsed == null ||
+      (typeof rawParsed !== "object" && !Array.isArray(rawParsed))
+    ) {
+      return {
+        byEspnId,
+        byNameTeam,
+        season,
+        week,
+        fetchedAt,
+        emptyFeed: true,
+      };
+    }
+    const raw = rawParsed as SleeperProjRow[] | Record<string, SleeperProjRow>;
 
     const sleeperToEspn = new Map<string, number>();
     for (const [espn, sid] of espnToSleeper) {
