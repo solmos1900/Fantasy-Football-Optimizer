@@ -163,3 +163,67 @@ export async function loadNflverseWeeklyRoster(options?: {
     fetchedAt: new Date().toISOString(),
   };
 }
+
+export type PriorSeasonLatestStatus = {
+  espnId: number;
+  week: number;
+  team: string | null;
+  status: string;
+  name: string;
+};
+
+let priorSeasonCache: {
+  season: number;
+  at: number;
+  byEspnId: Map<number, PriorSeasonLatestStatus>;
+} | null = null;
+
+/**
+ * Latest weekly-roster status from the prior NFL season (espnId → row).
+ * Used when Sleeper claims Active but the current season has no weekly rows
+ * (e.g. Reserve/Left Squad holdovers).
+ */
+export async function loadNflversePriorSeasonLatestByEspn(options?: {
+  season?: number;
+  forceRefresh?: boolean;
+}): Promise<Map<number, PriorSeasonLatestStatus>> {
+  const current = options?.season ?? defaultEspnSeason();
+  const priorSeason = current - 1;
+  if (
+    !options?.forceRefresh &&
+    priorSeasonCache &&
+    priorSeasonCache.season === priorSeason &&
+    Date.now() - priorSeasonCache.at < 6 * 60 * 60 * 1000
+  ) {
+    return priorSeasonCache.byEspnId;
+  }
+  const text = await fetchText(weeklyRosterUrl(priorSeason));
+  const rows = parseCsv(text);
+  const byEspnId = new Map<number, PriorSeasonLatestStatus>();
+  for (const row of rows) {
+    const pos = (row.position ?? "").trim().toUpperCase();
+    if (!SKILL.has(pos)) continue;
+    const espnRaw = Number(row.espn_id);
+    if (!Number.isFinite(espnRaw) || espnRaw <= 0) continue;
+    const week = Number(row.week);
+    if (!Number.isFinite(week) || week < 1) continue;
+    const prev = byEspnId.get(espnRaw);
+    if (prev && prev.week >= week) continue;
+    byEspnId.set(espnRaw, {
+      espnId: espnRaw,
+      week,
+      team: cleanTeam(row.team),
+      status: (row.status ?? "").trim().toUpperCase() || "UNK",
+      name: (row.full_name ?? row.football_name ?? "").trim(),
+    });
+  }
+  priorSeasonCache = { season: priorSeason, at: Date.now(), byEspnId };
+  return byEspnId;
+}
+
+/** Prior-season statuses that mean "on club but not playing" (not ACT/DEV). */
+export function isReserveHoldoverStatus(status: string): boolean {
+  const s = status.trim().toUpperCase();
+  // RES covers Reserve/Injured and Reserve/Left Squad in nflverse weekly.
+  return s === "RES" || s === "NFI" || s === "PUP" || s === "SUS";
+}

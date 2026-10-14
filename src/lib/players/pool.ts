@@ -588,9 +588,18 @@ export async function getNoLeaguePlayerPool(options?: {
 
     // Inject picker-eligible auth players missing from ESPN/DB-derived pool
     // (practice-squad / post-cut signings often absent from ESPN public top-N).
+    // Also inject Reserve/Left Squad holdovers so search can show "not playing"
+    // — they stay unselectable for trades / who-to-start.
     const inPool = new Set(players.map((p) => p.espnId));
     for (const auth of roster.byEspnId.values()) {
-      if (!auth.pickerEligible || auth.nflTeam === "FA") continue;
+      const injectReserve =
+        auth.reserveLeftSquad && auth.nflTeam !== "FA";
+      if (
+        (!auth.pickerEligible && !injectReserve) ||
+        auth.nflTeam === "FA"
+      ) {
+        continue;
+      }
       if (inPool.has(auth.espnId)) continue;
       const pos = auth.position as FantasyPlayer["position"];
       if (!["QB", "RB", "WR", "TE"].includes(pos)) continue;
@@ -605,8 +614,9 @@ export async function getNoLeaguePlayerPool(options?: {
         actualPoints: 0,
         percentOwned: 0,
         percentStarted: 0,
-        practiceSquad: auth.practiceSquad,
-        singleSourceTeam: auth.singleSourceTeam,
+        practiceSquad: injectReserve ? false : auth.practiceSquad,
+        singleSourceTeam: injectReserve ? false : auth.singleSourceTeam,
+        reserveLeftSquad: injectReserve,
       });
       inPool.add(auth.espnId);
     }

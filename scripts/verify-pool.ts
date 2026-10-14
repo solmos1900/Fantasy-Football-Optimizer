@@ -91,9 +91,28 @@ async function main() {
     `Bijan pool proj ${bijan!.projectedPoints} != Sleeper ${bijanSleeper} (ESPN leak?)`,
   );
 
-  // No retired / inactive in picker pool
+  // No retired / inactive in picker pool (Reserve/Left Squad may appear as
+  // display-only / unselectable — never pickerEligible).
+  const AIYUK_ESPN = 4360438;
+  const aiyuk = pool.players.find((p) => p.espnId === AIYUK_ESPN);
+  assert.ok(aiyuk, "Brandon Aiyuk should remain visible (SF Reserve/Left Squad)");
+  assert.equal((aiyuk!.nflTeam ?? "").toUpperCase(), "SF");
+  assert.equal(aiyuk!.reserveLeftSquad, true);
+  assert.equal(aiyuk!.practiceSquad, false);
+  const aiyukAuth = roster.byEspnId.get(AIYUK_ESPN);
+  assert.equal(aiyukAuth?.pickerEligible, false);
+  assert.equal(aiyukAuth?.reserveLeftSquad, true);
+
   for (const p of pool.players) {
     const auth = roster.byEspnId.get(p.espnId);
+    if (p.reserveLeftSquad || auth?.reserveLeftSquad) {
+      assert.equal(
+        auth?.pickerEligible,
+        false,
+        `${p.name} Reserve/Left Squad must not be picker-eligible`,
+      );
+      continue;
+    }
     assert.ok(
       auth?.pickerEligible !== false,
       `${p.name} (${p.espnId}) in pool but not picker-eligible: ${auth?.excludeReason}`,
@@ -104,6 +123,15 @@ async function main() {
       `${p.name} in pool with FA/empty team`,
     );
   }
+
+  // Wayne + Browning remain selectable single-source (not Reserve/Left Squad)
+  const wayne = pool.players.find((p) => p.name.includes("Jared Wayne"));
+  const browning = pool.players.find((p) => p.name.includes("Jake Browning"));
+  assert.ok(wayne && !wayne.reserveLeftSquad, "Jared Wayne should stay selectable");
+  assert.ok(
+    browning && !browning.reserveLeftSquad && browning.practiceSquad,
+    "Jake Browning should stay practice-squad / selectable",
+  );
 
   // FA count in pool should be 0 after filter; DB FAs must be unrostered on Sleeper
   const poolFa = pool.players.filter(

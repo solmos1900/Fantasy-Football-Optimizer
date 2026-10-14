@@ -174,14 +174,6 @@ export function preferredProjOrNull(
   return null;
 }
 
-/** Owner-facing projection caption (never "Projected —" / fake 0). */
-export function projectionCaption(
-  player: FantasyPlayer,
-  meta?: ToolDisplayMeta | null,
-): string {
-  return sleeperProjLine(preferredProjOrNull(player, meta));
-}
-
 /** True when recentWeeks has at least one finite scored week. */
 export function hasRecentWeekStats(player: FantasyPlayer): boolean {
   return (player.recentWeeks ?? []).some(
@@ -197,6 +189,7 @@ export function hasTradeValueInputs(
   player: FantasyPlayer,
   meta?: ToolDisplayMeta | null,
 ): boolean {
+  if (player.reserveLeftSquad) return false;
   return preferredProjOrNull(player, meta) != null || hasRecentWeekStats(player);
 }
 
@@ -205,11 +198,20 @@ export function missingValueReason(
   player: FantasyPlayer,
   meta?: ToolDisplayMeta | null,
 ): string | null {
+  if (player.reserveLeftSquad) return "Not playing";
   if (hasTradeValueInputs(player, meta)) return null;
-  if (preferredProjOrNull(player, meta) == null && !hasRecentWeekStats(player)) {
-    return "No projection yet";
-  }
   return "No projection yet";
+}
+
+/** Owner-facing projection caption (never "Projected —" / fake 0). */
+export function projectionCaption(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): string {
+  if (player.reserveLeftSquad) {
+    return "Reserve/Left Squad — not playing";
+  }
+  return sleeperProjLine(preferredProjOrNull(player, meta));
 }
 
 export function dvpMapToRecord(

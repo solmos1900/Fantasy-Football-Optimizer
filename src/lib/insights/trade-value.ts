@@ -165,6 +165,7 @@ export function chipValueOrNull(
   trendsOrOpts?: TrendLookup | ChipValueOptions,
   knownProj?: number | null,
 ): number | null {
+  if (p.reserveLeftSquad) return null;
   const hasProj =
     (knownProj != null && Number.isFinite(knownProj)) ||
     (knownProj === undefined &&

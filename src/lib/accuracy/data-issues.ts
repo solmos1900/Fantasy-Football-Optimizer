@@ -227,6 +227,11 @@ export async function runPoolDataValidation(options?: {
   // audit but resolve non-pool issues at the end.
   for (const entry of authEntries) {
     checkedPlayers += 1;
+    // Reserve/Left Squad: Sleeper Active is untrusted — do not open practice-squad
+    // / single-source banner rows. Explained exclusion stays out of the pool count.
+    if (entry.reserveLeftSquad) {
+      continue;
+    }
     if (entry.teamMismatch) {
       teamMismatches += 1;
       const cutTeam = cutTeamFromEvidence(entry);
@@ -325,6 +330,20 @@ export async function runPoolDataValidation(options?: {
         },
       });
       if (db.nflTeam !== entry.nflTeam) teamsCorrected += 1;
+    } else if (entry.reserveLeftSquad && entry.nflTeam !== "FA") {
+      // Keep contracted team (e.g. SF) for Reserve/Left Squad display — not FA.
+      if (db.nflTeam !== entry.nflTeam) {
+        await prisma.player.update({
+          where: { espnId: entry.espnId },
+          data: {
+            nflTeam: entry.nflTeam,
+            ...(entry.sleeperId ? { sleeperId: entry.sleeperId } : {}),
+            ...(entry.gsisId ? { gsisId: entry.gsisId } : {}),
+            updatedAt: new Date(),
+          },
+        });
+        teamsCorrected += 1;
+      }
     } else if (
       (entry.staleSleeper || entry.nflTeam === "FA" || !entry.pickerEligible) &&
       db.nflTeam &&
@@ -396,8 +415,14 @@ export async function runPoolDataValidation(options?: {
     } else {
       keep = Boolean(auth?.pickerEligible);
     }
-    // Also drop issues for stale / non-eligible players
-    if (auth && (auth.staleSleeper || !auth.pickerEligible) && row.kind !== "ppr_mismatch") {
+    // Also drop issues for stale / non-eligible / Reserve-Left-Squad players
+    if (
+      auth &&
+      (auth.staleSleeper ||
+        auth.reserveLeftSquad ||
+        !auth.pickerEligible) &&
+      row.kind !== "ppr_mismatch"
+    ) {
       keep = false;
     }
     if (!keep) {

@@ -39,6 +39,8 @@ export type SleeperRosterPlayer = {
   team: string | null;
   status: string;
   active: boolean;
+  /** Sleeper injury_status (e.g. Questionable, DNR = Did Not Report / Left Squad). */
+  injuryStatus: string | null;
   nameTeamKey: string;
   /** Sleeper news_updated epoch ms — proxy for most recent roster/news event. */
   newsUpdatedMs: number | null;
@@ -147,6 +149,7 @@ export async function loadSleeperRosterDirectory(options?: {
     const status = (row.status ?? "").trim() || "Unknown";
     const active = isActiveStatus(status, row.active ?? null);
     const gsisRaw = (row.gsis_id ?? "").trim();
+    const injuryRaw = (row.injury_status ?? "").trim();
     const entry: SleeperRosterPlayer = {
       sleeperId: sid,
       espnId,
@@ -155,6 +158,7 @@ export async function loadSleeperRosterDirectory(options?: {
       team,
       status,
       active,
+      injuryStatus: injuryRaw || null,
       nameTeamKey: sleeperNameTeamKey(name, team),
       newsUpdatedMs: parseNewsUpdatedMs(row.news_updated),
       gsisId: gsisRaw || null,

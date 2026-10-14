@@ -8,6 +8,10 @@
  * Team: most recent transaction / news wins. Stale pre-season Sleeper data
  * without a 2026 weekly row → FA. Same-team CUT vs Sleeper → FA + DataIssue.
  * Post-cut signing to a different team → Sleeper wins (single-source notice).
+ *
+ * When Sleeper says Active but nflverse has no current-season weekly rows, do
+ * not trust Sleeper's status: if prior season ended RES (or Sleeper injury
+ * DNR / Did Not Report), treat as Reserve/Left Squad — unrosterable.
  */
 
 import {
@@ -18,9 +22,12 @@ import {
   isOnClubStatus,
   isPickerClubStatus,
   isPracticeSquadStatus,
+  isReserveHoldoverStatus,
+  loadNflversePriorSeasonLatestByEspn,
   loadNflverseWeeklyRoster,
   normalizePlayerNameKey,
   type NflverseWeeklyRosterRow,
+  type PriorSeasonLatestStatus,
 } from "@/lib/nflverse/weekly-roster";
 import { normalizeNflAbbrev } from "@/lib/espn/pro-teams";
 import { defaultEspnSeason } from "@/lib/season";
@@ -55,6 +62,11 @@ export type AuthoritativeRosterEntry = {
   practiceSquad: boolean;
   /** Pre-2026 Sleeper news with no 2026 weekly confirmation. */
   staleSleeper: boolean;
+  /**
+   * Under contract but not allowed to play (Reserve/Left Squad). Sleeper may
+   * still say Active — do not trust that status without a current weekly row.
+   */
+  reserveLeftSquad: boolean;
 };
 
 function cleanTeam(raw: string | null | undefined): string | null {
@@ -107,11 +119,22 @@ type ResolveResult = {
   singleSourceTeam: boolean;
   practiceSquad: boolean;
   staleSleeper: boolean;
+  reserveLeftSquad: boolean;
 };
+
+function sleeperDidNotReport(sleeper: SleeperRosterPlayer | null): boolean {
+  const inj = (sleeper?.injuryStatus ?? "").trim().toUpperCase();
+  if (!inj) return false;
+  return (
+    inj === "DNR" ||
+    /DID\s*NOT\s*REPORT|LEFT\s*SQUAD|RESERVE\/?\s*LEFT/i.test(inj)
+  );
+}
 
 function resolveTeam(options: {
   sleeper: SleeperRosterPlayer | null;
   weekly: NflverseWeeklyRosterRow | null;
+  priorSeason: PriorSeasonLatestStatus | null;
   season: number;
   nowMs: number;
 }): ResolveResult {
@@ -141,7 +164,42 @@ function resolveTeam(options: {
       singleSourceTeam: false,
       practiceSquad: false,
       staleSleeper: true,
+      reserveLeftSquad: false,
     };
+  }
+
+  // Sleeper Active + team but zero current-season nflverse weekly rows:
+  // do not trust Sleeper's Active status. Prior-season RES (or Sleeper DNR)
+  // → Reserve/Left Squad, unrosterable. Recent signings without that signal
+  // (e.g. practice-squad adds) fall through to single-source handling.
+  if (
+    options.weekly == null &&
+    options.sleeper?.active &&
+    sleeperTeam &&
+    !stale
+  ) {
+    const prior = options.priorSeason;
+    const priorHoldover =
+      prior != null && isReserveHoldoverStatus(prior.status);
+    const dnr = sleeperDidNotReport(options.sleeper);
+    if (priorHoldover || dnr) {
+      return {
+        nflTeam: sleeperTeam,
+        teamMismatch: true,
+        pendingSameDay: false,
+        evidence: `Reserve/Left Squad: Sleeper claims Active ${sleeperTeam} (injury ${options.sleeper.injuryStatus ?? "—"}) but no ${options.season} nflverse weekly rows; ${
+          prior
+            ? `prior season week ${prior.week} ${prior.team ?? "?"} ${prior.status}`
+            : "no prior-season weekly row"
+        } — do not trust Sleeper Active; not playing`,
+        sleeperTeam,
+        nflverseTeam: null,
+        singleSourceTeam: false,
+        practiceSquad: false,
+        staleSleeper: false,
+        reserveLeftSquad: true,
+      };
+    }
   }
 
   // Same-team CUT: Sleeper still lists the team that nflverse shows as CUT →
@@ -164,6 +222,7 @@ function resolveTeam(options: {
       singleSourceTeam: false,
       practiceSquad: false,
       staleSleeper: false,
+      reserveLeftSquad: false,
     };
   }
 
@@ -206,6 +265,7 @@ function resolveTeam(options: {
       singleSourceTeam: false,
       practiceSquad: false,
       staleSleeper: stale,
+      reserveLeftSquad: false,
     };
   }
 
@@ -278,6 +338,7 @@ function resolveTeam(options: {
     singleSourceTeam,
     practiceSquad,
     staleSleeper: false,
+    reserveLeftSquad: false,
   };
 }
 
@@ -314,12 +375,17 @@ export async function buildAuthoritativeRosterMap(options?: {
   pendingSameDayCount: number;
   singleSourceCount: number;
   practiceSquadCount: number;
+  reserveLeftSquadCount: number;
 }> {
   const season = defaultEspnSeason();
   const nowMs = Date.now();
-  const [sleeper, weekly, crosswalk] = await Promise.all([
+  const [sleeper, weekly, priorByEspn, crosswalk] = await Promise.all([
     loadSleeperRosterDirectory({ forceRefresh: options?.forceRefresh }),
     loadNflverseWeeklyRoster({ season }),
+    loadNflversePriorSeasonLatestByEspn({
+      season,
+      forceRefresh: options?.forceRefresh,
+    }),
     loadPlayerIdCrosswalk(),
   ]);
 
@@ -339,6 +405,7 @@ export async function buildAuthoritativeRosterMap(options?: {
   let pendingSameDayCount = 0;
   let singleSourceCount = 0;
   let practiceSquadCount = 0;
+  let reserveLeftSquadCount = 0;
 
   const putEntry = (entry: AuthoritativeRosterEntry) => {
     if (entry.sleeperId) bySleeperId.set(entry.sleeperId, entry);
@@ -361,14 +428,26 @@ export async function buildAuthoritativeRosterMap(options?: {
       continue;
     }
 
-    const resolved = resolveTeam({ sleeper: sl, weekly: wk, season, nowMs });
+    const prior =
+      espnId != null ? (priorByEspn.get(espnId) ?? null) : null;
+    const resolved = resolveTeam({
+      sleeper: sl,
+      weekly: wk,
+      priorSeason: prior,
+      season,
+      nowMs,
+    });
     const name = wk?.name || sl.name;
     const position = (wk?.position || sl.position).toUpperCase();
     const gsisId = wk?.gsisId ?? sl.gsisId;
 
     let pickerEligible = false;
     let excludeReason: string | null = null;
-    if (resolved.staleSleeper) {
+    if (resolved.reserveLeftSquad) {
+      pickerEligible = false;
+      excludeReason =
+        "Reserve/Left Squad — under contract, not allowed to play";
+    } else if (resolved.staleSleeper) {
       pickerEligible = false;
       excludeReason =
         "Stale Sleeper roster (pre-2026 news, no current weekly confirmation)";
@@ -395,6 +474,7 @@ export async function buildAuthoritativeRosterMap(options?: {
     if (resolved.pendingSameDay) pendingSameDayCount += 1;
     if (resolved.singleSourceTeam) singleSourceCount += 1;
     if (resolved.practiceSquad) practiceSquadCount += 1;
+    if (resolved.reserveLeftSquad) reserveLeftSquadCount += 1;
 
     putEntry({
       espnId,
@@ -413,6 +493,7 @@ export async function buildAuthoritativeRosterMap(options?: {
       singleSourceTeam: resolved.singleSourceTeam,
       practiceSquad: resolved.practiceSquad,
       staleSleeper: resolved.staleSleeper,
+      reserveLeftSquad: resolved.reserveLeftSquad,
     });
   }
 
@@ -446,6 +527,7 @@ export async function buildAuthoritativeRosterMap(options?: {
       singleSourceTeam: false,
       practiceSquad,
       staleSleeper: false,
+      reserveLeftSquad: false,
     });
     if (practiceSquad) practiceSquadCount += 1;
   }
@@ -480,6 +562,7 @@ export async function buildAuthoritativeRosterMap(options?: {
       singleSourceTeam: false,
       practiceSquad,
       staleSleeper: false,
+      reserveLeftSquad: false,
     });
     if (practiceSquad) practiceSquadCount += 1;
   }
@@ -494,6 +577,7 @@ export async function buildAuthoritativeRosterMap(options?: {
     pendingSameDayCount,
     singleSourceCount,
     practiceSquadCount,
+    reserveLeftSquadCount,
   };
 }
 
@@ -505,6 +589,7 @@ export function applyRosterAuthorityToPool<
     nflTeam: string;
     practiceSquad?: boolean;
     singleSourceTeam?: boolean;
+    reserveLeftSquad?: boolean;
   },
 >(
   players: T[],
@@ -524,6 +609,19 @@ export function applyRosterAuthorityToPool<
       out.push(p);
       continue;
     }
+    // Reserve/Left Squad: keep visible with SF (etc.) label but not pickable.
+    if (auth.reserveLeftSquad && auth.nflTeam !== "FA") {
+      if (cleanTeam(p.nflTeam) !== auth.nflTeam) teamCorrections += 1;
+      out.push({
+        ...p,
+        nflTeam: auth.nflTeam,
+        name: auth.name || p.name,
+        practiceSquad: false,
+        singleSourceTeam: false,
+        reserveLeftSquad: true,
+      });
+      continue;
+    }
     if (!auth.pickerEligible) {
       excluded += 1;
       continue;
@@ -537,6 +635,7 @@ export function applyRosterAuthorityToPool<
       name: auth.name || p.name,
       practiceSquad: auth.practiceSquad,
       singleSourceTeam: auth.singleSourceTeam,
+      reserveLeftSquad: false,
     });
   }
   return { players: out, excluded, teamCorrections };
