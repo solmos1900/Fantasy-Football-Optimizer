@@ -154,6 +154,31 @@ export function chipValue(
   return blended;
 }
 
+/**
+ * Display chip: null when there is no projection and no recent week stats
+ * (avoids fake 0.0 trade values for practice-squad / unscored players).
+ * Pass `knownProj` when Sleeper meta is available so a real 0 overlay is not
+ * confused with a missing projection.
+ */
+export function chipValueOrNull(
+  p: FantasyPlayer,
+  trendsOrOpts?: TrendLookup | ChipValueOptions,
+  knownProj?: number | null,
+): number | null {
+  if (p.reserveLeftSquad) return null;
+  const hasProj =
+    (knownProj != null && Number.isFinite(knownProj)) ||
+    (knownProj === undefined &&
+      typeof p.projectedPoints === "number" &&
+      Number.isFinite(p.projectedPoints) &&
+      p.projectedPoints > 0);
+  const hasRecent = (p.recentWeeks ?? []).some(
+    (w) => typeof w.points === "number" && Number.isFinite(w.points),
+  );
+  if (!hasProj && !hasRecent) return null;
+  return chipValue(p, trendsOrOpts);
+}
+
 export function sideValue(
   players: FantasyPlayer[],
   trends?: TrendLookup,

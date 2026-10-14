@@ -45,7 +45,7 @@ export type ToolPlayerCard = {
   weeks: WeekPointCell[];
   matchup: DvpChip | null;
   sleeperProj: number | null;
-  /** e.g. "Projected 15.3 this week (Sleeper)" */
+  /** e.g. "Projected 15.3 this week" */
   sleeperLine: string;
   /** Last 3 vs season form with fantasy impact. */
   formLine: string | null;
@@ -148,9 +148,70 @@ export function injuryNoteFor(player: FantasyPlayer): string | null {
 
 export function sleeperProjLine(proj: number | null): string {
   if (proj == null || !Number.isFinite(proj)) {
-    return "Projected — this week (Sleeper)";
+    return "No projection this week";
   }
-  return `Projected ${proj.toFixed(1)} this week (Sleeper)`;
+  return `Projected ${proj.toFixed(1)} this week`;
+}
+
+/** Null when no Sleeper projection is available (UI should show —, not 0.0). */
+export function preferredProjOrNull(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): number | null {
+  if (meta?.sleeperByEspnId) {
+    const fromSleeper = meta.sleeperByEspnId[String(player.espnId)];
+    if (fromSleeper != null && Number.isFinite(fromSleeper)) return fromSleeper;
+    // Meta loaded and this player has no Sleeper row → missing
+    return null;
+  }
+  if (
+    typeof player.projectedPoints === "number" &&
+    Number.isFinite(player.projectedPoints) &&
+    player.projectedPoints > 0
+  ) {
+    return player.projectedPoints;
+  }
+  return null;
+}
+
+/** True when recentWeeks has at least one finite scored week. */
+export function hasRecentWeekStats(player: FantasyPlayer): boolean {
+  return (player.recentWeeks ?? []).some(
+    (w) => typeof w.points === "number" && Number.isFinite(w.points),
+  );
+}
+
+/**
+ * Trade-value chips need a real projection and/or 2026 week stats.
+ * Without either, UI must show — (never a fabricated 0.0).
+ */
+export function hasTradeValueInputs(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): boolean {
+  if (player.reserveLeftSquad) return false;
+  return preferredProjOrNull(player, meta) != null || hasRecentWeekStats(player);
+}
+
+/** Why trade value / projection is blank — owner-facing. */
+export function missingValueReason(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): string | null {
+  if (player.reserveLeftSquad) return "Not playing";
+  if (hasTradeValueInputs(player, meta)) return null;
+  return "No projection yet";
+}
+
+/** Owner-facing projection caption (never "Projected —" / fake 0). */
+export function projectionCaption(
+  player: FantasyPlayer,
+  meta?: ToolDisplayMeta | null,
+): string {
+  if (player.reserveLeftSquad) {
+    return "Reserve/Left Squad — not playing";
+  }
+  return sleeperProjLine(preferredProjOrNull(player, meta));
 }
 
 export function dvpMapToRecord(
@@ -247,13 +308,11 @@ export function buildToolPlayerCard(
   const dvpMap = dvpMapFromRecord(meta?.dvpByKey);
   const currentWeek = meta?.currentWeek ?? 1;
   const statsThroughWeek = meta?.statsThroughWeek ?? 0;
+  // Sleeper only — never fall back to ESPN/pool 0 as a labeled projection.
+  const fromMeta = meta?.sleeperByEspnId?.[String(player.espnId)];
   const sleeperProj =
-    meta?.sleeperByEspnId?.[String(player.espnId)] ??
-    (Number.isFinite(player.projectedPoints) ? player.projectedPoints : null);
-  // Prefer labeled Sleeper when present; fall back to pool proj only for strip.
-  const hasSleeper =
-    meta?.sleeperByEspnId?.[String(player.espnId)] != null &&
-    !meta?.sleeperEmpty;
+    fromMeta != null && Number.isFinite(fromMeta) ? fromMeta : null;
+  const hasSleeper = sleeperProj != null && !meta?.sleeperEmpty;
 
   const matchup = dvpForPlayer(dvpMap, player.opponent, player.position);
   const byeThisWeek = (player.opponent ?? "").toUpperCase() === "BYE";
@@ -261,23 +320,23 @@ export function buildToolPlayerCard(
     player,
     currentWeek,
     statsThroughWeek,
-    sleeperProj: hasSleeper
-      ? sleeperProj
-      : meta?.sleeperEmpty
-        ? null
-        : sleeperProj,
+    sleeperProj: hasSleeper ? sleeperProj : null,
   });
 
   // Suppress unused warning — teammate chips rendered by callers
   void teammateImpacts;
+
+  const sleeperLine = hasSleeper
+    ? sleeperProjLine(sleeperProj)
+    : "No projection this week";
 
   return {
     player,
     label: formatPlayerLabel(player.name, player.nflTeam),
     weeks,
     matchup,
-    sleeperProj: hasSleeper ? sleeperProj : sleeperProj,
-    sleeperLine: sleeperProjLine(hasSleeper ? sleeperProj : sleeperProj),
+    sleeperProj: hasSleeper ? sleeperProj : null,
+    sleeperLine,
     formLine: formImpactLine(player),
     injuryTag: injuryTagFor(player.injuryStatus),
     injuryNote: injuryNoteFor(player),
@@ -285,14 +344,27 @@ export function buildToolPlayerCard(
   };
 }
 
-/** Preferred projection for verdict math: Sleeper when known, else pool proj. */
+/**
+ * Preferred projection for verdict math: Sleeper full-PPR only.
+ * Never falls back to ESPN 0 — missing → 0 for ranking (UI shows —).
+ * Pool builders should already overlay Sleeper onto player.projectedPoints.
+ */
 export function preferredProj(
   player: FantasyPlayer,
   meta?: ToolDisplayMeta | null,
 ): number {
   const fromSleeper = meta?.sleeperByEspnId?.[String(player.espnId)];
   if (fromSleeper != null && Number.isFinite(fromSleeper)) return fromSleeper;
-  return player.projectedPoints;
+  // Pool may already carry Sleeper onto projectedPoints (never ESPN after overlay).
+  if (
+    meta == null &&
+    typeof player.projectedPoints === "number" &&
+    Number.isFinite(player.projectedPoints) &&
+    player.projectedPoints > 0
+  ) {
+    return player.projectedPoints;
+  }
+  return 0;
 }
 
 export function positionPlural(position: PlayerPosition): string {

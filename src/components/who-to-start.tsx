@@ -17,6 +17,7 @@ import {
   type WhoToStartVerdict,
 } from "@/lib/insights/who-to-start";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import { RosterStatusChips } from "@/components/roster-status-chips";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
 import { ToolPlayerCard } from "@/components/tool-player-card";
@@ -26,7 +27,11 @@ import {
   hydrateTeammateInjuryIndex,
   type serializeTeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
-import { preferredProj } from "@/lib/insights/tool-display";
+import {
+  preferredProj,
+  preferredProjOrNull,
+  projectionCaption,
+} from "@/lib/insights/tool-display";
 
 export type TrendsProp =
   | Map<number, PlayerTrendView>
@@ -205,9 +210,7 @@ function SinglePlayerSearch({
                     : `No players match “${query.trim()}”.`}
                 </li>
               ) : (
-                suggestions.map((player) => {
-                  const proj = preferredProj(player, toolMeta);
-                  return (
+                suggestions.map((player) => (
                     <li key={player.id} role="option" aria-selected={false}>
                       <button
                         type="button"
@@ -220,6 +223,7 @@ function SinglePlayerSearch({
                             {formatPlayerLabel(player.name, player.nflTeam)}
                           </span>
                             <PositionChip position={player.position} />
+                            <RosterStatusChips player={player} />
                             {player.injuryStatus !== "ACTIVE" && (
                               <span
                                 className={cn(
@@ -232,13 +236,12 @@ function SinglePlayerSearch({
                             )}
                           </div>
                           <div className="mt-0.5 type-caption text-[#C026FF]">
-                            Projected {proj.toFixed(1)} this week (Sleeper)
+                            {projectionCaption(player, toolMeta)}
                           </div>
                         </div>
                       </button>
                     </li>
-                  );
-                })
+                  ))
               )}
             </ul>
           )}
@@ -308,21 +311,29 @@ function VerdictCard({
 
       <div className="mt-5 grid grid-cols-2 gap-3 border-t border-emerald-950/10 pt-4">
         <div>
-          <p className="type-eyebrow text-emerald-950/45">A · Proj (Sleeper)</p>
+          <p className="type-eyebrow text-emerald-950/45">A · Projected</p>
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
-            {result.sideA.projectedPoints.toFixed(1)}
+            {preferredProjOrNull(result.playerA, toolMeta) == null
+              ? "—"
+              : result.sideA.projectedPoints.toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
-            {formatPlayerLabel(result.playerA.name, result.playerA.nflTeam)}
+            {preferredProjOrNull(result.playerA, toolMeta) == null
+              ? "No projection this week"
+              : formatPlayerLabel(result.playerA.name, result.playerA.nflTeam)}
           </p>
         </div>
         <div>
-          <p className="type-eyebrow text-emerald-950/45">B · Proj (Sleeper)</p>
+          <p className="type-eyebrow text-emerald-950/45">B · Projected</p>
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
-            {result.sideB.projectedPoints.toFixed(1)}
+            {preferredProjOrNull(result.playerB, toolMeta) == null
+              ? "—"
+              : result.sideB.projectedPoints.toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
-            {formatPlayerLabel(result.playerB.name, result.playerB.nflTeam)}
+            {preferredProjOrNull(result.playerB, toolMeta) == null
+              ? "No projection this week"
+              : formatPlayerLabel(result.playerB.name, result.playerB.nflTeam)}
           </p>
         </div>
       </div>
@@ -480,7 +491,7 @@ export function WhoToStart({
       )}
 
       <p className="type-body max-w-2xl text-sm text-emerald-950/65">
-        Same position · Sleeper full-PPR proj, form, injury, and matchup.
+        Same position · projection, form, injury, and matchup.
       </p>
 
       {suggestions.length > 0 && (
@@ -496,7 +507,7 @@ export function WhoToStart({
           </p>
           <ul className="flex flex-wrap gap-2">
             {suggestions.map((p) => {
-              const proj = preferredProj(p, toolMeta);
+              const proj = preferredProjOrNull(p, toolMeta);
               return (
                 <li key={p.id}>
                   <button
@@ -513,9 +524,9 @@ export function WhoToStart({
                         {p.isStarter ? "S" : "BN"}
                       </span>
                     )}
-                    {proj > 0 && (
+                    {proj != null && proj > 0 && (
                       <span className="type-caption shrink-0 text-[#C026FF]">
-                        {proj.toFixed(1)} Sleeper
+                        {proj.toFixed(1)}
                       </span>
                     )}
                   </button>

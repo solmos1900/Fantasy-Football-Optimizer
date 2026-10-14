@@ -462,8 +462,8 @@ export function compareWhoToStart(
     sideB.projectedPoints,
   );
   const projReason = projLead
-    ? `Projected this week (Sleeper): ${projLead.leader} ${projLead.leaderVal.toFixed(1)} vs ${projLead.trailer} ${projLead.trailerVal.toFixed(1)} (+${projLead.abs.toFixed(1)} for ${projLead.leader}).`
-    : `Projected this week (Sleeper): ${labelA} ${sideA.projectedPoints.toFixed(1)} vs ${labelB} ${sideB.projectedPoints.toFixed(1)} (even).`;
+    ? `Projected this week: ${projLead.leader} ${projLead.leaderVal.toFixed(1)} vs ${projLead.trailer} ${projLead.trailerVal.toFixed(1)} (+${projLead.abs.toFixed(1)} for ${projLead.leader}).`
+    : `Projected this week: ${labelA} ${sideA.projectedPoints.toFixed(1)} vs ${labelB} ${sideB.projectedPoints.toFixed(1)} (even).`;
 
   const reasons: string[] = [call.summary, projReason];
 

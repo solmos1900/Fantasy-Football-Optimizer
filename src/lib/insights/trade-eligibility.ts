@@ -23,15 +23,31 @@ export function hasCompletedWeekStats(
   );
 }
 
+/**
+ * Selectable when rostered on an NFL team and either has completed-week
+ * stats OR is a practice-squad / single-source roster row (still shown so
+ * users can see PS / second-source labels; projections may be missing).
+ * Reserve/Left Squad is never selectable.
+ */
 export function isTradeSelectablePlayer(player: FantasyPlayer): boolean {
-  return hasNflTeam(player) && hasCompletedWeekStats(player);
+  if (player.reserveLeftSquad) return false;
+  if (!hasNflTeam(player)) return false;
+  if (hasCompletedWeekStats(player)) return true;
+  return Boolean(player.practiceSquad || player.singleSourceTeam);
 }
 
 export function tradeIneligibleReason(player: FantasyPlayer): string | null {
+  if (player.reserveLeftSquad) {
+    return "Reserve/Left Squad — not playing; not selectable for trades.";
+  }
   if (!hasNflTeam(player)) {
     return "No NFL team on file — not selectable for trades.";
   }
-  if (!hasCompletedWeekStats(player)) {
+  if (
+    !hasCompletedWeekStats(player) &&
+    !player.practiceSquad &&
+    !player.singleSourceTeam
+  ) {
     return "No 2026 stats — not selectable for trades.";
   }
   return null;

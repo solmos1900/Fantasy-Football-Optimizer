@@ -41,10 +41,26 @@ export function PoolFreshnessBanner({
           role="alert"
           className="rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
         >
-          Accuracy check failed ({goldenCheck.failureCount} mismatches vs
-          nflverse full-PPR golden sample). First:{" "}
-          {goldenCheck.failures[0] ?? "see cron logs"}.
+          Accuracy check failed ({goldenCheck.failureCount} scoring
+          mismatches). First: {goldenCheck.failures[0] ?? "see logs"}.
         </p>
+      )}
+      {freshness.dataIssueCount != null && freshness.dataIssueCount > 0 && (
+        <div
+          role="alert"
+          className="space-y-1 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+        >
+          <p className="font-semibold">
+            {freshness.dataIssueCount} data issue
+            {freshness.dataIssueCount === 1 ? "" : "s"} for players in this
+            search
+          </p>
+          <ul className="list-inside list-disc text-[13px] leading-snug">
+            {(freshness.dataIssueNotices ?? []).slice(0, 5).map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

@@ -4,24 +4,19 @@
  */
 
 import { gunzipSync } from "node:zlib";
+import { secureFetch, secureFetchText } from "@/lib/http/secure-fetch";
 
 export type CsvRow = Record<string, string>;
 
 export async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, {
-    headers: { Accept: "application/octet-stream,text/csv,*/*" },
-    redirect: "follow",
-  });
-  if (!res.ok) {
-    throw new Error(`nflverse fetch failed ${res.status} for ${url}`);
-  }
-  return res.text();
+  return secureFetchText(url, { timeoutMs: 60_000, retries: 2 });
 }
 
 export async function fetchGunzipText(url: string): Promise<string> {
-  const res = await fetch(url, {
+  const res = await secureFetch(url, {
+    timeoutMs: 90_000,
+    retries: 2,
     headers: { Accept: "application/gzip,application/octet-stream,*/*" },
-    redirect: "follow",
   });
   if (!res.ok) {
     throw new Error(`nflverse fetch failed ${res.status} for ${url}`);

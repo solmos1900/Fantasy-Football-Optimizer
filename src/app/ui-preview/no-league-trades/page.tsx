@@ -60,9 +60,6 @@ export default async function NoLeagueTradesPreviewPage({
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
-      <p className="type-eyebrow mb-4 text-orange-700">
-        UI preview · no-league pool
-      </p>
       <TradesHub
         league={pool.contextLeague}
         you={phantomYou}

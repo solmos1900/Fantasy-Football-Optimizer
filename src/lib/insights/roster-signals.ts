@@ -981,18 +981,18 @@ export async function buildRosterInsightsSignals(
     latestWeekMissing,
     warning: [
       sleeper.emptyFeed
-        ? "Sleeper projections unavailable — Proj cells show — (not ESPN relabeled)."
+        ? "Weekly projections unavailable — showing — where missing."
         : null,
       latestWeekMissing
         ? `Week ${through} completed-week stats are thin or missing — not treating older weeks as current.`
         : null,
       goldenCheck && !goldenCheck.ok
-        ? `Accuracy check failed (${goldenCheck.failureCount}): completed-week full-PPR sample disagrees with nflverse golden fixture.`
+        ? `Accuracy check failed (${goldenCheck.failureCount}): completed-week full-PPR sample disagrees with golden fixtures.`
         : null,
     ]
       .filter(Boolean)
       .join(" "),
-    scoringLabel: "Full PPR (nflverse box score)",
+    scoringLabel: "Full PPR",
   };
 
   return {

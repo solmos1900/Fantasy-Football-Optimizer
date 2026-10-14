@@ -17,6 +17,7 @@
     "verify:insights": "tsx scripts/verify-insights-signals.ts",
     "verify:teammate-injury": "tsx scripts/verify-teammate-injury.ts",
     "verify:golden": "tsx scripts/verify-golden.ts",
+    "verify:pool": "tsx scripts/verify-pool.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
     "seed:golden": "tsx scripts/seed-golden-fixture.ts",
     "ingest:nflverse": "tsx scripts/ingest-nflverse-usage.ts",

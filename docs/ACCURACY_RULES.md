@@ -47,3 +47,7 @@ If a PR violates any rule, it is not merge-ready.
 | 2026-10-13 | Added golden fixture + `verify:golden` CI gate. |
 | 2026-10-13 | Root cause: ESPN `appliedTotal` overwrote nflverse full-PPR (e.g. Burrow W1 8.8 vs 14.16, Swift W1 9.5 vs 32.4). Prefer `nflverse_ppr`; label strips Full PPR (nflverse). Tuesday cron re-validates golden sample + Insights notice. |
 | 2026-10-13 | Fantasy-impact wording rule: every label states what happened + points impact; replaced Opp ↑/↓ jargon and TGT%/AY%/szn/3wk abbreviations. |
+| 2026-10-14 | No-league pool: Sleeper+nflverse roster authority (never FA for rostered players); Sleeper full-PPR proj only (never ESPN 0); DataIssue cross-check + UI notices; `verify:pool`. |
+| 2026-10-14 | Roster identity joins on `sleeper_id` (never name). Team source priority: most recent Sleeper `news_updated` vs nflverse weekly roster week wins. `team_mismatch` DataIssues only for same-day pending moves (UI notice). |
+| 2026-10-14 | Stale pre-2026 Sleeper-only rows → FA/excluded. Same-team nflverse CUT vs Sleeper → DataIssue + exclude. Practice squad (DEV) + Sleeper-only post-cut labels in UI. |
+| 2026-10-14 | Sleeper Active + no current-season nflverse weekly rows: do not trust Sleeper status. Prior-season RES or Sleeper DNR → Reserve/Left Squad (unrosterable, no trade value). Missing proj/trade value → `—` / plain-English reason, never fake 0.0. |

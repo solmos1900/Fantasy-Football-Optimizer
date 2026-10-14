@@ -18,19 +18,24 @@ import {
   comparePlayerPackages,
   type TradeAnalysis,
 } from "@/lib/insights/trade-analyzer";
-import { chipValue } from "@/lib/insights/trade-value";
+import { chipValue, chipValueOrNull } from "@/lib/insights/trade-value";
 import {
   hydrateTeammateInjuryIndex,
   type serializeTeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import { RosterStatusChips } from "@/components/roster-status-chips";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
 import { ToolPlayerCard } from "@/components/tool-player-card";
 import { WeekAxisLegend } from "@/components/insights/week-points-strip";
 import {
   preferredProj,
+  preferredProjOrNull,
+  projectionCaption,
+  missingValueReason,
+  hasTradeValueInputs,
   type ToolDisplayMeta,
 } from "@/lib/insights/tool-display";
 import { impactsForPlayer } from "@/lib/insights/teammate-injury";
@@ -106,10 +111,10 @@ function PlayerPickRow({
   player: FantasyPlayer;
   selected: boolean;
   onToggle: () => void;
-  chip: number;
+  chip: number | null;
   toolMeta?: ToolDisplayMeta | null;
 }) {
-  const proj = preferredProj(player, toolMeta);
+  const missing = missingValueReason(player, toolMeta);
   return (
     <label
       className={cn(
@@ -129,6 +134,7 @@ function PlayerPickRow({
             {formatPlayerLabel(player.name, player.nflTeam)}
           </span>
           <PositionChip position={player.position} />
+          <RosterStatusChips player={player} />
           {player.injuryStatus !== "ACTIVE" && (
             <span
               className={cn(
@@ -141,15 +147,15 @@ function PlayerPickRow({
           )}
         </div>
         <div className="mt-0.5 type-caption text-[#C026FF]">
-          Projected {proj.toFixed(1)} this week (Sleeper)
+          {projectionCaption(player, toolMeta)}
           {player.isStarter ? " · starter" : " · bench"}
         </div>
       </div>
       <div className="text-right type-caption text-emerald-950/50">
         <div className="type-stat text-base leading-none text-emerald-950">
-          {chip.toFixed(1)}
+          {chip == null ? "—" : chip.toFixed(1)}
         </div>
-        <div>val</div>
+        <div>{missing ?? "Trade value"}</div>
       </div>
     </label>
   );
@@ -344,6 +350,7 @@ function PlayerSearchPicker({
                           {formatPlayerLabel(player.name, player.nflTeam)}
                         </span>
                         <PositionChip position={player.position} />
+                        <RosterStatusChips player={player} />
                         {blocked && (
                           <span className="type-caption text-orange-700">
                             On other side
@@ -351,15 +358,22 @@ function PlayerSearchPicker({
                         )}
                       </div>
                       <div className="mt-0.5 type-caption text-[#C026FF]">
-                        Projected {preferredProj(player, toolMeta).toFixed(1)}{" "}
-                        this week (Sleeper)
+                        {projectionCaption(player, toolMeta)}
                       </div>
                     </div>
                     <div className="text-right type-caption text-emerald-950/50">
                       <div className="type-stat text-base leading-none text-emerald-950">
-                        {chipValue(player, trends).toFixed(1)}
+                        {(() => {
+                          if (!hasTradeValueInputs(player, toolMeta)) {
+                            return "—";
+                          }
+                          const chip = chipValueOrNull(player, trends);
+                          return chip == null ? "—" : chip.toFixed(1);
+                        })()}
                       </div>
-                      <div>val</div>
+                      <div>
+                        {missingValueReason(player, toolMeta) ?? "Trade value"}
+                      </div>
                     </div>
                   </button>
                 </li>
@@ -1017,7 +1031,7 @@ export function TradeAnalyzer({
                     player={p}
                     selected={giveIds.has(p.id)}
                     onToggle={() => toggleGive(p.id)}
-                    chip={chipValue(p, trends)}
+                    chip={chipValueOrNull(p, trends)}
                     toolMeta={toolMeta}
                   />
                 ))}
@@ -1114,7 +1128,7 @@ export function TradeAnalyzer({
                     player={p}
                     selected={receiveIds.has(p.id)}
                     onToggle={() => toggleReceive(p.id)}
-                    chip={chipValue(p, trends)}
+                    chip={chipValueOrNull(p, trends)}
                     toolMeta={toolMeta}
                   />
                 ))}
