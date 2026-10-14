@@ -17,7 +17,6 @@ import {
   analyzeTrade,
   comparePlayerPackages,
   type TradeAnalysis,
-  type TradeVerdict,
 } from "@/lib/insights/trade-analyzer";
 import { chipValue } from "@/lib/insights/trade-value";
 import {
@@ -28,6 +27,18 @@ import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { Button } from "@/components/ui/button";
 import { PositionChip } from "@/components/position-chip";
+import { ToolPlayerCard } from "@/components/tool-player-card";
+import { WeekAxisLegend } from "@/components/insights/week-points-strip";
+import {
+  preferredProj,
+  type ToolDisplayMeta,
+} from "@/lib/insights/tool-display";
+import { impactsForPlayer } from "@/lib/insights/teammate-injury";
+import { whoBenefitsCopy } from "@/lib/insights/trade-benefits";
+import {
+  isTradeSelectablePlayer,
+  tradeIneligibleReason,
+} from "@/lib/insights/trade-eligibility";
 
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
@@ -45,14 +56,6 @@ const STEPS: { id: TradeStep; label: string }[] = [
 ];
 
 /** Soft stamp variants — wash + border + tinted text. */
-const VERDICT_STYLE: Record<TradeVerdict, string> = {
-  accept: "stamp-success",
-  lean_accept: "stamp-success",
-  fair: "stamp-sit",
-  lean_reject: "stamp-warning",
-  hard_reject: "stamp-danger",
-};
-
 /** Tab bar clearance: icon row (~3.75rem) + max(0.75rem, safe-area) + optional install banner. */
 const TAB_BAR_BOTTOM =
   "bottom-[calc(3.75rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--install-banner-offset,0px))]";
@@ -76,47 +79,17 @@ function toTrendMap(
 
 function playerNames(players: FantasyPlayer[]): string {
   if (!players.length) return "None selected";
-  return players.map((p) => p.name).join(" + ");
-}
-
-function shortRejectReason(analysis: TradeAnalysis): string {
-  if (analysis.hardRejectReasons.length > 0) {
-    return analysis.hardRejectReasons[0];
-  }
-  return analysis.whyAcceptedOrNot || analysis.summary;
-}
-
-function whoBenefitsCopy(
-  analysis: TradeAnalysis,
-  mode: TradeMode,
-): { headline: string; detail: string } {
-  const gap = analysis.valueGap;
-
-  if (Math.abs(gap) < 0.5) {
-    return {
-      headline: "Roughly even",
-      detail:
-        mode === "team"
-          ? "You and your partner swap about the same value."
-          : "Both sides swap about the same value.",
-    };
-  }
-  if (gap > 0) {
-    return {
-      headline: mode === "team" ? "You win this deal" : "Side A wins this deal",
-      detail: `Ahead by ${gap.toFixed(1)} points of value.`,
-    };
-  }
-  return {
-    headline: mode === "team" ? "They win this deal" : "Side B wins this deal",
-    detail: `Ahead by ${Math.abs(gap).toFixed(1)} points of value.`,
-  };
+  return players
+    .map((p) => formatPlayerLabel(p.name, p.nflTeam))
+    .join(" + ");
 }
 
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return false;
+  const label = formatPlayerLabel(player.name, player.nflTeam).toLowerCase();
   return (
+    label.includes(q) ||
     player.name.toLowerCase().includes(q) ||
     player.nflTeam.toLowerCase().includes(q) ||
     player.position.toLowerCase().includes(q)
@@ -128,12 +101,15 @@ function PlayerPickRow({
   selected,
   onToggle,
   chip,
+  toolMeta,
 }: {
   player: FantasyPlayer;
   selected: boolean;
   onToggle: () => void;
   chip: number;
+  toolMeta?: ToolDisplayMeta | null;
 }) {
+  const proj = preferredProj(player, toolMeta);
   return (
     <label
       className={cn(
@@ -149,13 +125,10 @@ function PlayerPickRow({
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium text-emerald-950">
-            {player.name}
+          <span className="break-words font-medium text-emerald-950">
+            {formatPlayerLabel(player.name, player.nflTeam)}
           </span>
           <PositionChip position={player.position} />
-          <span className="type-caption text-emerald-950/50">
-            {player.nflTeam}
-          </span>
           {player.injuryStatus !== "ACTIVE" && (
             <span
               className={cn(
@@ -167,8 +140,8 @@ function PlayerPickRow({
             </span>
           )}
         </div>
-        <div className="mt-0.5 type-caption text-emerald-950/45">
-          proj {player.projectedPoints.toFixed(1)}
+        <div className="mt-0.5 type-caption text-[#C026FF]">
+          Projected {proj.toFixed(1)} this week (Sleeper)
           {player.isStarter ? " · starter" : " · bench"}
         </div>
       </div>
@@ -194,6 +167,7 @@ function PlayerSearchPicker({
   onRemove,
   trends,
   inputLabel,
+  toolMeta,
 }: {
   pool: FantasyPlayer[];
   selectedIds: Set<string>;
@@ -203,6 +177,7 @@ function PlayerSearchPicker({
   onRemove: (id: string) => void;
   trends?: Map<number, PlayerTrendView>;
   inputLabel: string;
+  toolMeta?: ToolDisplayMeta | null;
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -222,8 +197,22 @@ function PlayerSearchPicker({
     return pool
       .filter((p) => !selectedIds.has(p.id))
       .filter((p) => matchesPlayerQuery(p, q))
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)
+      .filter((p) => isTradeSelectablePlayer(p))
+      .sort(
+        (a, b) =>
+          preferredProj(b, toolMeta) - preferredProj(a, toolMeta),
+      )
       .slice(0, 8);
+  }, [pool, query, selectedIds, toolMeta]);
+
+  const ineligibleMatches = useMemo(() => {
+    const q = query.trim();
+    if (q.length < 1) return [];
+    return pool
+      .filter((p) => !selectedIds.has(p.id))
+      .filter((p) => matchesPlayerQuery(p, q))
+      .filter((p) => !isTradeSelectablePlayer(p))
+      .slice(0, 4);
   }, [pool, query, selectedIds]);
 
   useEffect(() => {
@@ -238,6 +227,7 @@ function PlayerSearchPicker({
 
   function pick(player: FantasyPlayer) {
     if (blockedIds.has(player.id)) return;
+    if (!isTradeSelectablePlayer(player)) return;
     onSelect(player.id);
     setQuery("");
     setOpen(false);
@@ -253,9 +243,11 @@ function PlayerSearchPicker({
                 type="button"
                 onClick={() => onRemove(player.id)}
                 className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-orange-700/25 bg-orange-50 px-2.5 py-1.5 text-left text-sm font-medium text-emerald-950 transition hover:border-orange-700/45"
-                aria-label={`Remove ${player.name}`}
+                aria-label={`Remove ${formatPlayerLabel(player.name, player.nflTeam)}`}
               >
-                <span className="truncate">{player.name}</span>
+                <span className="break-words">
+                  {formatPlayerLabel(player.name, player.nflTeam)}
+                </span>
                 <PositionChip position={player.position} />
                 <X
                   className="h-3.5 w-3.5 shrink-0 text-emerald-950/50"
@@ -316,7 +308,19 @@ function PlayerSearchPicker({
         >
           {suggestions.length === 0 ? (
             <li className="px-3 py-3 type-body text-sm text-emerald-950/55">
-              No players match “{query.trim()}”.
+              {ineligibleMatches.length > 0 ? (
+                <span>
+                  No selectable match for “{query.trim()}”.{" "}
+                  {ineligibleMatches.map((p) => (
+                    <span key={p.id} className="block mt-1 text-orange-800">
+                      {formatPlayerLabel(p.name, p.nflTeam)}:{" "}
+                      {tradeIneligibleReason(p)}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <>No players match “{query.trim()}”.</>
+              )}
             </li>
           ) : (
             suggestions.map((player) => {
@@ -336,21 +340,19 @@ function PlayerSearchPicker({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-medium text-emerald-950">
-                          {player.name}
+                        <span className="font-medium text-emerald-950 break-words">
+                          {formatPlayerLabel(player.name, player.nflTeam)}
                         </span>
                         <PositionChip position={player.position} />
-                        <span className="type-caption text-emerald-950/50">
-                          {player.nflTeam}
-                        </span>
                         {blocked && (
                           <span className="type-caption text-orange-700">
                             On other side
                           </span>
                         )}
                       </div>
-                      <div className="mt-0.5 type-caption text-emerald-950/45">
-                        proj {player.projectedPoints.toFixed(1)}
+                      <div className="mt-0.5 type-caption text-[#C026FF]">
+                        Projected {preferredProj(player, toolMeta).toFixed(1)}{" "}
+                        this week (Sleeper)
                       </div>
                     </div>
                     <div className="text-right type-caption text-emerald-950/50">
@@ -514,15 +516,31 @@ function StickyStepActions({ children }: { children: ReactNode }) {
 function LeanResultsCard({
   analysis,
   mode,
+  give,
+  receive,
+  toolMeta,
+  teammateInjury,
 }: {
   analysis: TradeAnalysis;
   mode: TradeMode;
+  give: FantasyPlayer[];
+  receive: FantasyPlayer[];
+  toolMeta?: ToolDisplayMeta | null;
+  teammateInjury?: ReturnType<typeof hydrateTeammateInjuryIndex>;
 }) {
-  const reason = shortRejectReason(analysis);
-  const benefit = whoBenefitsCopy(analysis, mode);
+  const benefit = whoBenefitsCopy(
+    analysis.valueGap,
+    mode,
+    analysis.giveValue,
+    analysis.receiveValue,
+  );
   const giveLabel = mode === "team" ? "You give" : "Side A";
   const getLabel = mode === "team" ? "You get" : "Side B";
   const [openImpact, setOpenImpact] = useState<string | null>(null);
+  // Structural hard-reject rules only (not value-gap copy — that is the headline).
+  const structuralReject = analysis.hardRejectReasons.find(
+    (r) => !/too far apart|value|chip/i.test(r),
+  );
 
   return (
     <article
@@ -537,13 +555,45 @@ function LeanResultsCard({
               : "border-l-success",
       )}
     >
-      <span
-        className={cn("stamp animate-stamp", VERDICT_STYLE[analysis.verdict])}
-      >
-        {analysis.verdictLabel}
-      </span>
+      <h2 className="type-section text-emerald-950">{benefit.headline}</h2>
+      {structuralReject && (
+        <p className="type-body mt-2 text-sm text-emerald-950/70">
+          {structuralReject}
+        </p>
+      )}
 
-      <p className="type-body mt-3 text-emerald-950/80">{reason}</p>
+      {toolMeta && (
+        <div className="mt-2">
+          <WeekAxisLegend weekAxis={toolMeta.weekAxis} />
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-1 gap-4">
+        <div className="w-full space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
+          <p className="type-eyebrow text-emerald-950/45">{giveLabel}</p>
+          {give.map((p) => (
+            <ToolPlayerCard
+              key={`give-${p.id}`}
+              player={p}
+              toolMeta={toolMeta}
+              teammateImpacts={impactsForPlayer(teammateInjury, p.espnId)}
+              maxPts={toolMeta?.maxPts}
+            />
+          ))}
+        </div>
+        <div className="w-full space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
+          <p className="type-eyebrow text-emerald-950/45">{getLabel}</p>
+          {receive.map((p) => (
+            <ToolPlayerCard
+              key={`recv-${p.id}`}
+              player={p}
+              toolMeta={toolMeta}
+              teammateImpacts={impactsForPlayer(teammateInjury, p.espnId)}
+              maxPts={toolMeta?.maxPts}
+            />
+          ))}
+        </div>
+      </div>
 
       {analysis.teammateImpacts.length > 0 && (
         <div className="mt-3 space-y-1.5">
@@ -597,37 +647,23 @@ function LeanResultsCard({
 
       <div className="mt-5 grid grid-cols-3 gap-3 border-t border-emerald-950/10 pt-4">
         <div>
-          <p className="type-eyebrow text-emerald-950/45">{giveLabel}</p>
+          <p className="type-eyebrow text-emerald-950/45">{giveLabel} value</p>
           <p className="type-stat mt-1 text-2xl text-emerald-950 sm:text-3xl">
             {analysis.giveValue.toFixed(1)}
           </p>
         </div>
         <div>
-          <p className="type-eyebrow text-emerald-950/45">{getLabel}</p>
+          <p className="type-eyebrow text-emerald-950/45">{getLabel} value</p>
           <p className="type-stat mt-1 text-2xl text-emerald-950 sm:text-3xl">
             {analysis.receiveValue.toFixed(1)}
           </p>
         </div>
         <div>
           <p className="type-eyebrow text-emerald-950/45">Difference</p>
-          <p
-            className={cn(
-              "type-stat mt-1 text-2xl sm:text-3xl",
-              analysis.valueGap >= 0 ? "text-emerald-700" : "text-orange-700",
-            )}
-          >
-            {analysis.valueGap >= 0 ? "+" : ""}
-            {analysis.valueGap.toFixed(1)}
+          <p className="type-stat mt-1 text-xl text-emerald-950 sm:text-2xl">
+            {benefit.differenceLabel}
           </p>
         </div>
-      </div>
-
-      <div className="mt-5 border-t border-emerald-950/10 pt-4">
-        <p className="type-eyebrow text-emerald-950/45">Who benefits</p>
-        <p className="type-section mt-1 text-emerald-950">{benefit.headline}</p>
-        <p className="type-body mt-1 text-sm text-emerald-950/65">
-          {benefit.detail}
-        </p>
       </div>
     </article>
   );
@@ -644,6 +680,7 @@ export function TradeAnalyzer({
   isDemo,
   forceFreeMode = false,
   teammateInjury: teammateInjuryProp,
+  toolMeta,
 }: {
   you: FantasyTeam;
   partners: FantasyTeam[];
@@ -657,6 +694,7 @@ export function TradeAnalyzer({
   /** No-league users: lock to player-vs-player (no team trade packages). */
   forceFreeMode?: boolean;
   teammateInjury?: ReturnType<typeof serializeTeammateInjuryIndex>;
+  toolMeta?: ToolDisplayMeta | null;
 }) {
   const trends = useMemo(() => toTrendMap(trendsProp), [trendsProp]);
   const teammateInjury = useMemo(
@@ -980,6 +1018,7 @@ export function TradeAnalyzer({
                     selected={giveIds.has(p.id)}
                     onToggle={() => toggleGive(p.id)}
                     chip={chipValue(p, trends)}
+                    toolMeta={toolMeta}
                   />
                 ))}
               </div>
@@ -993,6 +1032,7 @@ export function TradeAnalyzer({
                   onRemove={removeGive}
                   trends={trends}
                   inputLabel="Search Side A"
+                  toolMeta={toolMeta}
                 />
               </div>
             )}
@@ -1075,6 +1115,7 @@ export function TradeAnalyzer({
                     selected={receiveIds.has(p.id)}
                     onToggle={() => toggleReceive(p.id)}
                     chip={chipValue(p, trends)}
+                    toolMeta={toolMeta}
                   />
                 ))}
               </div>
@@ -1088,6 +1129,7 @@ export function TradeAnalyzer({
                   onRemove={removeReceive}
                   trends={trends}
                   inputLabel="Search Side B"
+                  toolMeta={toolMeta}
                 />
               </div>
             )}
@@ -1133,7 +1175,14 @@ export function TradeAnalyzer({
             />
           </div>
 
-          <LeanResultsCard analysis={analysis} mode={mode} />
+          <LeanResultsCard
+            analysis={analysis}
+            mode={mode}
+            give={give}
+            receive={receive}
+            toolMeta={toolMeta}
+            teammateInjury={teammateInjury}
+          />
 
           <div className="flex flex-wrap items-center gap-3 border-t border-emerald-950/10 pt-4">
             <Button

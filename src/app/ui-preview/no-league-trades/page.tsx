@@ -1,12 +1,21 @@
 import { TradesHub } from "@/components/trades-hub";
 import { getNoLeaguePlayerPool } from "@/lib/players/pool";
+import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
+import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import type { FantasyTeam } from "@/lib/types";
+import type { TradesTool } from "@/components/trades-hub";
 
 /**
  * Auth-free preview for screenshot / QA of no-league Trade Analyzer
- * freshness (Stats through Week N · updated X min ago).
+ * and Who to Start (Insights-parity labels, PPR strips, DVP, freshness).
+ *
+ * ?tool=who-to-start | analyzer
  */
-export default async function NoLeagueTradesPreviewPage() {
+export default async function NoLeagueTradesPreviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tool?: string }>;
+}) {
   const allowed =
     process.env.NODE_ENV === "development" ||
     process.env.NEXT_PUBLIC_ALLOW_UI_PREVIEW === "1";
@@ -18,6 +27,12 @@ export default async function NoLeagueTradesPreviewPage() {
       </main>
     );
   }
+
+  const params = await searchParams;
+  const initialTool: TradesTool =
+    params.tool === "who-to-start" || params.tool === "start"
+      ? "who-to-start"
+      : "analyzer";
 
   const pool = await getNoLeaguePlayerPool();
   const phantomYou: FantasyTeam = {
@@ -35,9 +50,19 @@ export default async function NoLeagueTradesPreviewPage() {
     isCurrentUser: true,
   };
 
+  const [teammateInjury, toolMeta] = await Promise.all([
+    buildTradeTeammateInjuryIndex(pool.players, pool.freshness.season),
+    loadToolDisplayMeta({
+      season: pool.freshness.season,
+      players: pool.players,
+    }),
+  ]);
+
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
-      <p className="type-eyebrow mb-4 text-orange-700">UI preview · no-league pool</p>
+      <p className="type-eyebrow mb-4 text-orange-700">
+        UI preview · no-league pool
+      </p>
       <TradesHub
         league={pool.contextLeague}
         you={phantomYou}
@@ -47,7 +72,9 @@ export default async function NoLeagueTradesPreviewPage() {
         isDemo={false}
         noLeague
         freshness={pool.freshness}
-        initialTool="analyzer"
+        initialTool={initialTool}
+        teammateInjury={teammateInjury}
+        toolMeta={toolMeta}
       />
     </main>
   );

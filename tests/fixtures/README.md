@@ -8,13 +8,24 @@
 ## Modes
 
 - **`stub`** — structure only; CI exits 0.
-- **`assert`** — compare non-null fields to `PlayerWeekStat` (`leagueId=""`). Prefer `nflverse_ppr` over ESPN `appliedTotal`.
+- **`assert`** — compare non-null fields to `PlayerWeekStat` (`leagueId=""`). Prefer `nflverse_ppr` over ESPN `appliedTotal`. Also checks Who to Start / Trade Analyzer tool outputs for fixture players tagged with those surfaces.
 
 ## Fields
 
 - `expected.nflTeam`
 - `expected.opponent` (optional current-week label)
 - `expected.weeks[]`: `week`, `actualPpr`, `targets`, `carries`, `opponent`
+- `surfaces[]` (optional per player): `insights` | `who-to-start` | `trade`
+
+## Tool surface asserts (Who to Start / Trade)
+
+When `mode=assert`, for fixture players on `who-to-start` / `trade`:
+
+- Full name + NFL team label (`Name (TEAM)`)
+- Week PPR strip cells match fixture `actualPpr` (same `weekCellsFromPlayer` path the UI uses)
+- Who to Start verdict `edge` equals the projection gap (not a defense-sample average)
+- No banned jargon in reasons (`Opp`, `TGT%`, `szn`, `3wk`)
+- Trade Analyzer facts include full name+team; `valueGap` matches receive−give
 
 Tolerances: PPR ±0.06; targets/carries exact; opponent abbrevs case-insensitive (`@HOU` ≡ `HOU`).
 

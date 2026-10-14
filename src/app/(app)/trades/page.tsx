@@ -7,6 +7,7 @@ import {
 } from "@/lib/insights/trends";
 import { getNoLeaguePlayerPool } from "@/lib/players/pool";
 import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
+import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import { TradesHub } from "@/components/trades-hub";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 
@@ -48,10 +49,13 @@ export default async function TradesPage({
       roster: [],
       isCurrentUser: true,
     };
-    const teammateInjury = await buildTradeTeammateInjuryIndex(
-      pool.players,
-      pool.freshness.season,
-    );
+    const [teammateInjury, toolMeta] = await Promise.all([
+      buildTradeTeammateInjuryIndex(pool.players, pool.freshness.season),
+      loadToolDisplayMeta({
+        season: pool.freshness.season,
+        players: pool.players,
+      }),
+    ]);
 
     return (
       <TradesHub
@@ -65,6 +69,7 @@ export default async function TradesPage({
         freshness={pool.freshness}
         initialTool={initialTool}
         teammateInjury={teammateInjury}
+        toolMeta={toolMeta}
       />
     );
   }
@@ -112,17 +117,32 @@ export default async function TradesPage({
     if (!poolById.has(player.id)) poolById.set(player.id, player);
   }
 
-  const teammateInjury = await buildTradeTeammateInjuryIndex(
-    [...poolById.values()],
-    league.season,
-  );
+  const poolPlayers = [...poolById.values()];
+  const [teammateInjury, toolMeta] = await Promise.all([
+    buildTradeTeammateInjuryIndex(poolPlayers, league.season),
+    loadToolDisplayMeta({ season: league.season, players: poolPlayers }),
+  ]);
+
+  // League-mode freshness from tool meta week snapshot + league sync.
+  const freshness = {
+    season: league.season,
+    currentWeek: toolMeta.currentWeek,
+    statsThroughWeek: toolMeta.statsThroughWeek,
+    statsUpdatedAt: league.lastSyncedAt ?? null,
+    projectionsUpdatedAt: toolMeta.sleeperEmpty ? null : new Date().toISOString(),
+    latestWeekMissing: false,
+    warning: toolMeta.sleeperEmpty
+      ? "Sleeper projections unavailable — Proj cells show — (not ESPN relabeled)."
+      : null,
+    scoringLabel: "Full PPR (nflverse box score)",
+  };
 
   return (
     <TradesHub
       league={league}
       you={you}
       partners={partners}
-      poolPlayers={[...poolById.values()]}
+      poolPlayers={poolPlayers}
       trends={trendsByEspnId}
       initialPartnerId={
         partnerId != null && !Number.isNaN(partnerId) ? partnerId : undefined
@@ -131,8 +151,10 @@ export default async function TradesPage({
       initialReceiveIds={receiveIds}
       isDemo={false}
       noLeague={false}
+      freshness={freshness}
       initialTool={initialTool}
       teammateInjury={teammateInjury}
+      toolMeta={toolMeta}
     />
   );
 }
