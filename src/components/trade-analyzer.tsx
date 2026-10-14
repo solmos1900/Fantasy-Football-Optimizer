@@ -577,9 +577,9 @@ function LeanResultsCard({
       <p className="type-body mt-3 text-emerald-950/80">{reason}</p>
 
       {toolMeta && (
-        <p className="mt-2">
+        <div className="mt-2">
           <WeekAxisLegend weekAxis={toolMeta.weekAxis} />
-        </p>
+        </div>
       )}
 
       <div className="mt-4 grid grid-cols-1 gap-4">

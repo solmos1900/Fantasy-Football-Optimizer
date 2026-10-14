@@ -276,9 +276,9 @@ function VerdictCard({
       <p className="type-body mt-2 text-emerald-950/80">{result.summary}</p>
 
       {toolMeta && (
-        <p className="mt-2">
+        <div className="mt-2">
           <WeekAxisLegend weekAxis={toolMeta.weekAxis} />
-        </p>
+        </div>
       )}
 
       <div className="mt-5 grid grid-cols-1 gap-4 border-t border-emerald-950/10 pt-4">
