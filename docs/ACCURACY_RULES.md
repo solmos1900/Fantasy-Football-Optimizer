@@ -5,7 +5,7 @@ If a PR violates any rule, it is not merge-ready.
 
 ## Display
 
-1. **Full name + NFL team always** — chips, tap details, Roster Pulse, Waiver Watch, trade cards. Never last-only (`Brown`), suffix-only (`III`), or position-rank (`WR2`, `RB1`). **Every chip anywhere must name the subject player + team** (Roster Pulse included), e.g. `Tetairoa McMillan (CAR): ↑ getting 41% of team targets (up from 22%): more catches`, `Woody Marks (HOU): ↑ More touches: David Montgomery (HOU) out`.
+1. **Full name + NFL team always** — chips, tap details, Roster Pulse, Waiver Watch, trade cards, Who to Start. Never last-only (`Brown`), suffix-only (`III`), bare name without team, or position-rank (`WR2`, `RB1`). Free agents use `(FA)`. **Every chip anywhere must name the subject player + team** (Roster Pulse included), e.g. `Tetairoa McMillan (CAR): ↑ getting 41% of team targets (up from 22%): more catches`, `Woody Marks (HOU): ↑ More touches: David Montgomery (HOU) out`, `Jermar Jefferson (FA)`.
 2. **Freshness label** — always show `Stats through Week N · updated …` and current NFL week. Guests/no-league get the same pattern as connected tools.
 3. **Fantasy-impact wording (strong)** — every metric and label must state its **direct fantasy impact**. No one should need context clues. Pattern: **what happened + what it means for this player's points**, in a few words. Numbers stay visible. No jargon or abbreviations (`Opp ↑/↓`, `TGT%`, `AY%`, `CAR+TGT`, `szn`, `3wk`).
    - Good: `↑ Getting 25% of team targets (up from 21%): more catches`
