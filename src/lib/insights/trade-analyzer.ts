@@ -26,6 +26,8 @@ import {
   type TeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import { bothSidesHaveValue } from "@/lib/insights/trade-benefits";
+import { isTradeSelectablePlayer } from "@/lib/insights/trade-eligibility";
 
 export type TradeVerdict =
   | "accept"
@@ -200,6 +202,8 @@ export function analyzeTrade(
   const deltaMap = teammateInjury?.chipDeltaByEspnId;
   const giveValue = sideValue(give, trends, deltaMap);
   const receiveValue = sideValue(receive, trends, deltaMap);
+  // Never show a verdict when either side grades at ~0 chip value.
+  if (!bothSidesHaveValue(giveValue, receiveValue)) return null;
   const valueGap = receiveValue - giveValue;
   const rejects = hardRejectReasons(give, receive, trends);
   const hardRejected = rejects.length > 0;
@@ -343,10 +347,17 @@ export function comparePlayerPackages(
   teammateInjury?: TeammateInjuryIndex | null,
 ): TradeAnalysis | null {
   if (!sideA.length || !sideB.length) return null;
+  if (
+    !sideA.every(isTradeSelectablePlayer) ||
+    !sideB.every(isTradeSelectablePlayer)
+  ) {
+    return null;
+  }
 
   const deltaMap = teammateInjury?.chipDeltaByEspnId;
   const giveValue = sideValue(sideA, trends, deltaMap);
   const receiveValue = sideValue(sideB, trends, deltaMap);
+  if (!bothSidesHaveValue(giveValue, receiveValue)) return null;
   const valueGap = receiveValue - giveValue;
   const rejects = hardRejectReasons(sideA, sideB, trends);
   const hardRejected = rejects.length > 0;

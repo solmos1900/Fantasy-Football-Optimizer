@@ -22,8 +22,8 @@ function dvpTone(tier: DvpChip["tier"]): string {
 
 /**
  * Insights-parity player panel for Trade Analyzer / Who to Start:
- * full name + team, week PPR strip, labeled Sleeper proj, DVP matchup,
- * injury + teammate-injury tags.
+ * full name + team always visible (no truncate), week PPR strip,
+ * labeled Sleeper proj, DVP matchup, injury + teammate-injury tags.
  */
 export function ToolPlayerCard({
   player,
@@ -48,73 +48,73 @@ export function ToolPlayerCard({
   );
 
   return (
-    <div className={cn("min-w-0", !compact && "space-y-2")}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <PositionChip position={player.position} />
-            <p className="truncate text-sm font-semibold text-emerald-950">
-              {card.label}
-            </p>
-            {card.injuryTag && (
-              <span
-                className={cn(
-                  "rounded px-1 py-px text-[9px] font-bold uppercase",
-                  statusColor(player.injuryStatus),
-                )}
-              >
-                {card.injuryTag}
-              </span>
+    <div className={cn("w-full space-y-2", compact && "space-y-1.5")}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <PositionChip position={player.position} />
+        <h3 className="text-sm font-semibold leading-snug text-emerald-950 break-words">
+          {card.label}
+        </h3>
+        {card.injuryTag && (
+          <span
+            className={cn(
+              "rounded px-1 py-px text-[9px] font-bold uppercase",
+              statusColor(player.injuryStatus),
             )}
-            {card.byeThisWeek && (
-              <span className="rounded border border-info/35 px-1 py-px text-[9px] font-bold uppercase text-info">
-                Bye
-              </span>
-            )}
-          </div>
-          {card.formLine && (
-            <p className="mt-1 text-[11px] text-emerald-950/55">{card.formLine}</p>
-          )}
-        </div>
-        <div className="flex max-w-[14rem] flex-col items-end gap-1 sm:max-w-[18rem]">
-          {card.matchup ? (
-            <span
-              className={cn(
-                "rounded border px-1.5 py-0.5 text-right text-[10px] font-semibold leading-snug",
-                dvpTone(card.matchup.tier),
-              )}
-              title={card.matchup.label}
-            >
-              {card.matchup.label}
-            </span>
-          ) : card.byeThisWeek ? (
-            <span className="rounded border border-info/35 px-1.5 py-0.5 text-[10px] font-semibold text-info">
-              On bye: scores 0 this week
-            </span>
-          ) : player.opponent ? (
-            <span className="rounded border border-emerald-950/20 px-1.5 py-0.5 text-[10px] text-emerald-950/55">
-              {player.opponent}: matchup rank unknown
-            </span>
-          ) : (
-            <span className="rounded border border-emerald-950/15 px-1.5 py-0.5 text-[10px] text-emerald-950/35">
-              Opponent TBD
-            </span>
-          )}
-          <span className="text-[10px] tabular-nums text-[#C026FF]">
-            {card.sleeperLine}
+          >
+            {card.injuryTag}
           </span>
-          {trailing}
-        </div>
+        )}
+        {card.byeThisWeek && (
+          <span className="rounded border border-info/35 px-1 py-px text-[9px] font-bold uppercase text-info">
+            Bye
+          </span>
+        )}
+      </div>
+
+      {card.formLine && (
+        <p className="text-[11px] leading-snug text-emerald-950/55 break-words">
+          {card.formLine}
+        </p>
+      )}
+
+      <div className="flex flex-col items-start gap-1">
+        {card.matchup ? (
+          <span
+            className={cn(
+              "max-w-full rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold leading-snug break-words",
+              dvpTone(card.matchup.tier),
+            )}
+            title={card.matchup.label}
+          >
+            {card.matchup.label}
+          </span>
+        ) : card.byeThisWeek ? (
+          <span className="rounded border border-info/35 px-1.5 py-0.5 text-[10px] font-semibold text-info">
+            On bye: scores 0 this week
+          </span>
+        ) : player.opponent ? (
+          <span className="rounded border border-emerald-950/20 px-1.5 py-0.5 text-[10px] text-emerald-950/55">
+            {player.opponent}: matchup rank unknown
+          </span>
+        ) : (
+          <span className="rounded border border-emerald-950/15 px-1.5 py-0.5 text-[10px] text-emerald-950/35">
+            Opponent TBD
+          </span>
+        )}
+        <span className="text-[10px] tabular-nums text-[#C026FF]">
+          {card.sleeperLine}
+        </span>
+        {trailing}
       </div>
 
       {!compact && card.weeks.length > 0 && (
-        <div className="mt-2 overflow-x-auto">
+        <div className="overflow-x-auto">
           <WeekPointsStrip weeks={card.weeks} maxPts={scale} />
         </div>
       )}
 
       {teammateImpacts.length > 0 && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {teammateImpacts.map((imp) => {
             const key = String(imp.teammateEspnId);
             const who = formatPlayerLabel(player.name, player.nflTeam);
@@ -127,7 +127,7 @@ export function ToolPlayerCard({
                   setOpenImpact((k) => (k === key ? null : key))
                 }
                 className={cn(
-                  "max-w-full rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold leading-snug",
+                  "max-w-full rounded border px-1.5 py-0.5 text-left text-[10px] font-semibold leading-snug break-words",
                   imp.tone === "good" && "border-success/40 text-success",
                   imp.tone === "warn" && "border-warning/40 text-warning",
                   imp.tone === "bad" && "border-danger/40 text-danger",
@@ -139,7 +139,7 @@ export function ToolPlayerCard({
             );
           })}
           {detail && (
-            <span className="basis-full text-[10px] leading-snug text-emerald-950/60">
+            <span className="basis-full text-[10px] leading-snug text-emerald-950/60 break-words">
               {detail.detail}
             </span>
           )}

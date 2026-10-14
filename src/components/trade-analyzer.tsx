@@ -35,6 +35,11 @@ import {
   type ToolDisplayMeta,
 } from "@/lib/insights/tool-display";
 import { impactsForPlayer } from "@/lib/insights/teammate-injury";
+import { whoBenefitsCopy } from "@/lib/insights/trade-benefits";
+import {
+  isTradeSelectablePlayer,
+  tradeIneligibleReason,
+} from "@/lib/insights/trade-eligibility";
 
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
@@ -93,33 +98,6 @@ function shortRejectReason(analysis: TradeAnalysis): string {
     return analysis.hardRejectReasons[0];
   }
   return analysis.whyAcceptedOrNot || analysis.summary;
-}
-
-function whoBenefitsCopy(
-  analysis: TradeAnalysis,
-  mode: TradeMode,
-): { headline: string; detail: string } {
-  const gap = analysis.valueGap;
-
-  if (Math.abs(gap) < 0.5) {
-    return {
-      headline: "Roughly even",
-      detail:
-        mode === "team"
-          ? "You and your partner swap about the same value."
-          : "Both sides swap about the same value.",
-    };
-  }
-  if (gap > 0) {
-    return {
-      headline: mode === "team" ? "You win this deal" : "Side A wins this deal",
-      detail: `Ahead by ${gap.toFixed(1)} points of value.`,
-    };
-  }
-  return {
-    headline: mode === "team" ? "They win this deal" : "Side B wins this deal",
-    detail: `Ahead by ${Math.abs(gap).toFixed(1)} points of value.`,
-  };
 }
 
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
@@ -235,12 +213,23 @@ function PlayerSearchPicker({
     return pool
       .filter((p) => !selectedIds.has(p.id))
       .filter((p) => matchesPlayerQuery(p, q))
+      .filter((p) => isTradeSelectablePlayer(p))
       .sort(
         (a, b) =>
           preferredProj(b, toolMeta) - preferredProj(a, toolMeta),
       )
       .slice(0, 8);
   }, [pool, query, selectedIds, toolMeta]);
+
+  const ineligibleMatches = useMemo(() => {
+    const q = query.trim();
+    if (q.length < 1) return [];
+    return pool
+      .filter((p) => !selectedIds.has(p.id))
+      .filter((p) => matchesPlayerQuery(p, q))
+      .filter((p) => !isTradeSelectablePlayer(p))
+      .slice(0, 4);
+  }, [pool, query, selectedIds]);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -254,6 +243,7 @@ function PlayerSearchPicker({
 
   function pick(player: FantasyPlayer) {
     if (blockedIds.has(player.id)) return;
+    if (!isTradeSelectablePlayer(player)) return;
     onSelect(player.id);
     setQuery("");
     setOpen(false);
@@ -334,7 +324,19 @@ function PlayerSearchPicker({
         >
           {suggestions.length === 0 ? (
             <li className="px-3 py-3 type-body text-sm text-emerald-950/55">
-              No players match “{query.trim()}”.
+              {ineligibleMatches.length > 0 ? (
+                <span>
+                  No selectable match for “{query.trim()}”.{" "}
+                  {ineligibleMatches.map((p) => (
+                    <span key={p.id} className="block mt-1 text-orange-800">
+                      {formatPlayerLabel(p.name, p.nflTeam)}:{" "}
+                      {tradeIneligibleReason(p)}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <>No players match “{query.trim()}”.</>
+              )}
             </li>
           ) : (
             suggestions.map((player) => {
@@ -354,7 +356,7 @@ function PlayerSearchPicker({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-medium text-emerald-950">
+                        <span className="font-medium text-emerald-950 break-words">
                           {formatPlayerLabel(player.name, player.nflTeam)}
                         </span>
                         <PositionChip position={player.position} />
@@ -543,7 +545,12 @@ function LeanResultsCard({
   teammateInjury?: ReturnType<typeof hydrateTeammateInjuryIndex>;
 }) {
   const reason = shortRejectReason(analysis);
-  const benefit = whoBenefitsCopy(analysis, mode);
+  const benefit = whoBenefitsCopy(
+    analysis.valueGap,
+    mode,
+    analysis.giveValue,
+    analysis.receiveValue,
+  );
   const giveLabel = mode === "team" ? "You give" : "Side A";
   const getLabel = mode === "team" ? "You get" : "Side B";
   const [openImpact, setOpenImpact] = useState<string | null>(null);
@@ -575,8 +582,8 @@ function LeanResultsCard({
         </p>
       )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3">
+      <div className="mt-4 grid gap-4">
+        <div className="space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">{giveLabel}</p>
           {give.map((p) => (
             <ToolPlayerCard
@@ -588,7 +595,7 @@ function LeanResultsCard({
             />
           ))}
         </div>
-        <div className="space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3">
+        <div className="space-y-3 rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">{getLabel}</p>
           {receive.map((p) => (
             <ToolPlayerCard

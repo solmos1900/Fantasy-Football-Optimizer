@@ -281,8 +281,8 @@ function VerdictCard({
         </p>
       )}
 
-      <div className="mt-5 grid gap-4 border-t border-emerald-950/10 pt-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3">
+      <div className="mt-5 grid gap-4 border-t border-emerald-950/10 pt-4">
+        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">A</p>
           <div className="mt-2">
             <ToolPlayerCard
@@ -293,7 +293,7 @@ function VerdictCard({
             />
           </div>
         </div>
-        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3">
+        <div className="rounded-xl border border-emerald-950/10 bg-[var(--kraft)]/40 p-3 sm:p-4">
           <p className="type-eyebrow text-emerald-950/45">B</p>
           <div className="mt-2">
             <ToolPlayerCard
@@ -480,13 +480,7 @@ export function WhoToStart({
       )}
 
       <p className="type-body max-w-2xl text-sm text-emerald-950/65">
-        Pick two players at the same position. We weigh this week&apos;s
-        Sleeper projection (full PPR), recent form, injury status, and defense
-        matchup — no LLM, no invented comps. The verdict edge matches the
-        projection gap shown on the cards.
-        {noLeague
-          ? " Scoring defaults to full PPR until you connect a league."
-          : ""}
+        Same position · Sleeper full-PPR proj, form, injury, and matchup.
       </p>
 
       {suggestions.length > 0 && (
