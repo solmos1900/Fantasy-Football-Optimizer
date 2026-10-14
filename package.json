@@ -7,6 +7,7 @@
     "build": "prisma generate && node scripts/migrate-deploy-retry.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "audit:prod": "node scripts/audit-prod.mjs",
     "verify:defense": "tsx scripts/verify-defense-matchups.ts",
     "verify:guest": "tsx scripts/verify-guest-entry.ts",
     "verify:no-league": "tsx scripts/verify-no-league-pool.ts",
@@ -57,5 +58,10 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "overrides": {
+    "sharp": "0.35.5",
+    "source-map-js": "1.2.2",
+    "deepmerge-ts": "8.0.2"
   }
 }

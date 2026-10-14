@@ -6,6 +6,26 @@ on:
     branches: [main]
 
 jobs:
+  audit-prod:
+    name: npm run audit:prod
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Fail on high/critical production advisories
+        run: npm run audit:prod
+
   golden:
     name: npm run verify:golden
     runs-on: ubuntu-latest
