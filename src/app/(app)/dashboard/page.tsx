@@ -1,11 +1,12 @@
 import { auth } from "@/lib/auth";
-import { getLeagueDataForUser } from "@/lib/league/service";
+import { getLeagueDataForUser, resolveUserTeam } from "@/lib/league/service";
 import { getLiveStats } from "@/lib/stats/provider";
 import { generateInsights } from "@/lib/insights/engine";
 import { LiveStatsPanel } from "@/components/live-stats-panel";
 import { SyncButton } from "@/components/sync-button";
 import { InstallHowToLink } from "@/components/install-app";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
+import { SelectTeamPrompt } from "@/components/select-team-prompt";
 import { PendingLink } from "@/components/pending-link";
 import { formatRecord } from "@/lib/utils";
 
@@ -29,16 +30,22 @@ export default async function DashboardPage() {
     );
   }
 
-  const team =
-    league.teams.find((t) => t.isCurrentUser) ??
-    league.teams.find((t) => t.id === league.userTeamId) ??
-    league.teams[0];
+  const team = resolveUserTeam(league);
+  if (!team) {
+    return (
+      <SelectTeamPrompt
+        className="animate-fade-up"
+        title="Pick your team for the dashboard"
+      />
+    );
+  }
+
   const live = await getLiveStats(league);
   const allInsights = generateInsights(league);
   const waiverCount = allInsights.filter((i) => i.type === "waiver").length;
   const insights = allInsights.slice(0, 3);
   const matchup = league.matchups.find(
-    (m) => m.homeTeamId === team?.id || m.awayTeamId === team?.id,
+    (m) => m.homeTeamId === team.id || m.awayTeamId === team.id,
   );
 
   return (
@@ -61,53 +68,51 @@ export default async function DashboardPage() {
         <section className="animate-fade-up-delay space-y-8">
           <div className="surface-card p-5">
             <h2 className="type-section text-emerald-950">Your team</h2>
-            {team && (
-              <div className="mt-3 space-y-2">
-                <p className="text-lg font-semibold tracking-tight text-emerald-950">
-                  {team.name}{" "}
-                  <span className="font-normal text-emerald-950/50">
-                    ({formatRecord(team.wins, team.losses, team.ties)}) · #
-                    {team.standing}
+            <div className="mt-3 space-y-2">
+              <p className="text-lg font-semibold tracking-tight text-emerald-950">
+                {team.name}{" "}
+                <span className="font-normal text-emerald-950/50">
+                  ({formatRecord(team.wins, team.losses, team.ties)}) · #
+                  {team.standing}
+                </span>
+              </p>
+              <p className="text-sm text-emerald-950/60">
+                <span className="type-stat text-base">
+                  {team.pointsFor.toFixed(1)}
+                </span>{" "}
+                PF ·{" "}
+                <span className="type-stat text-base">
+                  {team.pointsAgainst.toFixed(1)}
+                </span>{" "}
+                PA
+              </p>
+              {matchup && (
+                <p className="text-sm text-emerald-950">
+                  This week:{" "}
+                  <span className="type-stat text-2xl text-orange-600">
+                    {(
+                      (matchup.homeTeamId === team.id
+                        ? matchup.homeScore
+                        : matchup.awayScore) ?? 0
+                    ).toFixed(1)}
+                  </span>
+                  <span className="text-emerald-950/40"> / proj </span>
+                  <span className="type-stat">
+                    {(
+                      (matchup.homeTeamId === team.id
+                        ? matchup.homeProjected
+                        : matchup.awayProjected) ?? 0
+                    ).toFixed(1)}
                   </span>
                 </p>
-                <p className="text-sm text-emerald-950/60">
-                  <span className="type-stat text-base">
-                    {team.pointsFor.toFixed(1)}
-                  </span>{" "}
-                  PF ·{" "}
-                  <span className="type-stat text-base">
-                    {team.pointsAgainst.toFixed(1)}
-                  </span>{" "}
-                  PA
-                </p>
-                {matchup && (
-                  <p className="text-sm text-emerald-950">
-                    This week:{" "}
-                    <span className="type-stat text-2xl text-orange-600">
-                      {(
-                        (matchup.homeTeamId === team.id
-                          ? matchup.homeScore
-                          : matchup.awayScore) ?? 0
-                      ).toFixed(1)}
-                    </span>
-                    <span className="text-emerald-950/40"> / proj </span>
-                    <span className="type-stat">
-                      {(
-                        (matchup.homeTeamId === team.id
-                          ? matchup.homeProjected
-                          : matchup.awayProjected) ?? 0
-                      ).toFixed(1)}
-                    </span>
-                  </p>
-                )}
-                <PendingLink
-                  href="/team"
-                  className="inline-block text-sm font-semibold text-orange-700 hover:text-orange-800"
-                >
-                  View full roster →
-                </PendingLink>
-              </div>
-            )}
+              )}
+              <PendingLink
+                href="/team"
+                className="inline-block text-sm font-semibold text-orange-700 hover:text-orange-800"
+              >
+                View full roster →
+              </PendingLink>
+            </div>
           </div>
 
           <div className="surface-card p-5">

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
-import { getLeagueDataForUser } from "@/lib/league/service";
+import { getLeagueDataForUser, resolveUserTeam } from "@/lib/league/service";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
+import { SelectTeamPrompt } from "@/components/select-team-prompt";
 import { InsightsBoard } from "@/components/insights/insights-board";
 import { buildRosterInsightsSignals } from "@/lib/insights/roster-signals";
 import {
@@ -24,6 +25,11 @@ export default async function InsightsPage() {
     );
   }
 
+  const selected = resolveUserTeam(rawLeague);
+  if (!selected) {
+    return <SelectTeamPrompt title="Pick your team for Insights" />;
+  }
+
   try {
     await refreshProjectionTrends(rawLeague);
   } catch {
@@ -37,18 +43,10 @@ export default async function InsightsPage() {
   }
   const league = enrichPlayersWithSnapshots(rawLeague, trendMap);
 
-  const you =
-    league.teams.find((t) => t.isCurrentUser) ??
-    league.teams.find((t) => t.id === league.userTeamId) ??
-    league.teams[0] ??
-    null;
+  const you = resolveUserTeam(league);
 
   if (!you) {
-    return (
-      <p className="type-body text-emerald-950/55">
-        No team found for this league connection.
-      </p>
-    );
+    return <SelectTeamPrompt title="Pick your team for Insights" />;
   }
 
   const bundle = await buildRosterInsightsSignals(league, you);

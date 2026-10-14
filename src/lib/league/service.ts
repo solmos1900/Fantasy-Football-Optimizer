@@ -5,7 +5,17 @@ import {
   encryptEspnCookie,
 } from "@/lib/espn/cookie-crypto";
 import { refreshProjectionTrends } from "@/lib/insights/trends";
+import {
+  applyUserTeamId,
+  resolvePersistedTeamId,
+} from "@/lib/league/team";
 import type { LeagueData } from "@/lib/types";
+
+export {
+  applyUserTeamId,
+  resolvePersistedTeamId,
+  resolveUserTeam,
+} from "@/lib/league/team";
 
 async function persistTrendsSafe(league: LeagueData): Promise<void> {
   try {
@@ -52,7 +62,11 @@ export async function getLeagueDataForUser(
     try {
       const cached = JSON.parse(connection.cachedPayload) as LeagueData;
       if (cached.isDemo || cached.leagueId === "demo-league") return null;
-      return applyConnectionLastSyncedAt(cached, connection.lastSyncedAt);
+      // DB teamId is source of truth — never trust a stale/cleared payload alone.
+      return applyUserTeamId(
+        applyConnectionLastSyncedAt(cached, connection.lastSyncedAt),
+        connection.teamId,
+      );
     } catch {
       // fall through
     }
@@ -73,25 +87,37 @@ export async function connectEspnLeague(
     bypassCache?: boolean;
   },
 ): Promise<LeagueData> {
+  const leagueId = input.leagueId.trim();
+  const season = input.season;
+
+  const existing = await prisma.leagueConnection.findUnique({
+    where: {
+      userId_leagueId_season: {
+        userId,
+        leagueId,
+        season,
+      },
+    },
+  });
+
+  // Reconnect without a team ID must keep the previously saved team.
+  const resolvedTeamId = resolvePersistedTeamId(
+    input.teamId,
+    existing?.teamId,
+  );
+
   const creds: EspnCredentials = {
-    leagueId: input.leagueId.trim(),
-    season: input.season,
-    teamId: input.teamId,
+    leagueId,
+    season,
+    teamId: resolvedTeamId ?? undefined,
     swid: input.swid?.trim() || undefined,
     espnS2: input.espnS2?.trim() || undefined,
   };
 
-  const league = await fetchEspnLeague(creds, {
+  const fetched = await fetchEspnLeague(creds, {
     bypassCache: Boolean(input.bypassCache),
   });
-
-  if (input.teamId) {
-    league.userTeamId = input.teamId;
-    league.teams = league.teams.map((t) => ({
-      ...t,
-      isCurrentUser: t.id === input.teamId,
-    }));
-  }
+  const league = applyUserTeamId(fetched, resolvedTeamId);
 
   await prisma.leagueConnection.upsert({
     where: {
@@ -103,7 +129,7 @@ export async function connectEspnLeague(
     },
     update: {
       isDemo: false,
-      teamId: input.teamId ?? null,
+      teamId: resolvedTeamId,
       leagueName: league.name,
       espnSwid: encryptEspnCookie(creds.swid),
       espnS2: encryptEspnCookie(creds.espnS2),
@@ -114,7 +140,7 @@ export async function connectEspnLeague(
       userId,
       leagueId: creds.leagueId,
       season: creds.season,
-      teamId: input.teamId ?? null,
+      teamId: resolvedTeamId,
       leagueName: league.name,
       isDemo: false,
       espnSwid: encryptEspnCookie(creds.swid),
