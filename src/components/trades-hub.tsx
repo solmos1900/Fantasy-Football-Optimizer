@@ -50,9 +50,10 @@ export function TradesHub({
     if (tool === "who-to-start") {
       return {
         title: "Who to Start",
+        // Keep hub copy minimal — WhoToStart owns the one-line intro.
         body: noLeague
-          ? "Same-position start call across the NFL player pool — pick any two players. Uses full PPR until you connect a league."
-          : "Same-position start call — pick two players, get START A / START B (or a lean) with plain-English reasons from projection, form, injury, and matchup.",
+          ? "Pick any two same-position NFL players."
+          : "Pick two same-position players from your league pool.",
       };
     }
     return {

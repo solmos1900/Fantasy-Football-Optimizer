@@ -232,6 +232,20 @@ function unavailable(player: FantasyPlayer): boolean {
   );
 }
 
+function onBye(player: FantasyPlayer): boolean {
+  return (player.opponent ?? "").toUpperCase() === "BYE";
+}
+
+/** Short status phrase for forced start headlines (bye / OUT / IR / …). */
+function unavailablePhrase(player: FantasyPlayer): string {
+  if (onBye(player)) return "on bye this week";
+  const code = formatStatusCode(player.injuryStatus);
+  if (code === "IR") return "on IR this week";
+  if (code === "SUSPENSION") return "suspended this week";
+  if (code === "OUT") return "OUT this week";
+  return `${code} this week`;
+}
+
 function verdictFromProjEdge(
   projEdge: number,
   labelA: string,
@@ -346,33 +360,41 @@ export function compareWhoToStart(
 
   const aOut = unavailable(playerA);
   const bOut = unavailable(playerB);
+  const aBye = onBye(playerA);
+  const bBye = onBye(playerB);
+  const aDown = aOut || aBye;
+  const bDown = bOut || bBye;
 
   // Displayed edge = projection gap only (matches the numbers on the card).
   let edge = sideA.projectedPoints - sideB.projectedPoints;
   let forced: ReturnType<typeof verdictFromProjEdge> | null = null;
 
-  if (aOut && !bOut) {
+  if (aDown && !bDown) {
     edge = -(Math.abs(edge) + 3);
     forced = {
       verdict: "start_b",
       verdictLabel: "START B",
-      headline: `Start ${labelB} — ${labelA} is ${formatStatusCode(playerA.injuryStatus) === "IR" ? "on the IR" : formatStatusCode(playerA.injuryStatus)}`,
-      summary: `${labelA} is unavailable (${injuryStatusPhrase(playerA.injuryStatus)}). Start ${labelB} this week.`,
+      headline: `Start ${labelB}: ${labelA} is ${unavailablePhrase(playerA)}.`,
+      summary: aBye
+        ? `${labelA} scores 0 on bye. Start ${labelB} this week.`
+        : `${labelA} is unavailable (${injuryStatusPhrase(playerA.injuryStatus)}). Start ${labelB} this week.`,
     };
-  } else if (bOut && !aOut) {
+  } else if (bDown && !aDown) {
     edge = Math.abs(edge) + 3;
     forced = {
       verdict: "start_a",
       verdictLabel: "START A",
-      headline: `Start ${labelA} — ${labelB} is ${formatStatusCode(playerB.injuryStatus) === "IR" ? "on the IR" : formatStatusCode(playerB.injuryStatus)}`,
-      summary: `${labelB} is unavailable (${injuryStatusPhrase(playerB.injuryStatus)}). Start ${labelA} this week.`,
+      headline: `Start ${labelA}: ${labelB} is ${unavailablePhrase(playerB)}.`,
+      summary: bBye
+        ? `${labelB} scores 0 on bye. Start ${labelA} this week.`
+        : `${labelB} is unavailable (${injuryStatusPhrase(playerB.injuryStatus)}). Start ${labelA} this week.`,
     };
-  } else if (aOut && bOut) {
+  } else if (aDown && bDown) {
     forced = {
       verdict: "toss_up",
       verdictLabel: "TOSS-UP",
       headline: `Both ${labelA} and ${labelB} look unavailable`,
-      summary: `Both are listed ${formatStatusCode(playerA.injuryStatus)} / ${formatStatusCode(playerB.injuryStatus)}. Neither is a start until status clears.`,
+      summary: `Both are ${unavailablePhrase(playerA)} / ${unavailablePhrase(playerB)}. Neither is a start until status clears.`,
     };
     edge = 0;
   } else {

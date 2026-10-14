@@ -17,7 +17,6 @@ import {
   analyzeTrade,
   comparePlayerPackages,
   type TradeAnalysis,
-  type TradeVerdict,
 } from "@/lib/insights/trade-analyzer";
 import { chipValue } from "@/lib/insights/trade-value";
 import {
@@ -57,14 +56,6 @@ const STEPS: { id: TradeStep; label: string }[] = [
 ];
 
 /** Soft stamp variants — wash + border + tinted text. */
-const VERDICT_STYLE: Record<TradeVerdict, string> = {
-  accept: "stamp-success",
-  lean_accept: "stamp-success",
-  fair: "stamp-sit",
-  lean_reject: "stamp-warning",
-  hard_reject: "stamp-danger",
-};
-
 /** Tab bar clearance: icon row (~3.75rem) + max(0.75rem, safe-area) + optional install banner. */
 const TAB_BAR_BOTTOM =
   "bottom-[calc(3.75rem+max(0.75rem,env(safe-area-inset-bottom,0px))+var(--install-banner-offset,0px))]";
@@ -91,13 +82,6 @@ function playerNames(players: FantasyPlayer[]): string {
   return players
     .map((p) => formatPlayerLabel(p.name, p.nflTeam))
     .join(" + ");
-}
-
-function shortRejectReason(analysis: TradeAnalysis): string {
-  if (analysis.hardRejectReasons.length > 0) {
-    return analysis.hardRejectReasons[0];
-  }
-  return analysis.whyAcceptedOrNot || analysis.summary;
 }
 
 function matchesPlayerQuery(player: FantasyPlayer, query: string): boolean {
@@ -544,7 +528,6 @@ function LeanResultsCard({
   toolMeta?: ToolDisplayMeta | null;
   teammateInjury?: ReturnType<typeof hydrateTeammateInjuryIndex>;
 }) {
-  const reason = shortRejectReason(analysis);
   const benefit = whoBenefitsCopy(
     analysis.valueGap,
     mode,
@@ -554,6 +537,10 @@ function LeanResultsCard({
   const giveLabel = mode === "team" ? "You give" : "Side A";
   const getLabel = mode === "team" ? "You get" : "Side B";
   const [openImpact, setOpenImpact] = useState<string | null>(null);
+  // Structural hard-reject rules only (not value-gap copy — that is the headline).
+  const structuralReject = analysis.hardRejectReasons.find(
+    (r) => !/too far apart|value|chip/i.test(r),
+  );
 
   return (
     <article
@@ -568,13 +555,12 @@ function LeanResultsCard({
               : "border-l-success",
       )}
     >
-      <span
-        className={cn("stamp animate-stamp", VERDICT_STYLE[analysis.verdict])}
-      >
-        {analysis.verdictLabel}
-      </span>
-
-      <p className="type-body mt-3 text-emerald-950/80">{reason}</p>
+      <h2 className="type-section text-emerald-950">{benefit.headline}</h2>
+      {structuralReject && (
+        <p className="type-body mt-2 text-sm text-emerald-950/70">
+          {structuralReject}
+        </p>
+      )}
 
       {toolMeta && (
         <div className="mt-2">
@@ -674,24 +660,10 @@ function LeanResultsCard({
         </div>
         <div>
           <p className="type-eyebrow text-emerald-950/45">Difference</p>
-          <p
-            className={cn(
-              "type-stat mt-1 text-2xl sm:text-3xl",
-              analysis.valueGap >= 0 ? "text-emerald-700" : "text-orange-700",
-            )}
-          >
-            {analysis.valueGap >= 0 ? "+" : ""}
-            {analysis.valueGap.toFixed(1)}
+          <p className="type-stat mt-1 text-xl text-emerald-950 sm:text-2xl">
+            {benefit.differenceLabel}
           </p>
         </div>
-      </div>
-
-      <div className="mt-5 border-t border-emerald-950/10 pt-4">
-        <p className="type-eyebrow text-emerald-950/45">Who benefits</p>
-        <p className="type-section mt-1 text-emerald-950">{benefit.headline}</p>
-        <p className="type-body mt-1 text-sm text-emerald-950/65">
-          {benefit.detail}
-        </p>
       </div>
     </article>
   );
