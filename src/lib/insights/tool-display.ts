@@ -113,8 +113,13 @@ export function formImpactLine(player: FantasyPlayer): string | null {
     .filter((w) => typeof w.points === "number" && Number.isFinite(w.points))
     .sort((a, b) => b.week - a.week);
   if (weeks.length < 2) return null;
-  const last3 = weeks.slice(0, 3).map((w) => w.points);
-  const season = weeks.map((w) => w.points);
+  const last3 = weeks
+    .slice(0, 3)
+    .map((w) => w.points)
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
+  const season = weeks
+    .map((w) => w.points)
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
   const avg3 = mean(last3);
   const seasonAvg = mean(season);
   if (avg3 == null || seasonAvg == null || seasonAvg === 0) return null;

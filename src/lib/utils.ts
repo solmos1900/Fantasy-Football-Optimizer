@@ -4,6 +4,14 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+/**
+ * Coalesce unknown proj/actual to 0 for ranking, sums, and display math only.
+ * Never use this when persisting — missing must stay null in storage.
+ */
+export function pointsOrZero(n: number | null | undefined): number {
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
+}
+
 export function formatRecord(wins: number, losses: number, ties: number) {
   return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 }

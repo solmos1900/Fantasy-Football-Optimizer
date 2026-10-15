@@ -4,6 +4,7 @@
  */
 
 import type { LeagueData, LiveStatSnapshot } from "@/lib/types";
+import { pointsOrZero } from "@/lib/utils";
 import { fetchEspnScoreboard } from "@/lib/espn/client";
 import {
   parseEspnScoreboard,
@@ -24,13 +25,18 @@ export async function getLiveStats(
 
     const performers = (league?.teams ?? [])
       .flatMap((t) => t.roster)
-      .filter((p) => p.actualPoints > 0)
-      .sort((a, b) => b.actualPoints - a.actualPoints)
+      .filter(
+        (p) =>
+          typeof p.actualPoints === "number" &&
+          Number.isFinite(p.actualPoints) &&
+          p.actualPoints > 0,
+      )
+      .sort((a, b) => pointsOrZero(b.actualPoints) - pointsOrZero(a.actualPoints))
       .slice(0, 5)
       .map((p) => ({
         playerName: p.name,
         position: p.position,
-        points: p.actualPoints,
+        points: pointsOrZero(p.actualPoints),
         team: p.nflTeam,
       }));
 

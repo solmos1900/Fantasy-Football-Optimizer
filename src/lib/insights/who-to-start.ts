@@ -13,7 +13,7 @@ import {
 } from "@/lib/insights/defense-matchups";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
+import { formatStatusCode, injuryStatusPhrase, pointsOrZero } from "@/lib/utils";
 import {
   dvpMapFromRecord,
   preferredProj,
@@ -400,7 +400,7 @@ export function compareWhoToStart(
   const bDown = bOut || bBye;
 
   // Displayed edge = projection gap only (matches the numbers on the card).
-  let edge = sideA.projectedPoints - sideB.projectedPoints;
+  let edge = pointsOrZero(sideA.projectedPoints) - pointsOrZero(sideB.projectedPoints);
   let forced: ReturnType<typeof verdictFromProjEdge> | null = null;
 
   if (aDown && !bDown) {
@@ -463,7 +463,7 @@ export function compareWhoToStart(
   );
   const projReason = projLead
     ? `Projected this week: ${projLead.leader} ${projLead.leaderVal.toFixed(1)} vs ${projLead.trailer} ${projLead.trailerVal.toFixed(1)} (+${projLead.abs.toFixed(1)} for ${projLead.leader}).`
-    : `Projected this week: ${labelA} ${sideA.projectedPoints.toFixed(1)} vs ${labelB} ${sideB.projectedPoints.toFixed(1)} (even).`;
+    : `Projected this week: ${labelA} ${pointsOrZero(sideA.projectedPoints).toFixed(1)} vs ${labelB} ${pointsOrZero(sideB.projectedPoints).toFixed(1)} (even).`;
 
   const reasons: string[] = [call.summary, projReason];
 
@@ -582,7 +582,7 @@ export function samePositionSuggestions(
       if (Boolean(a.isStarter) !== Boolean(b.isStarter)) {
         return a.isStarter ? -1 : 1;
       }
-      return b.projectedPoints - a.projectedPoints;
+      return pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints);
     });
 }
 

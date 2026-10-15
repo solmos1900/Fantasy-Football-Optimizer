@@ -19,6 +19,7 @@ import type {
   InsightRecommendation,
   LeagueData,
 } from "@/lib/types";
+import { pointsOrZero } from "@/lib/utils";
 import {
   analyzeDefenseMatchup,
   matchupContextFromLeague,
@@ -161,7 +162,11 @@ export function buildRealisticTrades(
         }
         const extra = surplusAt(you, pos)[0];
         const floor = pos === "TE" ? 7 : 8;
-        if (extra && extra.id !== star.id && extra.projectedPoints >= floor) {
+        if (
+          extra &&
+          extra.id !== star.id &&
+          pointsOrZero(extra.projectedPoints) >= floor
+        ) {
           pieces.push(extra);
         }
         if (pieces.length >= 2) break;
@@ -247,8 +252,8 @@ export function buildRealisticTrades(
     seen.add(key);
 
     const whyYouRaw = [
-      `You send: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
-      `You get: ${c.receive.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+      `You send: ${c.give.map((p) => `${p.name} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
+      `You get: ${c.receive.map((p) => `${p.name} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
       ...c.receive
         .filter((p) => needsPosition(you, p.position))
         .map(
@@ -273,7 +278,7 @@ export function buildRealisticTrades(
 
     const whyThemRaw = [
       `They send: ${c.receive.map((p) => `${p.name} (${p.position})`).join(" + ")}.`,
-      `They get: ${c.give.map((p) => `${p.name} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+      `They get: ${c.give.map((p) => `${p.name} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
       ...c.give
         .filter((p) => needsPosition(c.them, p.position))
         .map(

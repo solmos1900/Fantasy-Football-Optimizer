@@ -17,6 +17,7 @@ import {
   trendLabelCopy,
 } from "@/lib/insights/trend-labels";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import { pointsOrZero } from "@/lib/utils";
 
 export const SKILL_POSITIONS: PlayerPosition[] = ["RB", "WR", "TE"];
 /** @deprecated Prefer SKILL_POSITIONS — kept as alias for call-site clarity. */
@@ -49,7 +50,7 @@ export function isHealthy(p: FantasyPlayer): boolean {
 }
 
 export function byProjectedDesc(a: FantasyPlayer, b: FantasyPlayer): number {
-  return b.projectedPoints - a.projectedPoints;
+  return pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints);
 }
 
 export function playersAtPosition(
@@ -69,7 +70,7 @@ export function depthAtPosition(
 }
 
 export function tierOf(p: FantasyPlayer): TradeTier {
-  const pts = p.projectedPoints;
+  const pts = pointsOrZero(p.projectedPoints);
   if (p.position === "QB") {
     if (pts >= 22) return "elite";
     if (pts >= 18) return "high";
@@ -126,11 +127,15 @@ export function chipValue(
     ? { trends: trendsOrOpts }
     : (trendsOrOpts ?? {});
   const trends = opts.trends;
-  const recent =
-    p.recentWeeks && p.recentWeeks.length
-      ? p.recentWeeks.reduce((a, w) => a + w.points, 0) / p.recentWeeks.length
-      : p.projectedPoints;
-  let blended = p.projectedPoints * 0.3 + recent * 0.7;
+  const proj = pointsOrZero(p.projectedPoints);
+  const scoredWeeks = (p.recentWeeks ?? []).filter(
+    (w): w is { week: number; points: number; projectedPoints?: number; opponent?: string } =>
+      typeof w.points === "number" && Number.isFinite(w.points),
+  );
+  const recent = scoredWeeks.length
+    ? scoredWeeks.reduce((a, w) => a + w.points, 0) / scoredWeeks.length
+    : proj;
+  let blended = proj * 0.3 + recent * 0.7;
   const trend = trendFor(trends, p.espnId);
   // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
   if (trend) blended += trend.restOfSeasonAdj;
@@ -140,12 +145,12 @@ export function chipValue(
 
   if (p.position === "QB") return blended * 0.45;
   if (p.position === "TE") {
-    const elite = p.projectedPoints >= 12 || tierOf(p) === "elite";
+    const elite = proj >= 12 || tierOf(p) === "elite";
     return blended * (elite ? 1.2 : 1.05);
   }
   if (p.position === "RB") {
     const locked =
-      p.projectedPoints >= 14 ||
+      proj >= 14 ||
       tierOf(p) === "elite" ||
       tierOf(p) === "high";
     return blended * (locked ? 1.15 : 1.05);
@@ -220,7 +225,7 @@ export function needsPosition(
   if (sorted.length < need) return true;
   const floor = pos === "QB" ? 14 : pos === "TE" ? 7 : 9;
   const nth = sorted[need - 1];
-  return !nth || nth.projectedPoints < floor;
+  return !nth || pointsOrZero(nth.projectedPoints) < floor;
 }
 
 export function hasSurplus(team: FantasyTeam, pos: PlayerPosition): boolean {
@@ -228,7 +233,9 @@ export function hasSurplus(team: FantasyTeam, pos: PlayerPosition): boolean {
   const sorted = playersAtPosition(team, pos);
   if (sorted.length <= need) return false;
   const extra = sorted[need];
-  return Boolean(extra && extra.projectedPoints >= (pos === "QB" ? 14 : 7));
+  return Boolean(
+    extra && pointsOrZero(extra.projectedPoints) >= (pos === "QB" ? 14 : 7),
+  );
 }
 
 export function surplusAt(

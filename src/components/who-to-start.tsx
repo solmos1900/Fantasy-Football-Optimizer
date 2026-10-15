@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { cn, formatStatusCode, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor, pointsOrZero } from "@/lib/utils";
 import type {
   FantasyPlayer,
   FantasyTeam,
@@ -315,7 +315,7 @@ function VerdictCard({
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
             {preferredProjOrNull(result.playerA, toolMeta) == null
               ? "—"
-              : result.sideA.projectedPoints.toFixed(1)}
+              : pointsOrZero(result.sideA.projectedPoints).toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
             {preferredProjOrNull(result.playerA, toolMeta) == null
@@ -328,7 +328,7 @@ function VerdictCard({
           <p className="type-stat mt-1 text-2xl text-[#C026FF] sm:text-3xl">
             {preferredProjOrNull(result.playerB, toolMeta) == null
               ? "—"
-              : result.sideB.projectedPoints.toFixed(1)}
+              : pointsOrZero(result.sideB.projectedPoints).toFixed(1)}
           </p>
           <p className="type-caption mt-1 text-emerald-950/45">
             {preferredProjOrNull(result.playerB, toolMeta) == null
@@ -417,7 +417,7 @@ export function WhoToStart({
     if (!positionLock) {
       return you.roster
         .filter((p) => p.isStarter && p.slot !== "IR")
-        .sort((a, b) => b.projectedPoints - a.projectedPoints)
+        .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints))
         .slice(0, 6);
     }
     const exclude = new Set<string>();

@@ -404,7 +404,7 @@ export function createDemoLeague(
           ...pl,
           projectedPoints: isBench
             ? 11.4
-            : Math.max(pl.projectedPoints, 13.8),
+            : Math.max(pl.projectedPoints ?? 0, 13.8),
           percentOwned: isBench ? 68 : pl.percentOwned,
           recentWeeks: [
             { week: 1, points: 10.2, projectedPoints: 12.5, opponent: "@ SEA" },

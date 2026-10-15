@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { cn, formatStatusCode, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor, pointsOrZero } from "@/lib/utils";
 import type {
   FantasyPlayer,
   LeagueData,
@@ -30,7 +30,7 @@ function deriveRanks(league: LeagueData, player: FantasyPlayer) {
     ...league.freeAgents,
   ];
   const byProj = (a: FantasyPlayer, b: FantasyPlayer) =>
-    b.projectedPoints - a.projectedPoints;
+    pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints);
 
   const samePos = pool
     .filter((p) => p.position === player.position)
@@ -94,9 +94,21 @@ function buildLogRows(
     byWeek.set(currentWeek, {
       week: currentWeek,
       opponent: player.opponent?.trim() || "—",
-      points: player.actualPoints > 0 ? player.actualPoints : null,
-      projected: player.projectedPoints,
-      upcoming: player.actualPoints <= 0,
+      points:
+        typeof player.actualPoints === "number" &&
+        Number.isFinite(player.actualPoints)
+          ? player.actualPoints
+          : null,
+      projected:
+        typeof player.projectedPoints === "number" &&
+        Number.isFinite(player.projectedPoints)
+          ? player.projectedPoints
+          : null,
+      upcoming:
+        !(
+          typeof player.actualPoints === "number" &&
+          Number.isFinite(player.actualPoints)
+        ),
     });
   }
 

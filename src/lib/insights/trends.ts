@@ -108,16 +108,21 @@ export function weekRowsForPlayer(
   // Always write the current week from live roster fields.
   // Injured / low-signal players often have projectedPoints === 0 — that is a real
   // sit signal and must not be dropped (previously `> 0` turned 0 into null and the
-  // upsert skipped the week entirely).
+  // upsert skipped the week entirely). Missing ESPN blocks arrive as null and must
+  // stay null (never coerce to 0.0 — that tanks trends/averages).
   const current: WeekStatRow = {
     week: currentWeek,
-    projectedPpr: Number.isFinite(player.projectedPoints)
-      ? player.projectedPoints
-      : (existing?.projectedPpr ?? null),
-    // Keep real 0-point games; only treat non-finite as missing (never coerce null→0).
-    actualPpr: Number.isFinite(player.actualPoints)
-      ? player.actualPoints
-      : (existing?.actualPpr ?? null),
+    projectedPpr:
+      typeof player.projectedPoints === "number" &&
+      Number.isFinite(player.projectedPoints)
+        ? player.projectedPoints
+        : (existing?.projectedPpr ?? null),
+    // Keep real 0-point games; only treat non-finite / null as missing.
+    actualPpr:
+      typeof player.actualPoints === "number" &&
+      Number.isFinite(player.actualPoints)
+        ? player.actualPoints
+        : (existing?.actualPpr ?? null),
     opponent: player.opponent ?? existing?.opponent,
   };
 
@@ -416,7 +421,10 @@ export async function refreshProjectionTrends(
     const heuristicProj =
       actuals.length >= 2
         ? actuals.reduce((a, b) => a + b, 0) / actuals.length
-        : player.projectedPoints || null;
+        : typeof player.projectedPoints === "number" &&
+            Number.isFinite(player.projectedPoints)
+          ? player.projectedPoints
+          : null;
 
     for (const row of rows) {
       let projected = row.projectedPpr;
@@ -430,12 +438,24 @@ export async function refreshProjectionTrends(
         projected = Math.round(heuristicProj * 10) / 10;
         rowSource = "heuristic";
       }
-      // Persist the full 1..currentWeek axis — including null/null placeholders and
-      // 0-projection injury weeks — so every Insights card shares the same weeks.
+
+      // Skip null/null scaffold placeholders — writing them would wipe real
+      // historical stats on every Insights refresh (complementary to #74).
+      // Real published 0.0 proj/actual still has a finite value and is persisted.
+      if (projected == null && row.actualPpr == null) {
+        continue;
+      }
 
       const projectionDelta =
         projected != null && row.actualPpr != null
           ? row.actualPpr - projected
+          : null;
+
+      const actualSource =
+        row.actualPpr != null
+          ? league.isDemo
+            ? "demo"
+            : "espn_league"
           : null;
 
       await prisma.playerWeekStat.upsert({
@@ -459,35 +479,35 @@ export async function refreshProjectionTrends(
           projectedPpr: projected,
           actualPpr: row.actualPpr,
           projectionDelta,
-          projectionSource: rowSource,
-          actualSource:
-            row.actualPpr != null
-              ? league.isDemo
-                ? "demo"
-                : "espn_league"
-              : null,
+          projectionSource: projected != null ? rowSource : null,
+          actualSource,
           source: rowSource,
           leagueId: lid,
           opponent: row.opponent ?? null,
         },
+        // Only set proj/actual when incoming is non-null so an absent ESPN
+        // value never wipes an already-stored real number.
         update: {
           playerId: dbPlayer.id,
           playerName: player.name,
           position: player.position,
           nflTeam: player.nflTeam,
           scoringFormat: "PPR",
-          projectedPpr: projected,
-          actualPpr: row.actualPpr,
-          projectionDelta,
-          projectionSource: rowSource,
-          actualSource:
-            row.actualPpr != null
-              ? league.isDemo
-                ? "demo"
-                : "espn_league"
-              : null,
+          ...(projected != null
+            ? {
+                projectedPpr: projected,
+                projectionSource: rowSource,
+              }
+            : {}),
+          ...(row.actualPpr != null
+            ? {
+                actualPpr: row.actualPpr,
+                actualSource,
+              }
+            : {}),
+          ...(projectionDelta != null ? { projectionDelta } : {}),
           source: rowSource,
-          opponent: row.opponent ?? null,
+          ...(row.opponent != null ? { opponent: row.opponent } : {}),
         },
       });
       snapshots += 1;

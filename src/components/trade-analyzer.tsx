@@ -11,7 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
-import { cn, formatStatusCode, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor, pointsOrZero } from "@/lib/utils";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 import {
   analyzeTrade,
@@ -754,7 +754,7 @@ export function TradeAnalyzer({
       seen.add(p.id);
       unique.push(p);
     }
-    return unique.sort((a, b) => b.projectedPoints - a.projectedPoints);
+    return unique.sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints));
   }, [poolPlayers, you.roster, partners]);
 
   const freePoolById = useMemo(() => {
