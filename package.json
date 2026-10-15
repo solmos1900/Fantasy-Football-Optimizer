@@ -22,6 +22,7 @@
     "verify:pool": "tsx scripts/verify-pool.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
     "verify:team-selection": "tsx scripts/verify-team-selection.ts",
+    "verify:trend-null-wipe": "tsx scripts/verify-trend-null-wipe.ts",
     "seed:golden": "tsx scripts/seed-golden-fixture.ts",
     "ingest:nflverse": "tsx scripts/ingest-nflverse-usage.ts",
     "db:up": "docker compose up -d postgres",
