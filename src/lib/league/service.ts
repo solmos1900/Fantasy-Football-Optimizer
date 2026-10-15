@@ -3,6 +3,7 @@ import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
 import {
   decryptEspnCookie,
   encryptEspnCookie,
+  espnCookieUpdateFields,
 } from "@/lib/espn/cookie-crypto";
 import { refreshProjectionTrends } from "@/lib/insights/trends";
 import type { LeagueData } from "@/lib/types";
@@ -105,8 +106,8 @@ export async function connectEspnLeague(
       isDemo: false,
       teamId: input.teamId ?? null,
       leagueName: league.name,
-      espnSwid: encryptEspnCookie(creds.swid),
-      espnS2: encryptEspnCookie(creds.espnS2),
+      // Blank cookie fields must not wipe stored encrypted values (issue #44).
+      ...espnCookieUpdateFields({ swid: creds.swid, espnS2: creds.espnS2 }),
       cachedPayload: JSON.stringify(league),
       lastSyncedAt: new Date(),
     },
