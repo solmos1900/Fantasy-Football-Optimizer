@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { getLeagueDataForUser } from "@/lib/league/service";
+import { getLeagueDataForUser, resolveUserTeam } from "@/lib/league/service";
 import {
   computeTrendsFromLeague,
   enrichPlayersWithSnapshots,
@@ -9,6 +9,7 @@ import { getNoLeaguePlayerPool } from "@/lib/players/pool";
 import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
 import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import { TradesHub } from "@/components/trades-hub";
+import { SelectTeamPrompt } from "@/components/select-team-prompt";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 
 export default async function TradesPage({
@@ -80,17 +81,10 @@ export default async function TradesPage({
   }
   const league = enrichPlayersWithSnapshots(rawLeague, trendMap);
 
-  const you =
-    league.teams.find((t) => t.isCurrentUser) ??
-    league.teams.find((t) => t.id === league.userTeamId) ??
-    league.teams[0];
+  const you = resolveUserTeam(league);
 
   if (!you) {
-    return (
-      <p className="type-body text-emerald-950/55">
-        No team found for this league connection.
-      </p>
-    );
+    return <SelectTeamPrompt title="Pick your team for trades" />;
   }
 
   const partners = league.teams.filter((t) => t.id !== you.id);

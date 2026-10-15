@@ -17,6 +17,7 @@ import { buildRealisticTrades } from "@/lib/insights/trades";
 import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
+import { resolveUserTeam } from "@/lib/league/team";
 import { formatStatusCode } from "@/lib/utils";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
@@ -72,11 +73,8 @@ function byPriority(
 }
 
 function currentTeam(league: LeagueData): FantasyTeam | undefined {
-  return (
-    league.teams.find((t) => t.isCurrentUser) ??
-    league.teams.find((t) => t.id === league.userTeamId) ??
-    league.teams[0]
-  );
+  // Never invent a team — teams[0] would be another manager's roster.
+  return resolveUserTeam(league);
 }
 
 function buildStartSit(

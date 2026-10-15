@@ -182,9 +182,18 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
               value={form.teamId}
               onChange={(e) => setForm({ ...form, teamId: e.target.value })}
               className="field-input"
-              placeholder="Optional"
+              placeholder={
+                liveConnection?.teamId != null
+                  ? `Saved: ${liveConnection.teamId}`
+                  : "Required for My Team"
+              }
               disabled={loading}
             />
+            <span className="mt-1 block text-xs text-emerald-950/50">
+              {liveConnection?.teamId != null
+                ? "Leave blank to keep your saved team."
+                : "Find it in ESPN under your league standings (team number)."}
+            </span>
           </label>
         </div>
 

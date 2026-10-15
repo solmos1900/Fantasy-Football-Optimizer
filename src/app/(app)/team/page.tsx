@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { auth } from "@/lib/auth";
-import { getLeagueDataForUser } from "@/lib/league/service";
+import { getLeagueDataForUser, resolveUserTeam } from "@/lib/league/service";
 import { EmptyRosterSlot, PlayerRow } from "@/components/player-row";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
+import { SelectTeamPrompt } from "@/components/select-team-prompt";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 
 export default async function TeamPage() {
@@ -20,13 +21,10 @@ export default async function TeamPage() {
     );
   }
 
-  const team =
-    league.teams.find((t) => t.isCurrentUser) ??
-    league.teams.find((t) => t.id === league.userTeamId) ??
-    league.teams[0];
+  const team = resolveUserTeam(league);
 
   if (!team) {
-    return <p className="text-sm text-emerald-950/60">No team found in league data.</p>;
+    return <SelectTeamPrompt title="Pick your team" />;
   }
 
   const ordered = sortByEspnRosterOrder(team.roster);
