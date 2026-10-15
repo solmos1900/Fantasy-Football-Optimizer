@@ -13,5 +13,8 @@
       "path": "/api/cron/nflverse-usage",
       "schedule": "0 14 * * 3"
     }
-  ]
+  ],
+  "github": {
+    "silent": true
+  }
 }
