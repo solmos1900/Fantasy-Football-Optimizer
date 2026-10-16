@@ -18,6 +18,7 @@
     "verify:insights": "tsx scripts/verify-insights-signals.ts",
     "verify:teammate-injury": "tsx scripts/verify-teammate-injury.ts",
     "verify:next-version": "tsx scripts/verify-next-version.ts",
+    "verify:auth-linking": "tsx scripts/verify-auth-linking.ts",
     "verify:golden": "tsx scripts/verify-golden.ts",
     "verify:pool": "tsx scripts/verify-pool.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
