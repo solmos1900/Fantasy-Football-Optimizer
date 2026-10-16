@@ -59,10 +59,18 @@ async function main() {
   );
   assert.match(authSrc, /createSafePrismaAdapter/);
   assert.match(authSrc, /!user\.emailVerified/);
-  // GitHub must not allow dangerous linking
+  // GitHub must not allow dangerous linking (#68: omit the flag / Auth.js default).
+  // Keep compatible with verify:auth-linking — do not require an explicit `false`.
+  const githubBlock = authSrc.match(/GitHub\(\{[\s\S]*?\}\),\s*\)/);
+  assert.ok(githubBlock, "expected GitHub provider config in auth.ts");
+  assert.doesNotMatch(
+    githubBlock[0],
+    /allowDangerousEmailAccountLinking:\s*true/,
+    "GitHub must not enable allowDangerousEmailAccountLinking",
+  );
   assert.match(
-    authSrc,
-    /GitHub\(\{[\s\S]*?allowDangerousEmailAccountLinking:\s*false/,
+    githubBlock[0],
+    /Do NOT enable allowDangerousEmailAccountLinking for GitHub/,
   );
   assert.match(authSrc, /clearUnverifiedCredentialsBlocker/);
 
