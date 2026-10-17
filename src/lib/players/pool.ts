@@ -14,6 +14,10 @@ import { fetchEspnPublicSkillPlayers } from "@/lib/players/espn-public";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
 import { fetchEspnScoreboard } from "@/lib/espn/client";
 import {
+  isFaOrUnknownTeam,
+  nflTeamForPlayerUpdate,
+} from "@/lib/espn/pro-teams";
+import {
   parseEspnScoreboard,
   scheduleMapWithByes,
   formatOpponentLabel,
@@ -157,20 +161,15 @@ async function ensureCompletedWeekIngest(options: {
 async function persistPublicPool(players: FantasyPlayer[], season: number, week: number) {
   const now = new Date();
   for (const player of players) {
-    const incomingTeam = (player.nflTeam ?? "").trim().toUpperCase();
-    const incomingIsFa = !incomingTeam || incomingTeam === "FA";
     // Never let ESPN public (often proTeamId=0 → FA) wipe a real team that
     // Sleeper/nflverse authority already stored on the Player row.
-    const existing = incomingIsFa
+    const existing = isFaOrUnknownTeam(player.nflTeam)
       ? await prisma.player.findUnique({
           where: { espnId: player.espnId },
           select: { nflTeam: true },
         })
       : null;
-    const existingTeam = (existing?.nflTeam ?? "").trim().toUpperCase();
-    const keepExistingTeam =
-      incomingIsFa && existingTeam && existingTeam !== "FA";
-    const nflTeam = keepExistingTeam ? existing!.nflTeam! : player.nflTeam;
+    const nflTeam = nflTeamForPlayerUpdate(player.nflTeam, existing?.nflTeam);
 
     const dbPlayer = await prisma.player.upsert({
       where: { espnId: player.espnId },

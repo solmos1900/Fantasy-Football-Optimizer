@@ -17,6 +17,10 @@
  */
 
 import { prisma } from "@/lib/db";
+import {
+  isFaOrUnknownTeam,
+  nflTeamForPlayerUpdate,
+} from "@/lib/espn/pro-teams";
 import type {
   FantasyPlayer,
   InjuryStatus,
@@ -433,7 +437,24 @@ export function deriveTrendFromWeeks(
   };
 }
 
+/**
+ * Upsert the shared canonical Player row. Create uses the ESPN team as-is;
+ * update never lets FA/unknown overwrite a previously stored real team
+ * (mirrors the public pool FA guard — issue #88).
+ */
 async function upsertPlayer(player: FantasyPlayer) {
+  let nflTeamOnUpdate = player.nflTeam;
+  if (isFaOrUnknownTeam(player.nflTeam)) {
+    const existing = await prisma.player.findUnique({
+      where: { espnId: player.espnId },
+      select: { nflTeam: true },
+    });
+    nflTeamOnUpdate = nflTeamForPlayerUpdate(
+      player.nflTeam,
+      existing?.nflTeam,
+    );
+  }
+
   return prisma.player.upsert({
     where: { espnId: player.espnId },
     create: {
@@ -447,7 +468,7 @@ async function upsertPlayer(player: FantasyPlayer) {
       espnPlayerId: String(player.espnId),
       name: player.name,
       position: player.position,
-      nflTeam: player.nflTeam,
+      nflTeam: nflTeamOnUpdate,
     },
   });
 }
