@@ -64,7 +64,11 @@ if (githubOAuthConfigured) {
     GitHub({
       clientId: githubId!,
       clientSecret: githubSecret!,
-      allowDangerousEmailAccountLinking: true,
+      // Do NOT enable allowDangerousEmailAccountLinking for GitHub.
+      // Unlike Google, GitHub does not always guarantee the returned email
+      // is verified for the signing-in user, so silent email-based account
+      // merge would enable takeover. Prefer Auth.js default (no auto-link)
+      // so GitHub accounts are only linked via explicit signed-in linking.
     }),
   );
 }
