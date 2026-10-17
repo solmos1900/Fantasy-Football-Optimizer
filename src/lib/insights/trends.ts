@@ -58,6 +58,7 @@ export type WeekStatRow = {
 /**
  * Shared week axis for every player: weeks 1..currentWeek.
  * Missing storage still yields a row (nulls) so cards don't look like different seasons.
+ * Display-only — do not persist these null placeholders (see weekStatScoreUpdateFields).
  */
 export function scaffoldWeekAxis(
   currentWeek: number,
@@ -82,6 +83,62 @@ export function scaffoldWeekAxis(
     });
   }
   return [...byWeek.values()].sort((a, b) => a.week - b.week);
+}
+
+/**
+ * Whether a week row has anything worth writing to PlayerWeekStat.
+ * Scaffolded null/null placeholders must not be persisted (#74).
+ * True 0.0 scores are finite numbers and must still persist (#50).
+ */
+export function shouldPersistWeekStat(
+  projectedPpr: number | null,
+  actualPpr: number | null,
+): boolean {
+  return projectedPpr != null || actualPpr != null;
+}
+
+/**
+ * Prisma `update` fields for week scores.
+ * Only includes actualPpr / projectedPpr when the incoming value is non-null so
+ * incomplete ESPN recentWeeks cannot null-wipe previously stored history (#74).
+ */
+export function weekStatScoreUpdateFields(args: {
+  projectedPpr: number | null;
+  actualPpr: number | null;
+  projectionSource: SnapshotSource;
+  actualSource: string | null;
+}): {
+  projectedPpr?: number;
+  actualPpr?: number;
+  projectionDelta?: number;
+  projectionSource?: SnapshotSource;
+  actualSource?: string;
+  source?: SnapshotSource;
+} {
+  const update: {
+    projectedPpr?: number;
+    actualPpr?: number;
+    projectionDelta?: number;
+    projectionSource?: SnapshotSource;
+    actualSource?: string;
+    source?: SnapshotSource;
+  } = {};
+
+  if (args.projectedPpr != null) {
+    update.projectedPpr = args.projectedPpr;
+    update.projectionSource = args.projectionSource;
+    update.source = args.projectionSource;
+  }
+  if (args.actualPpr != null) {
+    update.actualPpr = args.actualPpr;
+    if (args.actualSource != null) {
+      update.actualSource = args.actualSource;
+    }
+  }
+  if (args.projectedPpr != null && args.actualPpr != null) {
+    update.projectionDelta = args.actualPpr - args.projectedPpr;
+  }
+  return update;
 }
 
 export function weekRowsForPlayer(
@@ -438,11 +495,11 @@ export async function refreshProjectionTrends(
         projected = Math.round(heuristicProj * 10) / 10;
         rowSource = "heuristic";
       }
-
-      // Skip null/null scaffold placeholders — writing them would wipe real
-      // historical stats on every Insights refresh (complementary to #74).
-      // Real published 0.0 proj/actual still has a finite value and is persisted.
-      if (projected == null && row.actualPpr == null) {
+      // Skip scaffolded null/null placeholders. Display still shares a 1..currentWeek
+      // axis via scaffoldWeekAxis when reading; writing empties would wipe history (#74).
+      // Still persist real 0.0 injury / duck weeks (finite numbers, not null) (#50).
+      // Missing ESPN stats map to null (#75) and must not wipe stored history either.
+      if (!shouldPersistWeekStat(projected, row.actualPpr)) {
         continue;
       }
 
@@ -450,7 +507,6 @@ export async function refreshProjectionTrends(
         projected != null && row.actualPpr != null
           ? row.actualPpr - projected
           : null;
-
       const actualSource =
         row.actualPpr != null
           ? league.isDemo
@@ -479,35 +535,26 @@ export async function refreshProjectionTrends(
           projectedPpr: projected,
           actualPpr: row.actualPpr,
           projectionDelta,
-          projectionSource: projected != null ? rowSource : null,
+          projectionSource: rowSource,
           actualSource,
           source: rowSource,
           leagueId: lid,
           opponent: row.opponent ?? null,
         },
-        // Only set proj/actual when incoming is non-null so an absent ESPN
-        // value never wipes an already-stored real number.
         update: {
           playerId: dbPlayer.id,
           playerName: player.name,
           position: player.position,
           nflTeam: player.nflTeam,
           scoringFormat: "PPR",
-          ...(projected != null
-            ? {
-                projectedPpr: projected,
-                projectionSource: rowSource,
-              }
-            : {}),
-          ...(row.actualPpr != null
-            ? {
-                actualPpr: row.actualPpr,
-                actualSource,
-              }
-            : {}),
-          ...(projectionDelta != null ? { projectionDelta } : {}),
-          source: rowSource,
-          ...(row.opponent != null ? { opponent: row.opponent } : {}),
+          // Only overwrite score fields when the feed sent a value — never null-wipe.
+          ...weekStatScoreUpdateFields({
+            projectedPpr: projected,
+            actualPpr: row.actualPpr,
+            projectionSource: rowSource,
+            actualSource,
+          }),
+          ...(row.opponent ? { opponent: row.opponent } : {}),
         },
       });
       snapshots += 1;
