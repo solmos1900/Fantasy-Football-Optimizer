@@ -23,7 +23,7 @@ import type {
   PlayerNewsItem,
   PlayerPosition,
 } from "@/lib/types";
-import { formatStatusCode, injuryIsPhrase } from "@/lib/utils";
+import { formatStatusCode, injuryIsPhrase, pointsOrZero } from "@/lib/utils";
 
 const ACTIONABLE: InjuryStatus[] = ["OUT", "DOUBTFUL", "IR"];
 
@@ -159,7 +159,7 @@ function findBeneficiaries(
     )
     .sort(
       (a, b) =>
-        b.projectedPoints - a.projectedPoints ||
+        pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints) ||
         b.percentOwned - a.percentOwned,
     );
 
@@ -187,7 +187,7 @@ function dropCandidate(
           : 1;
       return (
         inj(a) - inj(b) ||
-        a.projectedPoints - b.projectedPoints ||
+        pointsOrZero(a.projectedPoints) - pointsOrZero(b.projectedPoints) ||
         a.percentOwned - b.percentOwned
       );
     });
@@ -241,9 +241,9 @@ export function buildWaiverShark(
           `Claim ${add.name} while ${hurt.name} ${injuryIsPhrase(hurt.injuryStatus)} — ${add.name} is the ${role} and available in your league.`,
           `${hurt.name} (${hurt.nflTeam} ${hurt.position}) is unavailable — ${source}. We never invent injury news.`,
           note,
-          `${add.name} is on waivers (${add.percentOwned.toFixed(0)}% owned league-wide, ${add.projectedPoints.toFixed(1)} projected).`,
+          `${add.name} is on waivers (${add.percentOwned.toFixed(0)}% owned league-wide, ${pointsOrZero(add.projectedPoints).toFixed(1)} projected).`,
           drop
-            ? `If your roster is full, consider dropping ${drop.name} (${drop.position}, ${drop.projectedPoints.toFixed(1)} projected${
+            ? `If your roster is full, consider dropping ${drop.name} (${drop.position}, ${pointsOrZero(drop.projectedPoints).toFixed(1)} projected${
                 drop.injuryStatus !== "ACTIVE"
                   ? `, ${
                       formatStatusCode(drop.injuryStatus) === "IR"

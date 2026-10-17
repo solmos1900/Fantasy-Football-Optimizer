@@ -5,6 +5,7 @@ import { EmptyRosterSlot, PlayerRow } from "@/components/player-row";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { SelectTeamPrompt } from "@/components/select-team-prompt";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
+import { pointsOrZero } from "@/lib/utils";
 
 export default async function TeamPage() {
   const session = await auth();
@@ -33,8 +34,14 @@ export default async function TeamPage() {
   const bench = ordered.filter(
     (p) => !p.isStarter && (p.slot ?? "") !== "IR",
   );
-  const starterProj = starters.reduce((a, p) => a + p.projectedPoints, 0);
-  const starterAct = starters.reduce((a, p) => a + p.actualPoints, 0);
+  const starterProj = starters.reduce(
+    (a, p) => a + pointsOrZero(p.projectedPoints),
+    0,
+  );
+  const starterAct = starters.reduce(
+    (a, p) => a + pointsOrZero(p.actualPoints),
+    0,
+  );
   const weekLabel = `WK${league.currentWeek}`;
 
   return (

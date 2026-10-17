@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
-import { cn, formatStatusCode, statusColor } from "@/lib/utils";
+import { cn, formatStatusCode, statusColor, pointsOrZero } from "@/lib/utils";
 import type {
   FantasyPlayer,
   FantasyTeam,
@@ -156,7 +156,7 @@ function PlayerPickCard({
   const out = isOut(player);
   const health = healthLabel(player);
   const def = defChip(player, league);
-  const proj = out ? 0 : player.projectedPoints;
+  const proj = out ? 0 : pointsOrZero(player.projectedPoints);
 
   return (
     <button
@@ -638,7 +638,7 @@ function RosterModal({
                   key={p.id}
                   position={isFlexSlot ? "FLEX" : p.position}
                   name={display.name}
-                  proj={display.projectedPoints}
+                  proj={pointsOrZero(display.projectedPoints)}
                   out={out}
                   undecided={undecided}
                   onPick={() => {
@@ -662,7 +662,7 @@ function RosterModal({
                       key={p.id}
                       position={p.position}
                       name={p.name}
-                      proj={p.projectedPoints}
+                      proj={pointsOrZero(p.projectedPoints)}
                       out={out}
                     />
                   );
@@ -759,7 +759,7 @@ export function StartSitBoard({
         if (Boolean(a.isStarter) !== Boolean(b.isStarter)) {
           return a.isStarter ? -1 : 1;
         }
-        return b.projectedPoints - a.projectedPoints;
+        return pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints);
       });
   }, [you.roster, filter]);
 
@@ -780,7 +780,7 @@ export function StartSitBoard({
     if (selected.length < 2) return null;
     const ranked = [...selected].sort((a, b) => {
       if (isOut(a) !== isOut(b)) return isOut(a) ? 1 : -1;
-      return b.projectedPoints - a.projectedPoints;
+      return pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints);
     });
     return { a: ranked[0]!, b: ranked[1]! };
   }, [selected]);

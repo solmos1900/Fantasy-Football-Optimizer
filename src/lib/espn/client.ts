@@ -26,6 +26,7 @@ import {
   type NflScheduleEntry,
   type ScoreboardEvent,
 } from "@/lib/espn/scoreboard";
+import { finiteEspnAppliedTotal } from "@/lib/espn/stats";
 import { defaultEspnSeason } from "@/lib/season";
 
 const ESPN_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
@@ -141,7 +142,8 @@ function injuryFromPlayer(player: Record<string, unknown>): InjuryStatus {
   return "ACTIVE";
 }
 
-function mapPlayer(
+/** Map an ESPN roster / player-pool entry. Exported for regression tests. */
+export function mapPlayer(
   entry: Record<string, unknown>,
   scoringPeriodId: number,
 ): FantasyPlayer {
@@ -180,26 +182,27 @@ function mapPlayer(
   const recentWeeks = (() => {
     const byWeek = new Map<
       number,
-      { week: number; points: number; projectedPoints?: number }
+      { week: number; points: number | null; projectedPoints?: number }
     >();
 
     for (const s of stats) {
       const week = Number(s.scoringPeriodId);
       if (!week || week <= 0 || week >= scoringPeriodId) continue;
       if (Number(s.statSplitTypeId) !== 1) continue;
-      if (typeof s.appliedTotal !== "number") continue;
+      const total = finiteEspnAppliedTotal(s.appliedTotal);
+      if (total == null) continue;
 
-      const existing = byWeek.get(week) ?? { week, points: 0 };
+      const existing = byWeek.get(week) ?? { week, points: null };
       if (Number(s.statSourceId) === 0) {
-        existing.points = Number(s.appliedTotal);
+        existing.points = total;
       } else if (Number(s.statSourceId) === 1) {
-        existing.projectedPoints = Number(s.appliedTotal);
+        existing.projectedPoints = total;
       }
       byWeek.set(week, existing);
     }
 
     return [...byWeek.values()]
-      .filter((w) => Number.isFinite(w.points) || w.projectedPoints != null)
+      .filter((w) => w.points != null || w.projectedPoints != null)
       .sort((a, b) => b.week - a.week)
       .slice(0, 6);
   })();
@@ -211,8 +214,9 @@ function mapPlayer(
     position,
     nflTeam: nflTeamFromEspn(proTeamId, preferredAbbrev),
     injuryStatus: injuryFromPlayer(player),
-    projectedPoints: Number((projected?.appliedTotal as number) ?? 0),
-    actualPoints: Number((actual?.appliedTotal as number) ?? 0),
+    // Missing ESPN stat blocks → null (unknown). Real published 0.0 stays 0.
+    projectedPoints: finiteEspnAppliedTotal(projected?.appliedTotal),
+    actualPoints: finiteEspnAppliedTotal(actual?.appliedTotal),
     percentOwned: Number(ownership.percentOwned ?? 0),
     percentStarted: Number(ownership.percentStarted ?? 0),
     slot,

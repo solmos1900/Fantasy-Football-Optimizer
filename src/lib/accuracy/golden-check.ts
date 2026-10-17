@@ -9,6 +9,7 @@
  */
 
 import fs from "node:fs";
+import { pointsOrZero } from "@/lib/utils";
 import path from "node:path";
 import { prisma } from "@/lib/db";
 import { NFLVERSE_LEAGUE_ID } from "@/lib/nflverse/map";
@@ -379,7 +380,7 @@ async function assertToolSurfaces(
         `who-to-start headline missing full name+team: "${result.headline}"`,
       );
     }
-    const projEdge = a.projectedPoints - b.projectedPoints;
+    const projEdge = pointsOrZero(a.projectedPoints) - pointsOrZero(b.projectedPoints);
     // When neither is injured, edge must equal projection gap (not defense sample).
     if (
       a.injuryStatus === "ACTIVE" &&

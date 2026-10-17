@@ -94,7 +94,9 @@ const mapped = mapEspnPublicPlayer(
 );
 assert.ok(mapped);
 assert.equal(mapped.position, "QB");
-assert.ok(mapped.projectedPoints > 0);
+assert.ok(
+  mapped.projectedPoints != null && mapped.projectedPoints > 0,
+);
 assert.ok((mapped.recentWeeks?.length ?? 0) >= 1);
 
 const poolSrc = fs.readFileSync(

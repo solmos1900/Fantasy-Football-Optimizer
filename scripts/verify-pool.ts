@@ -81,7 +81,7 @@ async function main() {
     `Bijan Robinson Sleeper proj must be > 0, got ${bijanSleeper}`,
   );
   assert.ok(
-    bijan!.projectedPoints > 0,
+    bijan!.projectedPoints != null && bijan!.projectedPoints > 0,
     `Bijan pool projectedPoints must be > 0 (Sleeper overlay), got ${bijan!.projectedPoints}`,
   );
   // Pool proj must match Sleeper for the same week — never a leftover ESPN value.

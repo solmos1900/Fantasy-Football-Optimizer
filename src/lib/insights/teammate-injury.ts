@@ -382,7 +382,7 @@ export async function buildTeammateInjuryIndex(options: {
       // Null share still allowed for OUT/IR stars with proj — detail shows —.
       if (
         share3wk == null &&
-        tm.projectedPoints < 6 &&
+        (tm.projectedPoints == null || tm.projectedPoints < 6) &&
         ev.direction === "up"
       ) {
         continue;
@@ -395,7 +395,8 @@ export async function buildTeammateInjuryIndex(options: {
           isVolumeCompetitor(p.position, tm.position) &&
           !isInjuredHard(p.injuryStatus) &&
           // Prefer fantasy-relevant teammates (usage or proj)
-          (p.projectedPoints >= 4 ||
+          ((typeof p.projectedPoints === "number" &&
+            p.projectedPoints >= 4) ||
             (shareMap.get(p.espnId) ?? []).some(
               (r) => (r.targetShare ?? 0) > 0 || (r.carries ?? 0) > 0,
             )),
