@@ -120,23 +120,23 @@ async function loadSleeperPlayers(): Promise<{
   return { espnToSleeper, sleeperMeta };
 }
 
-function ptsPprFromRow(row: SleeperProjRow | null | undefined): number | null {
-  if (!row || typeof row !== "object") return null;
-  const pts =
-    row.stats?.pts_ppr ??
-    row.stats?.pts_half_ppr ??
-    row.stats?.pts ??
-    row.pts_ppr ??
-    row.pts_half_ppr ??
-    row.pts;
-  if (typeof pts === "number" && Number.isFinite(pts)) {
-    return Math.round(pts * 10) / 10;
+function normalizeProjectionPoints(value: number | string | null | undefined): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 10) / 10;
   }
-  if (typeof pts === "string" && pts.trim() !== "") {
-    const n = Number(pts);
-    return Number.isFinite(n) ? Math.round(n * 10) / 10 : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.round(parsed * 10) / 10 : null;
   }
   return null;
+}
+
+export function ptsPprFromRow(row: SleeperProjRow | null | undefined): number | null {
+  if (!row || typeof row !== "object") return null;
+  return (
+    normalizeProjectionPoints(row.stats?.pts_ppr) ??
+    normalizeProjectionPoints(row.pts_ppr)
+  );
 }
 
 /**
