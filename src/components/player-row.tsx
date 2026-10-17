@@ -78,9 +78,17 @@ export function PlayerRow({
   const slot = formatStatusCode(player.slot ?? player.position);
   const badge = showSlotBadge ? slot : formatStatusCode(player.position);
   const injury = formatStatusCode(player.injuryStatus);
+  // Real published 0.0 shows as 0.0; missing (null) shows as —.
   const actual =
-    player.actualPoints > 0 ? player.actualPoints.toFixed(1) : "—";
-  const proj = player.projectedPoints.toFixed(1);
+    typeof player.actualPoints === "number" &&
+    Number.isFinite(player.actualPoints)
+      ? player.actualPoints.toFixed(1)
+      : "—";
+  const proj =
+    typeof player.projectedPoints === "number" &&
+    Number.isFinite(player.projectedPoints)
+      ? player.projectedPoints.toFixed(1)
+      : "—";
   const matchup = player.opponent?.trim() || null;
   const useProjPrimary = preferProjected;
   /** Slot badge already shows position; avoid repeating pos in meta on Team. */

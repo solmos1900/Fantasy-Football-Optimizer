@@ -18,7 +18,7 @@ import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
 import { resolveUserTeam } from "@/lib/league/team";
-import { formatStatusCode } from "@/lib/utils";
+import { formatStatusCode, pointsOrZero } from "@/lib/utils";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -48,7 +48,7 @@ function avgProjected(
   for (const team of teams) {
     const best = startersOf(team)
       .filter((p) => p.position === pos)
-      .map((p) => p.projectedPoints);
+      .map((p) => pointsOrZero(p.projectedPoints));
     if (best.length) values.push(best.reduce((a, b) => a + b, 0) / best.length);
   }
   if (!values.length) return 0;
@@ -96,11 +96,11 @@ function buildStartSit(
         (s.slot === "FLEX" && ["RB", "WR", "TE"].includes(b.position)),
     );
     const weakest = [...comparable].sort(
-      (a, c) => a.projectedPoints - c.projectedPoints,
+      (a, c) => pointsOrZero(a.projectedPoints) - pointsOrZero(c.projectedPoints),
     )[0];
     if (!weakest) continue;
 
-    const projDelta = b.projectedPoints - weakest.projectedPoints;
+    const projDelta = pointsOrZero(b.projectedPoints) - pointsOrZero(weakest.projectedPoints);
     const recentB = averageRecentPoints(b.recentWeeks);
     const recentW = averageRecentPoints(weakest.recentWeeks);
     const formDelta =
@@ -123,10 +123,10 @@ function buildStartSit(
 
     const reasoning: string[] = [
       shouldStart
-        ? `Start ${b.name} over ${weakest.name} — ${b.projectedPoints.toFixed(1)} projected vs ${weakest.projectedPoints.toFixed(1)} (${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} edge).`
+        ? `Start ${b.name} over ${weakest.name} — ${pointsOrZero(b.projectedPoints).toFixed(1)} projected vs ${pointsOrZero(weakest.projectedPoints).toFixed(1)} (${projDelta >= 0 ? "+" : ""}${projDelta.toFixed(1)} edge).`
         : `Leave ${b.name} on the bench this week despite the higher projection — the ${defense?.opponent ?? "opponent"} matchup has been rough.`,
-      `${b.name} is on your bench at ${b.projectedPoints.toFixed(1)} projected points (full PPR).`,
-      `${weakest.name} is starting in the ${weakest.slot} slot at only ${weakest.projectedPoints.toFixed(1)}.`,
+      `${b.name} is on your bench at ${pointsOrZero(b.projectedPoints).toFixed(1)} projected points (full PPR).`,
+      `${weakest.name} is starting in the ${weakest.slot} slot at only ${pointsOrZero(weakest.projectedPoints).toFixed(1)}.`,
     ];
     const formB = recentFormSummary(b);
     const formW = recentFormSummary(weakest);
@@ -158,7 +158,7 @@ function buildStartSit(
         priority: "medium",
         verdict: "SIT",
         title: `SIT ${b.name} despite higher projection — tough ${defense.opponent} matchup`,
-        summary: `${b.name} projects ${b.projectedPoints.toFixed(1)} but similar ${b.position === "RB" ? "running backs" : b.position === "WR" ? "receivers" : b.position === "TE" ? "tight ends" : "players"} have struggled vs ${defense.opponent}.`,
+        summary: `${b.name} projects ${pointsOrZero(b.projectedPoints).toFixed(1)} but similar ${b.position === "RB" ? "running backs" : b.position === "WR" ? "receivers" : b.position === "TE" ? "tight ends" : "players"} have struggled vs ${defense.opponent}.`,
         reasoning,
         relatedPlayerIds: [b.id, weakest.id],
       });
@@ -172,7 +172,7 @@ function buildStartSit(
             : "medium",
         verdict: "START",
         title: `START ${b.name} over ${weakest.name}`,
-        summary: `${b.name} projects ${b.projectedPoints.toFixed(1)} vs ${weakest.name}'s ${weakest.projectedPoints.toFixed(1)}${toughForStarter ? ` — and ${weakest.name}'s matchup looks worse historically` : ""}.`,
+        summary: `${b.name} projects ${pointsOrZero(b.projectedPoints).toFixed(1)} vs ${weakest.name}'s ${pointsOrZero(weakest.projectedPoints).toFixed(1)}${toughForStarter ? ` — and ${weakest.name}'s matchup looks worse historically` : ""}.`,
         reasoning,
         relatedPlayerIds: [b.id, weakest.id],
       });
@@ -188,7 +188,7 @@ function buildStartSit(
             (s.slot === "FLEX" && ["RB", "WR", "TE"].includes(b.position))) &&
           !["OUT", "IR"].includes(b.injuryStatus),
       )
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)[0];
+      .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints))[0];
 
     const reasoning = [
       replacement
@@ -196,7 +196,7 @@ function buildStartSit(
         : `Sit ${s.name} (${injuryCodeLabel(s.injuryStatus)}) — no healthy same-position bench option yet.`,
       `${s.name} is still listed in a starting slot (${formatStatusCode(s.slot ?? s.position)}) with injury status ${injuryCodeLabel(s.injuryStatus)}.`,
       replacement
-        ? `Best bench option: ${replacement.name} (${replacement.projectedPoints.toFixed(1)} projected, ${injuryCodeLabel(replacement.injuryStatus)}).`
+        ? `Best bench option: ${replacement.name} (${pointsOrZero(replacement.projectedPoints).toFixed(1)} projected, ${injuryCodeLabel(replacement.injuryStatus)}).`
         : `Check the waiver wire for a healthy ${s.position}.`,
     ];
     const form = recentFormSummary(replacement ?? s);
@@ -256,7 +256,7 @@ function buildMatchupNotes(
       summary: punch,
       reasoning: [
         punch,
-        `${s.name} is projected for ${s.projectedPoints.toFixed(1)} points this week vs ${def.opponent}.`,
+        `${s.name} is projected for ${pointsOrZero(s.projectedPoints).toFixed(1)} points this week vs ${def.opponent}.`,
         def.summary,
         formAvg != null
           ? `${s.name} has been averaging about ${formAvg.toFixed(1)} points in recent games.`
@@ -282,7 +282,8 @@ function buildOther(
     const myStarters = starters.filter((p) => p.position === pos);
     if (!myStarters.length) continue;
     const myAvg =
-      myStarters.reduce((a, p) => a + p.projectedPoints, 0) / myStarters.length;
+      myStarters.reduce((a, p) => a + pointsOrZero(p.projectedPoints), 0) /
+      myStarters.length;
     const leagueAvg = avgProjected(league.teams, pos);
     if (leagueAvg > 0 && myAvg < leagueAvg - 2) {
       out.push({
@@ -308,34 +309,41 @@ function buildOther(
       (p) =>
         p.percentOwned < 35 ||
         p.injuryStatus === "OUT" ||
-        p.projectedPoints < 4,
+        pointsOrZero(p.projectedPoints) < 4,
     )
-    .sort((a, b) => a.projectedPoints - b.projectedPoints);
+    .sort((a, b) => pointsOrZero(a.projectedPoints) - pointsOrZero(b.projectedPoints));
 
   const adds = league.freeAgents
     .filter((fa) => !owned.has(fa.espnId))
-    .filter((fa) => fa.projectedPoints >= 8 || fa.percentOwned >= 30)
-    .sort((a, b) => b.projectedPoints - a.projectedPoints);
+    .filter(
+      (fa) =>
+        pointsOrZero(fa.projectedPoints) >= 8 || fa.percentOwned >= 30,
+    )
+    .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints));
 
   for (let i = 0; i < Math.min(2, drops.length, adds.length); i++) {
     const drop = drops[i];
     const add = adds[i];
     if (!drop || !add) continue;
-    if (add.projectedPoints < drop.projectedPoints + 1) continue;
+    if (
+      pointsOrZero(add.projectedPoints) <
+      pointsOrZero(drop.projectedPoints) + 1
+    )
+      continue;
 
     out.push({
       id: `drop-add-${drop.id}-${add.id}`,
       type: "drop_add",
-      priority: add.projectedPoints - drop.projectedPoints >= 4 ? "high" : "medium",
+      priority: pointsOrZero(add.projectedPoints) - pointsOrZero(drop.projectedPoints) >= 4 ? "high" : "medium",
       title: `Drop ${drop.name} → add ${add.name}`,
-      summary: `${add.name} projects ${add.projectedPoints.toFixed(1)} vs ${drop.name}'s ${drop.projectedPoints.toFixed(1)}.`,
+      summary: `${add.name} projects ${pointsOrZero(add.projectedPoints).toFixed(1)} vs ${drop.name}'s ${pointsOrZero(drop.projectedPoints).toFixed(1)}.`,
       reasoning: [
-        `${drop.name} is benched with ${drop.projectedPoints.toFixed(1)} projected and ${drop.percentOwned.toFixed(0)}% ownership.`,
+        `${drop.name} is benched with ${pointsOrZero(drop.projectedPoints).toFixed(1)} projected and ${drop.percentOwned.toFixed(0)}% ownership.`,
         drop.injuryStatus !== "ACTIVE"
           ? `Drop candidate injury status: ${injuryCodeLabel(drop.injuryStatus)}.`
           : `Low utilization / projection makes the roster spot costly.`,
-        `${add.name} is available (${add.percentOwned.toFixed(0)}% owned) projecting ${add.projectedPoints.toFixed(1)}.`,
-        `Projection uplift: +${(add.projectedPoints - drop.projectedPoints).toFixed(1)} if the add earns a role.`,
+        `${add.name} is available (${add.percentOwned.toFixed(0)}% owned) projecting ${pointsOrZero(add.projectedPoints).toFixed(1)}.`,
+        `Projection uplift: +${(pointsOrZero(add.projectedPoints) - pointsOrZero(drop.projectedPoints)).toFixed(1)} if the add earns a role.`,
       ],
       relatedPlayerIds: [drop.id, add.id],
     });
@@ -380,21 +388,23 @@ function buildOther(
     const betterFa = league.freeAgents
       .filter(
         (fa) =>
-          fa.position === pos && fa.projectedPoints > mine.projectedPoints + 1.5,
+          fa.position === pos &&
+          pointsOrZero(fa.projectedPoints) >
+            pointsOrZero(mine.projectedPoints) + 1.5,
       )
-      .sort((a, b) => b.projectedPoints - a.projectedPoints)[0];
+      .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints))[0];
     if (betterFa) {
       out.push({
         id: `stream-${pos}-${betterFa.id}`,
         type: "streaming",
         priority: "low",
         title: `Stream ${pos}: ${betterFa.name} over ${mine.name}`,
-        summary: `${betterFa.name} projects ${betterFa.projectedPoints.toFixed(1)} vs ${mine.projectedPoints.toFixed(1)}.`,
+        summary: `${betterFa.name} projects ${pointsOrZero(betterFa.projectedPoints).toFixed(1)} vs ${pointsOrZero(mine.projectedPoints).toFixed(1)}.`,
         reasoning: [
           `${pos} is highly matchup-dependent; streaming is a common efficiency tactic.`,
-          `Current starter ${mine.name}: ${mine.projectedPoints.toFixed(1)} projected.`,
-          `Available ${betterFa.name}: ${betterFa.projectedPoints.toFixed(1)} projected (${betterFa.percentOwned.toFixed(0)}% owned).`,
-          `Uplift of ${(betterFa.projectedPoints - mine.projectedPoints).toFixed(1)} on a replaceable roster spot.`,
+          `Current starter ${mine.name}: ${pointsOrZero(mine.projectedPoints).toFixed(1)} projected.`,
+          `Available ${betterFa.name}: ${pointsOrZero(betterFa.projectedPoints).toFixed(1)} projected (${betterFa.percentOwned.toFixed(0)}% owned).`,
+          `Uplift of ${(pointsOrZero(betterFa.projectedPoints) - pointsOrZero(mine.projectedPoints)).toFixed(1)} on a replaceable roster spot.`,
         ],
         relatedPlayerIds: [mine.id, betterFa.id],
         relatedPositions: [pos],

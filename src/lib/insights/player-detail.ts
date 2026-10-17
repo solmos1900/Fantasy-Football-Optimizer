@@ -14,7 +14,7 @@ import {
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode } from "@/lib/utils";
+import { formatStatusCode, pointsOrZero } from "@/lib/utils";
 
 export type StartSitLean = "START" | "SIT" | "FLEX";
 
@@ -186,7 +186,7 @@ export function buildPlayerDetailInsight(
         status === "IR"
           ? `Roster lists them on the IR. Gridiron IQ does not invent injury details.`
           : `Roster injury status is ${status}. Gridiron IQ does not invent injury details.`,
-        `Projection is ${player.projectedPoints.toFixed(1)}; treat as unavailable until status flips.`,
+        `Projection is ${pointsOrZero(player.projectedPoints).toFixed(1)}; treat as unavailable until status flips.`,
       ],
       dataThin: false,
       matchupSummary:
@@ -215,7 +215,7 @@ export function buildPlayerDetailInsight(
   }
 
   reasons.push(
-    `This week's projection is ${player.projectedPoints.toFixed(1)} points (${venue.label}).`,
+    `This week's projection is ${pointsOrZero(player.projectedPoints).toFixed(1)} points (${venue.label}).`,
   );
 
   if (trend && trend.trendLabel !== "thin" && trend.trendLabel !== "Thin") {
@@ -262,7 +262,7 @@ export function buildPlayerDetailInsight(
     `Comparing similar ${roleLabel(inferPlayerRole(player))}s against this defense from completed weeks only.`,
   );
 
-  let score = player.projectedPoints;
+  let score = pointsOrZero(player.projectedPoints);
   if (recentAvg != null) score = score * 0.55 + recentAvg * 0.45;
   if (trend) score += trend.restOfSeasonAdj * 0.5;
   if (matchup?.toughMatchup) score -= 2.5;

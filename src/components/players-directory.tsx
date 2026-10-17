@@ -7,7 +7,7 @@ import {
   formatPositionLabel,
   positionChipClassName,
 } from "@/components/position-chip";
-import { cn } from "@/lib/utils";
+import { cn, pointsOrZero } from "@/lib/utils";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"] as const;
 
@@ -35,7 +35,7 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
       if (!byId.has(p.espnId)) byId.set(p.espnId, p);
     }
     return Array.from(byId.values()).sort(
-      (a, b) => b.projectedPoints - a.projectedPoints,
+      (a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints),
     );
   }, [league]);
 

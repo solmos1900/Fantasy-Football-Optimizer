@@ -4,6 +4,7 @@
  */
 
 import type { FantasyPlayer, FantasyTeam } from "@/lib/types";
+import { pointsOrZero } from "@/lib/utils";
 import {
   type TrendLookup,
   acceptanceReason,
@@ -95,8 +96,8 @@ function buildForYou(
   trends?: TrendLookup,
 ): string[] {
   const lines = [
-    `You send: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
-    `You get: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
+    `You send: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
+    `You get: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
   ];
   for (const p of receive) {
     if (needsPosition(you, p.position)) {
@@ -125,7 +126,7 @@ function buildForThem(
 ): string[] {
   const lines = [
     `They send: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position})`).join(" + ")}.`,
-    `They get: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+    `They get: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
   ];
   for (const p of give) {
     if (needsPosition(them, p.position)) {
@@ -285,12 +286,12 @@ export function analyzeTrade(
     ...give.map((p) => {
       const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
       const who = formatPlayerLabel(p.name, p.nflTeam);
-      return `${who}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+      return `${who}: ${pointsOrZero(p.projectedPoints).toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
     }),
     ...receive.map((p) => {
       const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
       const who = formatPlayerLabel(p.name, p.nflTeam);
-      return `${who}: ${p.projectedPoints.toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+      return `${who}: ${pointsOrZero(p.projectedPoints).toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
     }),
     ...teammateImpacts.flatMap((row) =>
       row.impacts.map(
@@ -383,8 +384,8 @@ export function comparePlayerPackages(
   else lean = "low";
 
   const forYou = [
-    `Side A (send): ${sideA.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
-    `Side B (get): ${sideB.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${p.projectedPoints.toFixed(1)} proj)`).join(" + ")}.`,
+    `Side A (send): ${sideA.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
+    `Side B (get): ${sideB.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
     valueGap >= 0.5
       ? `Side B is ahead by about ${valueGap.toFixed(1)} chip points — Side A would usually want something else back.`
       : valueGap <= -0.5

@@ -87,10 +87,22 @@ export function inferPlayerRole(player: FantasyPlayer): PlayerRole {
     case "D/ST":
       return "dst";
     case "RB":
-      return player.percentStarted >= 55 || player.projectedPoints >= 12 ? "rb1" : "rb2";
+      return player.percentStarted >= 55 ||
+        (typeof player.projectedPoints === "number" &&
+          player.projectedPoints >= 12)
+        ? "rb1"
+        : "rb2";
     case "WR":
-      if (player.percentStarted >= 70 && player.projectedPoints < 14) return "wr_slot";
-      if (player.projectedPoints >= 13) return "wr_outside";
+      if (
+        player.percentStarted >= 70 &&
+        (player.projectedPoints == null || player.projectedPoints < 14)
+      )
+        return "wr_slot";
+      if (
+        typeof player.projectedPoints === "number" &&
+        player.projectedPoints >= 13
+      )
+        return "wr_outside";
       return player.percentStarted >= 40 ? "wr_slot" : "wr_outside";
     default:
       return "unknown";
@@ -257,7 +269,14 @@ export function analyzeDefenseMatchup(
 export function recentFormSummary(player: FantasyPlayer): string | null {
   const weeks = player.recentWeeks;
   if (!weeks?.length) return null;
-  const sorted = [...weeks].sort((a, b) => b.week - a.week).slice(0, 3);
+  const sorted = [...weeks]
+    .filter(
+      (w): w is WeeklyScore & { points: number } =>
+        typeof w.points === "number" && Number.isFinite(w.points),
+    )
+    .sort((a, b) => b.week - a.week)
+    .slice(0, 3);
+  if (!sorted.length) return null;
   const avg = sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
   const detail = sorted.map((w) => w.points.toFixed(1)).join(", ");
   return `${player.name} scored ${detail} over the last ${sorted.length} games — about ${avg.toFixed(1)} points per game.`;
@@ -265,7 +284,13 @@ export function recentFormSummary(player: FantasyPlayer): string | null {
 
 export function averageRecentPoints(weeks?: WeeklyScore[], n = 3): number | null {
   if (!weeks?.length) return null;
-  const sorted = [...weeks].sort((a, b) => b.week - a.week).slice(0, n);
+  const sorted = [...weeks]
+    .filter(
+      (w): w is WeeklyScore & { points: number } =>
+        typeof w.points === "number" && Number.isFinite(w.points),
+    )
+    .sort((a, b) => b.week - a.week)
+    .slice(0, n);
   if (!sorted.length) return null;
   return sorted.reduce((a, w) => a + w.points, 0) / sorted.length;
 }

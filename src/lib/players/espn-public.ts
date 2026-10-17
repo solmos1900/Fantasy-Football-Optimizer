@@ -105,7 +105,8 @@ export function mapEspnPublicPlayer(
     if (Number(s.statSplitTypeId) !== 1) continue;
     const ppr = pprForStatBlock(s);
     if (ppr == null) continue;
-    const existing = byWeek.get(week) ?? { week, points: 0 };
+    // points stays null until an actual (statSourceId 0) lands — never default to 0.
+    const existing = byWeek.get(week) ?? { week, points: null };
     if (Number(s.statSourceId) === 0) {
       existing.points = ppr;
     } else if (Number(s.statSourceId) === 1) {
@@ -115,6 +116,7 @@ export function mapEspnPublicPlayer(
   }
   recentWeeks.push(
     ...[...byWeek.values()]
+      .filter((w) => w.points != null || w.projectedPoints != null)
       .sort((a, b) => b.week - a.week)
       .slice(0, 6),
   );
@@ -128,8 +130,9 @@ export function mapEspnPublicPlayer(
     position,
     nflTeam: nflTeamFromEspn(Number(row.proTeamId ?? 0)),
     injuryStatus: injuryFromPlayer(row as Record<string, unknown>),
-    projectedPoints: pprForStatBlock(projectedBlock) ?? 0,
-    actualPoints: pprForStatBlock(actualBlock) ?? 0,
+    // Missing ESPN blocks → null; published 0.0 (including ducks) stays 0.
+    projectedPoints: pprForStatBlock(projectedBlock),
+    actualPoints: pprForStatBlock(actualBlock),
     percentOwned: Number(ownership.percentOwned ?? 0),
     percentStarted: Number(ownership.percentStarted ?? 0),
     recentWeeks,

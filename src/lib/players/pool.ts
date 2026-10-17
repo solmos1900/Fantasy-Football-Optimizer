@@ -7,11 +7,16 @@
  */
 
 import { prisma } from "@/lib/db";
+import { pointsOrZero } from "@/lib/utils";
 import { detectLatestNflverseWeek, ingestNflverseUsage } from "@/lib/nflverse";
 import { NFLVERSE_LEAGUE_ID, NFLVERSE_SOURCE } from "@/lib/nflverse/map";
 import { fetchEspnPublicSkillPlayers } from "@/lib/players/espn-public";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
 import { fetchEspnScoreboard } from "@/lib/espn/client";
+import {
+  isFaOrUnknownTeam,
+  nflTeamForPlayerUpdate,
+} from "@/lib/espn/pro-teams";
 import {
   parseEspnScoreboard,
   scheduleMapWithByes,
@@ -156,20 +161,15 @@ async function ensureCompletedWeekIngest(options: {
 async function persistPublicPool(players: FantasyPlayer[], season: number, week: number) {
   const now = new Date();
   for (const player of players) {
-    const incomingTeam = (player.nflTeam ?? "").trim().toUpperCase();
-    const incomingIsFa = !incomingTeam || incomingTeam === "FA";
     // Never let ESPN public (often proTeamId=0 → FA) wipe a real team that
     // Sleeper/nflverse authority already stored on the Player row.
-    const existing = incomingIsFa
+    const existing = isFaOrUnknownTeam(player.nflTeam)
       ? await prisma.player.findUnique({
           where: { espnId: player.espnId },
           select: { nflTeam: true },
         })
       : null;
-    const existingTeam = (existing?.nflTeam ?? "").trim().toUpperCase();
-    const keepExistingTeam =
-      incomingIsFa && existingTeam && existingTeam !== "FA";
-    const nflTeam = keepExistingTeam ? existing!.nflTeam! : player.nflTeam;
+    const nflTeam = nflTeamForPlayerUpdate(player.nflTeam, existing?.nflTeam);
 
     const dbPlayer = await prisma.player.upsert({
       where: { espnId: player.espnId },
@@ -190,7 +190,12 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
 
     // Current-week projection + injury snapshot (league-agnostic).
     // Injury note keeps prevInjuryStatus when status changes (teammate Opp ↓).
-    if (player.projectedPoints > 0 || player.injuryStatus !== "ACTIVE") {
+    // Persist real published 0.0 projections (OUT/IR sit); skip only when
+    // ESPN has not published a projection yet (null) and player is ACTIVE.
+    const hasPublishedProj =
+      typeof player.projectedPoints === "number" &&
+      Number.isFinite(player.projectedPoints);
+    if (hasPublishedProj || player.injuryStatus !== "ACTIVE") {
       const existing = await prisma.playerWeekStat.findUnique({
         where: {
           espnId_season_week_leagueId: {
@@ -227,9 +232,9 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           season,
           week,
           scoringFormat: "PPR",
-          projectedPpr: player.projectedPoints || null,
+          projectedPpr: hasPublishedProj ? player.projectedPoints : null,
           actualPpr: null,
-          projectionSource: "espn_public",
+          projectionSource: hasPublishedProj ? "espn_public" : null,
           source: "espn",
           leagueId: NFLVERSE_LEAGUE_ID,
           opponent: player.opponent ?? null,
@@ -240,8 +245,13 @@ async function persistPublicPool(players: FantasyPlayer[], season: number, week:
           playerName: player.name,
           position: player.position,
           nflTeam: player.nflTeam,
-          projectedPpr: player.projectedPoints || null,
-          projectionSource: "espn_public",
+          // Never overwrite a stored projection with null when ESPN omits it.
+          ...(hasPublishedProj
+            ? {
+                projectedPpr: player.projectedPoints,
+                projectionSource: "espn_public",
+              }
+            : {}),
           source: "espn",
           // Never wipe an existing nflverse/scoreboard opponent with null —
           // ESPN public refresh does not carry opponent labels.
@@ -422,13 +432,15 @@ async function loadPlayersFromDb(options: {
     const recentWeeks: WeeklyScore[] = [...byWeek.values()]
       .map((r) => ({
         week: r.week,
+        // Null when no actual yet — never invent a 0.0 duck from missing data.
         points:
           r.actualPpr != null && Number.isFinite(r.actualPpr)
             ? Math.round(r.actualPpr * 10) / 10
-            : 0,
+            : null,
         projectedPoints: r.projectedPpr ?? undefined,
         opponent: r.opponent ?? undefined,
       }))
+      .filter((w) => w.points != null || w.projectedPoints != null)
       .sort((a, b) => b.week - a.week)
       .slice(0, 8);
 
@@ -451,7 +463,11 @@ async function loadPlayersFromDb(options: {
       injuryStatus: injuryFromNote(current?.gameScriptNote),
       // ESPN projectedPpr is storage-only until Sleeper overlay; do not treat 0 as real.
       projectedPoints: 0,
-      actualPoints: current?.actualPpr ?? 0,
+      // Missing current-week actual stays null (unknown), not a fake 0.0.
+      actualPoints:
+        current?.actualPpr != null && Number.isFinite(current.actualPpr)
+          ? current.actualPpr
+          : null,
       percentOwned: 0,
       percentStarted: 0,
       opponent: current?.opponent ?? undefined,
@@ -460,7 +476,9 @@ async function loadPlayersFromDb(options: {
   }
 
   return {
-    players: out.sort((a, b) => b.projectedPoints - a.projectedPoints),
+    players: out.sort(
+      (a, b) => (b.projectedPoints ?? 0) - (a.projectedPoints ?? 0),
+    ),
     projectionsUpdatedAt,
   };
 }
@@ -557,7 +575,7 @@ export async function getNoLeaguePlayerPool(options?: {
           });
         }
         players = [...byId.values()].sort(
-          (a, b) => b.projectedPoints - a.projectedPoints,
+          (a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints),
         );
         projectionsUpdatedAt = new Date();
       } else {
@@ -699,7 +717,7 @@ export async function getNoLeaguePlayerPool(options?: {
       // Missing Sleeper proj → 0 internally; UI must show "—" via toolMeta (not ESPN).
       return { ...p, projectedPoints: 0 };
     });
-    players = players.sort((a, b) => b.projectedPoints - a.projectedPoints);
+    players = players.sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints));
     if (!sleeper.emptyFeed && sleeperHits > 0) {
       projectionsUpdatedAt = new Date(sleeper.fetchedAt);
     } else {

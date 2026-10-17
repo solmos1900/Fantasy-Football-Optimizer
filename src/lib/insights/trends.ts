@@ -17,6 +17,10 @@
  */
 
 import { prisma } from "@/lib/db";
+import {
+  isFaOrUnknownTeam,
+  nflTeamForPlayerUpdate,
+} from "@/lib/espn/pro-teams";
 import type {
   FantasyPlayer,
   InjuryStatus,
@@ -58,6 +62,7 @@ export type WeekStatRow = {
 /**
  * Shared week axis for every player: weeks 1..currentWeek.
  * Missing storage still yields a row (nulls) so cards don't look like different seasons.
+ * Display-only — do not persist these null placeholders (see weekStatScoreUpdateFields).
  */
 export function scaffoldWeekAxis(
   currentWeek: number,
@@ -84,6 +89,62 @@ export function scaffoldWeekAxis(
   return [...byWeek.values()].sort((a, b) => a.week - b.week);
 }
 
+/**
+ * Whether a week row has anything worth writing to PlayerWeekStat.
+ * Scaffolded null/null placeholders must not be persisted (#74).
+ * True 0.0 scores are finite numbers and must still persist (#50).
+ */
+export function shouldPersistWeekStat(
+  projectedPpr: number | null,
+  actualPpr: number | null,
+): boolean {
+  return projectedPpr != null || actualPpr != null;
+}
+
+/**
+ * Prisma `update` fields for week scores.
+ * Only includes actualPpr / projectedPpr when the incoming value is non-null so
+ * incomplete ESPN recentWeeks cannot null-wipe previously stored history (#74).
+ */
+export function weekStatScoreUpdateFields(args: {
+  projectedPpr: number | null;
+  actualPpr: number | null;
+  projectionSource: SnapshotSource;
+  actualSource: string | null;
+}): {
+  projectedPpr?: number;
+  actualPpr?: number;
+  projectionDelta?: number;
+  projectionSource?: SnapshotSource;
+  actualSource?: string;
+  source?: SnapshotSource;
+} {
+  const update: {
+    projectedPpr?: number;
+    actualPpr?: number;
+    projectionDelta?: number;
+    projectionSource?: SnapshotSource;
+    actualSource?: string;
+    source?: SnapshotSource;
+  } = {};
+
+  if (args.projectedPpr != null) {
+    update.projectedPpr = args.projectedPpr;
+    update.projectionSource = args.projectionSource;
+    update.source = args.projectionSource;
+  }
+  if (args.actualPpr != null) {
+    update.actualPpr = args.actualPpr;
+    if (args.actualSource != null) {
+      update.actualSource = args.actualSource;
+    }
+  }
+  if (args.projectedPpr != null && args.actualPpr != null) {
+    update.projectionDelta = args.actualPpr - args.projectedPpr;
+  }
+  return update;
+}
+
 export function weekRowsForPlayer(
   player: FantasyPlayer,
   currentWeek: number,
@@ -108,16 +169,21 @@ export function weekRowsForPlayer(
   // Always write the current week from live roster fields.
   // Injured / low-signal players often have projectedPoints === 0 — that is a real
   // sit signal and must not be dropped (previously `> 0` turned 0 into null and the
-  // upsert skipped the week entirely).
+  // upsert skipped the week entirely). Missing ESPN blocks arrive as null and must
+  // stay null (never coerce to 0.0 — that tanks trends/averages).
   const current: WeekStatRow = {
     week: currentWeek,
-    projectedPpr: Number.isFinite(player.projectedPoints)
-      ? player.projectedPoints
-      : (existing?.projectedPpr ?? null),
-    // Keep real 0-point games; only treat non-finite as missing (never coerce null→0).
-    actualPpr: Number.isFinite(player.actualPoints)
-      ? player.actualPoints
-      : (existing?.actualPpr ?? null),
+    projectedPpr:
+      typeof player.projectedPoints === "number" &&
+      Number.isFinite(player.projectedPoints)
+        ? player.projectedPoints
+        : (existing?.projectedPpr ?? null),
+    // Keep real 0-point games; only treat non-finite / null as missing.
+    actualPpr:
+      typeof player.actualPoints === "number" &&
+      Number.isFinite(player.actualPoints)
+        ? player.actualPoints
+        : (existing?.actualPpr ?? null),
     opponent: player.opponent ?? existing?.opponent,
   };
 
@@ -371,7 +437,24 @@ export function deriveTrendFromWeeks(
   };
 }
 
+/**
+ * Upsert the shared canonical Player row. Create uses the ESPN team as-is;
+ * update never lets FA/unknown overwrite a previously stored real team
+ * (mirrors the public pool FA guard — issue #88).
+ */
 async function upsertPlayer(player: FantasyPlayer) {
+  let nflTeamOnUpdate = player.nflTeam;
+  if (isFaOrUnknownTeam(player.nflTeam)) {
+    const existing = await prisma.player.findUnique({
+      where: { espnId: player.espnId },
+      select: { nflTeam: true },
+    });
+    nflTeamOnUpdate = nflTeamForPlayerUpdate(
+      player.nflTeam,
+      existing?.nflTeam,
+    );
+  }
+
   return prisma.player.upsert({
     where: { espnId: player.espnId },
     create: {
@@ -385,7 +468,7 @@ async function upsertPlayer(player: FantasyPlayer) {
       espnPlayerId: String(player.espnId),
       name: player.name,
       position: player.position,
-      nflTeam: player.nflTeam,
+      nflTeam: nflTeamOnUpdate,
     },
   });
 }
@@ -416,7 +499,10 @@ export async function refreshProjectionTrends(
     const heuristicProj =
       actuals.length >= 2
         ? actuals.reduce((a, b) => a + b, 0) / actuals.length
-        : player.projectedPoints || null;
+        : typeof player.projectedPoints === "number" &&
+            Number.isFinite(player.projectedPoints)
+          ? player.projectedPoints
+          : null;
 
     for (const row of rows) {
       let projected = row.projectedPpr;
@@ -430,12 +516,23 @@ export async function refreshProjectionTrends(
         projected = Math.round(heuristicProj * 10) / 10;
         rowSource = "heuristic";
       }
-      // Persist the full 1..currentWeek axis — including null/null placeholders and
-      // 0-projection injury weeks — so every Insights card shares the same weeks.
+      // Skip scaffolded null/null placeholders. Display still shares a 1..currentWeek
+      // axis via scaffoldWeekAxis when reading; writing empties would wipe history (#74).
+      // Still persist real 0.0 injury / duck weeks (finite numbers, not null) (#50).
+      // Missing ESPN stats map to null (#75) and must not wipe stored history either.
+      if (!shouldPersistWeekStat(projected, row.actualPpr)) {
+        continue;
+      }
 
       const projectionDelta =
         projected != null && row.actualPpr != null
           ? row.actualPpr - projected
+          : null;
+      const actualSource =
+        row.actualPpr != null
+          ? league.isDemo
+            ? "demo"
+            : "espn_league"
           : null;
 
       await prisma.playerWeekStat.upsert({
@@ -460,12 +557,7 @@ export async function refreshProjectionTrends(
           actualPpr: row.actualPpr,
           projectionDelta,
           projectionSource: rowSource,
-          actualSource:
-            row.actualPpr != null
-              ? league.isDemo
-                ? "demo"
-                : "espn_league"
-              : null,
+          actualSource,
           source: rowSource,
           leagueId: lid,
           opponent: row.opponent ?? null,
@@ -476,18 +568,14 @@ export async function refreshProjectionTrends(
           position: player.position,
           nflTeam: player.nflTeam,
           scoringFormat: "PPR",
-          projectedPpr: projected,
-          actualPpr: row.actualPpr,
-          projectionDelta,
-          projectionSource: rowSource,
-          actualSource:
-            row.actualPpr != null
-              ? league.isDemo
-                ? "demo"
-                : "espn_league"
-              : null,
-          source: rowSource,
-          opponent: row.opponent ?? null,
+          // Only overwrite score fields when the feed sent a value — never null-wipe.
+          ...weekStatScoreUpdateFields({
+            projectedPpr: projected,
+            actualPpr: row.actualPpr,
+            projectionSource: rowSource,
+            actualSource,
+          }),
+          ...(row.opponent ? { opponent: row.opponent } : {}),
         },
       });
       snapshots += 1;

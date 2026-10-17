@@ -23,8 +23,11 @@ export type PlayerRole =
 
 export interface WeeklyScore {
   week: number;
-  /** Actual PPR (or league scoring) for the week */
-  points: number;
+  /**
+   * Actual PPR (or league scoring) for the week.
+   * Null when ESPN/nflverse has not published an actual yet — never treat as 0.
+   */
+  points: number | null;
   /** Projected PPR for that week when ESPN/demo/snapshot provides it */
   projectedPoints?: number;
   /** Opponent abbreviation when known, e.g. CLE or @CLE */
@@ -83,8 +86,18 @@ export interface FantasyPlayer {
   position: PlayerPosition;
   nflTeam: string;
   injuryStatus: InjuryStatus;
-  projectedPoints: number;
-  actualPoints: number;
+  /**
+   * This-week projection when ESPN/Sleeper published one.
+   * Null = unknown (not yet published) — never coerce missing to 0.0.
+   * A real published 0.0 (e.g. OUT/IR sit) is kept as 0.
+   */
+  projectedPoints: number | null;
+  /**
+   * This-week actual when ESPN published one.
+   * Null = unknown / not yet scored — never coerce missing to 0.0.
+   * A real published 0.0 duck is kept as 0.
+   */
+  actualPoints: number | null;
   percentOwned: number;
   percentStarted: number;
   opponent?: string;
