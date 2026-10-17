@@ -224,6 +224,14 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
           />
         </label>
 
+        {liveConnection && (
+          <p className="text-xs text-emerald-950/50">
+            Leave SWID and espn_s2 blank to keep the ESPN login already saved
+            on this account. Paste new values only when you need to replace
+            them.
+          </p>
+        )}
+
         {error && (
           <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
             {error}
