@@ -124,3 +124,28 @@ export function nflTeamFromEspn(
   }
   return ESPN_PRO_TEAM_ABBREV[proTeamId] ?? `T${proTeamId}`;
 }
+
+/** True when the abbrev is missing or free-agent (ESPN often sends proTeamId=0 → FA). */
+export function isFaOrUnknownTeam(abbrev: string | null | undefined): boolean {
+  const t = (abbrev ?? "").trim().toUpperCase();
+  return !t || t === "FA";
+}
+
+/**
+ * On shared `Player` updates: never let an incoming FA/unknown wipe a stored real team
+ * (Sleeper/nflverse may already have the correct club). Create paths should still use
+ * the raw incoming value. Real incoming abbrevs always win.
+ */
+export function nflTeamForPlayerUpdate(
+  incoming: string | null | undefined,
+  existing: string | null | undefined,
+): string {
+  if (!isFaOrUnknownTeam(incoming)) {
+    return (incoming as string).trim();
+  }
+  if (!isFaOrUnknownTeam(existing)) {
+    return (existing as string).trim();
+  }
+  const trimmed = (incoming ?? "").trim();
+  return trimmed || "FA";
+}
