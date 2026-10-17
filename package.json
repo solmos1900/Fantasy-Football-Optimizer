@@ -14,6 +14,7 @@
     "verify:cleanup": "tsx scripts/verify-ephemeral-cleanup.ts",
     "verify:cookie-crypto": "tsx scripts/verify-cookie-crypto.ts",
     "verify:email-auth": "tsx scripts/verify-email-auth.ts",
+    "verify:cookie-reconnect": "tsx scripts/verify-cookie-reconnect.ts",
     "verify:sync-freshness": "tsx scripts/verify-sync-freshness.ts",
     "verify:nflverse": "tsx scripts/verify-nflverse-usage.ts",
     "verify:insights": "tsx scripts/verify-insights-signals.ts",

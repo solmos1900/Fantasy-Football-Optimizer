@@ -105,6 +105,28 @@ export function encryptEspnCookie(
 }
 
 /**
+ * Prisma `update` fields for ESPN cookies on reconnect.
+ *
+ * Only includes a column when a new non-empty value is provided so blank
+ * reconnects keep the previously stored encrypted cookies. Whitespace-only
+ * counts as blank. Supplying only one cookie updates only that column.
+ *
+ * Use on upsert `update` only — `create` should still call encryptEspnCookie
+ * directly (null when absent is correct for a new row).
+ */
+export function espnCookieUpdateFields(input: {
+  swid?: string | null;
+  espnS2?: string | null;
+}): { espnSwid?: string | null; espnS2?: string | null } {
+  const out: { espnSwid?: string | null; espnS2?: string | null } = {};
+  const swid = input.swid?.trim();
+  const espnS2 = input.espnS2?.trim();
+  if (swid) out.espnSwid = encryptEspnCookie(swid);
+  if (espnS2) out.espnS2 = encryptEspnCookie(espnS2);
+  return out;
+}
+
+/**
  * Decrypt a stored cookie value. Plaintext (no enc:v1: prefix) is returned as-is
  * for backward compatibility until the next write re-encrypts.
  */
