@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { hashPassword, isValidEmail, isValidPassword } from "@/lib/password";
+import { startEmailVerificationChallenge } from "@/lib/auth/email-verification";
 import { enforceRateLimit } from "@/lib/http/api-guard";
 
 const RegisterSchema = z.object({
@@ -33,69 +32,27 @@ export async function POST(request: Request) {
     );
   }
 
-  const email = parsed.data.email.toLowerCase();
-  const name = parsed.data.name?.trim() || email.split("@")[0];
-  const password = parsed.data.password;
-
-  if (!isValidEmail(email) || !isValidPassword(password)) {
-    return NextResponse.json(
-      { error: "Provide a valid email and a password of at least 8 characters." },
-      { status: 400 },
-    );
-  }
-
-  if (email.endsWith("@guest.local")) {
-    return NextResponse.json(
-      { error: "That email domain is reserved for guest sessions." },
-      { status: 400 },
-    );
-  }
-
   try {
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing?.passwordHash) {
-      return NextResponse.json(
-        { error: "An account with that email already exists. Sign in instead." },
-        { status: 409 },
-      );
-    }
-    if (existing && !existing.isGuest) {
-      return NextResponse.json(
-        {
-          error:
-            "An account with that email already exists (likely via Google/GitHub). Sign in with SSO or use a different email.",
-        },
-        { status: 409 },
-      );
+    const result = await startEmailVerificationChallenge({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      name: parsed.data.name,
+    });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const passwordHash = await hashPassword(password);
-
-    if (existing?.isGuest) {
-      await prisma.user.update({
-        where: { id: existing.id },
-        data: {
-          name,
-          passwordHash,
-          isGuest: false,
-        },
-      });
-    } else {
-      await prisma.user.create({
-        data: {
-          email,
-          name,
-          passwordHash,
-          isGuest: false,
-        },
-      });
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      needsVerification: true,
+      email: result.email,
+      ...(result.devCode ? { devCode: result.devCode } : {}),
+    });
   } catch (error) {
     console.error("[auth/register] failed", error);
     return NextResponse.json(
-      { error: "Could not create account. Check DATABASE_URL and try again." },
+      { error: "Could not start registration. Check DATABASE_URL and try again." },
       { status: 500 },
     );
   }
