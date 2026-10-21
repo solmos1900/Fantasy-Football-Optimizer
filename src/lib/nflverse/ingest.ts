@@ -10,7 +10,7 @@
  */
 
 import { prisma } from "@/lib/db";
-import { fetchGunzipText, parseCsv } from "./csv";
+import { fetchGunzipText, fetchGunzipTextWithMeta, parseCsv } from "./csv";
 import { loadPlayerIdCrosswalk } from "./crosswalk";
 import {
   mapNflverseWeekRow,
@@ -21,6 +21,7 @@ import {
   usageFieldsForWrite,
   type NflverseUsageMapped,
 } from "./map";
+import type { NflverseSourceFileMeta } from "./sync-log";
 import { playerWeekStatsCsvGzUrl, snapCountsCsvGzUrl } from "./urls";
 
 export type IngestNflverseUsageOptions = {
@@ -45,6 +46,8 @@ export type IngestNflverseUsageResult = {
   weekStatsUpserted: number;
   leagueRowsMerged: number;
   source: typeof NFLVERSE_SOURCE;
+  /** HTTP timestamps for release assets pulled this run (null when unknown). */
+  sourceFiles: NflverseSourceFileMeta[];
 };
 
 const DEFAULT_BATCH = 75;
@@ -55,11 +58,12 @@ function snapKey(name: string, team: string, week: number): string {
 
 async function loadSnapIndex(
   season: number,
-): Promise<Map<string, number>> {
+): Promise<{ index: Map<string, number>; meta: NflverseSourceFileMeta | null }> {
   const out = new Map<string, number>();
+  const url = snapCountsCsvGzUrl(season);
   try {
-    const text = await fetchGunzipText(snapCountsCsvGzUrl(season));
-    for (const row of parseCsv(text)) {
+    const fetched = await fetchGunzipTextWithMeta(url);
+    for (const row of parseCsv(fetched.text)) {
       const week = Number(row.week);
       if (!Number.isFinite(week)) continue;
       const name = (row.player ?? "").trim();
@@ -69,10 +73,19 @@ async function loadSnapIndex(
       if (pct == null) continue;
       out.set(snapKey(name, team, week), pct);
     }
+    return {
+      index: out,
+      meta: {
+        name: "snap_counts",
+        url: fetched.url,
+        lastModified: fetched.lastModified,
+        responseDate: fetched.responseDate,
+      },
+    };
   } catch (err) {
     console.warn("[nflverse] snap_counts unavailable; continuing without snaps", err);
+    return { index: out, meta: null };
   }
-  return out;
 }
 
 async function upsertPlayerBatch(
@@ -209,13 +222,30 @@ export async function ingestNflverseUsage(
   const includeSnaps = opts.includeSnaps !== false;
   const mergeIntoLeagueRows = opts.mergeIntoLeagueRows !== false;
 
-  const [crosswalk, weekCsv, snapIndex] = await Promise.all([
+  const weekUrl = playerWeekStatsCsvGzUrl(opts.season);
+  const [crosswalk, weekFetched, snapLoaded] = await Promise.all([
     loadPlayerIdCrosswalk(),
-    fetchGunzipText(playerWeekStatsCsvGzUrl(opts.season)),
-    includeSnaps ? loadSnapIndex(opts.season) : Promise.resolve(new Map()),
+    fetchGunzipTextWithMeta(weekUrl),
+    includeSnaps
+      ? loadSnapIndex(opts.season)
+      : Promise.resolve({
+          index: new Map<string, number>(),
+          meta: null as NflverseSourceFileMeta | null,
+        }),
   ]);
 
-  const rawRows = parseCsv(weekCsv);
+  const sourceFiles: NflverseSourceFileMeta[] = [
+    {
+      name: "stats_player_week",
+      url: weekFetched.url,
+      lastModified: weekFetched.lastModified,
+      responseDate: weekFetched.responseDate,
+    },
+  ];
+  if (snapLoaded.meta) sourceFiles.push(snapLoaded.meta);
+
+  const snapIndex = snapLoaded.index;
+  const rawRows = parseCsv(weekFetched.text);
   const mapped: Array<{ espnId: number; mapped: NflverseUsageMapped }> = [];
   let skippedNoEspnId = 0;
 
@@ -302,6 +332,7 @@ export async function ingestNflverseUsage(
     weekStatsUpserted,
     leagueRowsMerged,
     source: NFLVERSE_SOURCE,
+    sourceFiles,
   };
 }
 

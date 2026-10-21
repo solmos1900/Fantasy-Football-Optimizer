@@ -20,6 +20,11 @@ Owner accuracy rules (display + week + integrity): [`docs/ACCURACY_RULES.md`](./
 - **Rows:** `PlayerWeekStat` with `leagueId = ""`, `source = "nflverse"`. Does **not** write `projectedPpr` / `actualPpr` (ESPN sync still owns those).
 - **Merge:** When a league-scoped ESPN row already exists for the same player/week, nflverse only **fills null usage columns** — never overwrites non-null usage or PPR.
 - **Cron:** `GET /api/cron/nflverse-usage` (Bearer `CRON_SECRET`) — one season/week per invocation.
+  - **Tuesday** `0 17 * * 2` UTC = **12:00 PM CDT** (noon Central) — after typical nflverse Monday-night publishes (often mid-morning CDT).
+  - **Wednesday** `0 14 * * 3` UTC = **9:00 AM CDT** — second pass for late publishes.
+  - Each run is logged (run time, source file Last-Modified, week, rows fetched/upserted, golden pass/fail, errors) into `EspnRawResponse` with `view = nflverse_sync` (same sentinel pattern as the golden check — **no schema migration**).
+  - If the loaded week is stale vs ESPN’s latest completed week, or incomplete (scoreboard game teams missing stat rows, e.g. Monday night), a `DataIssue` (`nflverse_stale` / `nflverse_incomplete`) is opened so the in-app banner shows it instead of failing silently.
+- **Status:** `GET /api/health/data-freshness` — public, read-only. Returns the last ~10 cron runs plus a summary (latest week in DB, last update time, week-complete flag, last golden check). No secrets, users, or league data. Optional `?season=YYYY`.
 - **CLI:** `npx tsx scripts/ingest-nflverse-usage.ts --season 2026 --week 4`
 
 ### Attribution (required)
@@ -40,6 +45,7 @@ Owner accuracy rules (display + week + integrity): [`docs/ACCURACY_RULES.md`](./
 | Waiver watch opportunity | nflverse targets+carries last 2 weeks among league free agents | |
 | Teammate injury (more/fewer touches or targets) | ESPN injuries feed (status) + nflverse target/carry share | Plain labels: `↑ More touches: David Montgomery (HOU) out` / `↑ More targets: Alec Pierce (IND) on IR` — never Opp ↑/↓ or WR2/RB1. Share = last-3 avg when ≥2 usable weeks, else season-to-date. Vacated × 0.55 redistributed by teammate opportunity; chip Δ = alloc × 12 pts. Returning uses `prevInjuryStatus`. Null share → — |
 | Freshness label | Same pattern as no-league tools | `Stats through Week N · updated X min ago` |
+| Cron / DB freshness JSON | `GET /api/health/data-freshness` | Public read of nflverse run log + week completeness (no auth) |
 
 ## Not integrated
 
