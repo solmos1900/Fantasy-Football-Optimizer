@@ -165,10 +165,15 @@ assert.ok(
 );
 const freshnessSrc = fs.readFileSync(freshnessRoute, "utf8");
 assert.match(freshnessSrc, /buildDataFreshnessReport/);
+assert.match(
+  freshnessSrc,
+  /Auth:\s*public/i,
+  "data-freshness must document public auth for non-sensitive freshness info",
+);
 assert.doesNotMatch(
   freshnessSrc,
-  /CRON_SECRET/,
-  "data-freshness is public read of non-sensitive freshness info",
+  /authHeader|Unauthorized/,
+  "data-freshness must not require Bearer auth on GET",
 );
 
 const schema = fs.readFileSync(

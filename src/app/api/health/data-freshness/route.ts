@@ -11,8 +11,8 @@ export const runtime = "nodejs";
  * pass/fail flags). No secrets, cookies, user ids, or league data.
  * Optional `?season=YYYY` (defaults to DEFAULT_ESPN_SEASON).
  *
- * If you later need to restrict it, gate with Authorization: Bearer $CRON_SECRET
- * the same way as /api/cron/* — not required today.
+ * If you later need to restrict it, gate with the same Bearer secret used by
+ * /api/cron/* — not required today.
  */
 export async function GET(request: Request) {
   try {
