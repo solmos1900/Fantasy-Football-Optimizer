@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 type SyncResponse = {
   ok?: boolean;
   error?: string;
-  league?: { lastSyncedAt?: string };
+  warning?: string;
+  league?: { lastSyncedAt?: string; syncWarnings?: string[] };
 };
 
 export function SyncButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   return (
     <div className="flex max-w-xs flex-col items-end gap-1.5">
@@ -25,6 +27,7 @@ export function SyncButton() {
         loading={pending}
         onClick={() => {
           setError(null);
+          setWarning(null);
           startTransition(async () => {
             try {
               const res = await fetch("/api/league/sync", {
@@ -41,6 +44,9 @@ export function SyncButton() {
                 );
                 return;
               }
+              const softWarning =
+                data.warning ?? data.league?.syncWarnings?.[0] ?? null;
+              if (softWarning) setWarning(softWarning);
               // Re-render server components so the header reads the new lastSyncedAt.
               router.refresh();
             } catch {
@@ -60,6 +66,14 @@ export function SyncButton() {
           className="text-right text-xs leading-snug text-red-400"
         >
           {error}
+        </p>
+      )}
+      {!error && warning && (
+        <p
+          role="status"
+          className="text-right text-xs leading-snug text-warning"
+        >
+          {warning}
         </p>
       )}
     </div>

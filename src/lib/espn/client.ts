@@ -83,7 +83,26 @@ export type EspnFetchOptions = {
    * ESPN and rewrite lastSyncedAt. Background/live polls may keep revalidate.
    */
   bypassCache?: boolean;
+  /**
+   * Prior free-agent list from the cached league payload. Used only when the
+   * kona_player_info refresh fails so Sync does not silently write [].
+   */
+  fallbackFreeAgents?: FantasyPlayer[];
 };
+
+/** Surfaced on LeagueData.syncWarnings when FA refresh fails (issue #109). */
+export const FREE_AGENT_REFRESH_WARNING =
+  "Could not refresh free agents from ESPN. Showing the last saved waiver pool.";
+
+/**
+ * Choose free agents after a failed kona_player_info refresh.
+ * Prefer the previously cached list over writing an empty pool.
+ */
+export function freeAgentsAfterRefreshFailure(
+  previous: FantasyPlayer[] | undefined,
+): FantasyPlayer[] {
+  return previous ?? [];
+}
 
 async function espnFetch(
   path: string,
@@ -299,6 +318,7 @@ export async function fetchEspnLeague(
     });
 
   let freeAgents: FantasyPlayer[] = [];
+  const syncWarnings: string[] = [];
   try {
     freeAgents = await fetchEspnFreeAgents(
       creds,
@@ -306,8 +326,11 @@ export async function fetchEspnLeague(
       50,
       options,
     );
-  } catch {
-    freeAgents = [];
+  } catch (err) {
+    // Do not wipe the waiver pool on auth/rate-limit/upstream failures (#109).
+    console.error("[espn] free agent fetch failed", err);
+    freeAgents = freeAgentsAfterRefreshFailure(options.fallbackFreeAgents);
+    syncWarnings.push(FREE_AGENT_REFRESH_WARNING);
   }
 
   let league: LeagueData = {
@@ -322,6 +345,7 @@ export async function fetchEspnLeague(
     freeAgents,
     lastSyncedAt: new Date().toISOString(),
     userTeamId: creds.teamId,
+    ...(syncWarnings.length > 0 ? { syncWarnings } : {}),
   };
 
   // Bake opponent / venue from the public NFL scoreboard so My Team, Insights,

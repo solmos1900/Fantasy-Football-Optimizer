@@ -157,6 +157,11 @@ export interface LeagueData {
   freeAgents: FantasyPlayer[];
   lastSyncedAt: string;
   userTeamId?: number;
+  /**
+   * Non-fatal Sync/Connect problems (e.g. free-agent refresh failed).
+   * Cleared on the next successful refresh of that data.
+   */
+  syncWarnings?: string[];
 }
 
 export type InsightType =
