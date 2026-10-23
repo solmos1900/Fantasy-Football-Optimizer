@@ -35,7 +35,10 @@ assert.equal(isEspnRegularSeasonType("Postseason"), false);
  * receivingTouchdowns, fumblesLost
  *
  * Full PPR: passYds/25 + passTD×4 − INT×2 + rushYds/10 + rushTD×6
- *         + rec + recYds/10 + recTD×6 − FL×2
+ *         + rec + recYds/10 + recTD×6 − FL×2 (+ 2pt / ST TD when present)
+ *
+ * Schema must include fumblesLost — QB lines that omit it yield no weeks
+ * (see verify:scoring-actuals / issue #127).
  */
 const names = [
   "passingYards",
