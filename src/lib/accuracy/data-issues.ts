@@ -8,7 +8,7 @@ import {
   type AuthoritativeRosterEntry,
 } from "@/lib/players/roster-authority";
 import { NFLVERSE_LEAGUE_ID, NFLVERSE_SOURCE } from "@/lib/nflverse/map";
-import { fullPprFromCategories } from "@/lib/players/scoring";
+import { fullPprFromNflverseRow } from "@/lib/players/scoring";
 import { fetchGunzipText, parseCsv } from "@/lib/nflverse/csv";
 import { playerWeekStatsCsvGzUrl } from "@/lib/nflverse/urls";
 import { defaultEspnSeason } from "@/lib/season";
@@ -463,26 +463,8 @@ async function validateNflversePprWeek(options: {
     const espnId = crosswalk.gsisToEspn.get(gsis);
     if (espnId == null) continue;
 
-    const n = (key: string) => {
-      const raw = row[key];
-      if (raw == null || String(raw).trim() === "") return null;
-      const v = Number(raw);
-      return Number.isFinite(v) ? v : null;
-    };
-    const ppr = fullPprFromCategories({
-      passYards: n("passing_yards"),
-      passTd: n("passing_tds"),
-      interceptions: n("passing_interceptions"),
-      rushYards: n("rushing_yards"),
-      rushTd: n("rushing_tds"),
-      receptions: n("receptions"),
-      recYards: n("receiving_yards"),
-      recTd: n("receiving_tds"),
-      fumblesLost:
-        (n("rushing_fumbles_lost") ?? 0) +
-          (n("receiving_fumbles_lost") ?? 0) +
-          (n("sack_fumbles_lost") ?? 0) || null,
-    });
+    // Prefer nflverse fantasy_points_ppr (same path as ingest mapping).
+    const ppr = fullPprFromNflverseRow(row);
     if (ppr == null) continue;
     const name =
       (row.player_display_name ?? row.player_name ?? "").trim() ||
