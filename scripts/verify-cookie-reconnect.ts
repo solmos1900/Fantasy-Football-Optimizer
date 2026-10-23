@@ -91,12 +91,13 @@ const service = fs.readFileSync(
   "utf8",
 );
 assert.match(service, /espnCookieUpdateFields/);
+assert.match(service, /leagueConnectionCookieUpdateFields/);
 const updateBlock = service.match(/update:\s*\{[\s\S]*?\n\s*\},/);
 assert.ok(updateBlock, "connectEspnLeague must have an upsert update block");
 assert.match(
   updateBlock[0],
-  /\.\.\.espnCookieUpdateFields\(/,
-  "reconnect update must spread espnCookieUpdateFields",
+  /\.\.\.leagueConnectionCookieUpdateFields\(/,
+  "reconnect update must spread leagueConnectionCookieUpdateFields",
 );
 assert.doesNotMatch(
   updateBlock[0],

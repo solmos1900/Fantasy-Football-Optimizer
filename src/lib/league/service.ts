@@ -10,7 +10,7 @@ import {
   applyUserTeamId,
   resolvePersistedTeamId,
 } from "@/lib/league/team";
-import type { LeagueData } from "@/lib/types";
+import type { FantasyPlayer, LeagueData } from "@/lib/types";
 
 export {
   applyUserTeamId,
@@ -76,6 +76,36 @@ export async function getLeagueDataForUser(
   return null;
 }
 
+/**
+ * Cookie columns for LeagueConnection upsert `update`.
+ *
+ * Sync must omit cookies entirely so a mid-flight reconnect cannot be rolled
+ * back when Sync finishes with the cookies it read at start (issue #105).
+ * Connect still spreads espnCookieUpdateFields (blank = keep prior, #44).
+ */
+export function leagueConnectionCookieUpdateFields(input: {
+  persistCookies: boolean;
+  swid?: string | null;
+  espnS2?: string | null;
+}): { espnSwid?: string | null; espnS2?: string | null } {
+  if (!input.persistCookies) return {};
+  return espnCookieUpdateFields({ swid: input.swid, espnS2: input.espnS2 });
+}
+
+/** Prior free agents from a stored cachedPayload, if parseable. */
+export function freeAgentsFromCachedPayload(
+  cachedPayload: string | null | undefined,
+): FantasyPlayer[] | undefined {
+  if (!cachedPayload) return undefined;
+  try {
+    const cached = JSON.parse(cachedPayload) as LeagueData;
+    if (!Array.isArray(cached.freeAgents)) return undefined;
+    return cached.freeAgents;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function connectEspnLeague(
   userId: string,
   input: {
@@ -86,10 +116,16 @@ export async function connectEspnLeague(
     espnS2?: string;
     /** Explicit Sync league — bypass Next Data Cache on ESPN reads. */
     bypassCache?: boolean;
+    /**
+     * When false (Sync), do not rewrite ESPN cookie columns.
+     * Default true for Connect / reconnect.
+     */
+    persistCookies?: boolean;
   },
 ): Promise<LeagueData> {
   const leagueId = input.leagueId.trim();
   const season = input.season;
+  const persistCookies = input.persistCookies !== false;
 
   const existing = await prisma.leagueConnection.findUnique({
     where: {
@@ -117,6 +153,7 @@ export async function connectEspnLeague(
 
   const fetched = await fetchEspnLeague(creds, {
     bypassCache: Boolean(input.bypassCache),
+    fallbackFreeAgents: freeAgentsFromCachedPayload(existing?.cachedPayload),
   });
   const league = applyUserTeamId(fetched, resolvedTeamId);
 
@@ -133,7 +170,12 @@ export async function connectEspnLeague(
       teamId: resolvedTeamId,
       leagueName: league.name,
       // Blank cookie fields must not wipe stored encrypted values (issue #44).
-      ...espnCookieUpdateFields({ swid: creds.swid, espnS2: creds.espnS2 }),
+      // Sync omits cookie columns so newer reconnect cookies are not clobbered (#105).
+      ...leagueConnectionCookieUpdateFields({
+        persistCookies,
+        swid: creds.swid,
+        espnS2: creds.espnS2,
+      }),
       cachedPayload: JSON.stringify(league),
       lastSyncedAt: new Date(),
     },
@@ -167,7 +209,8 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
     );
   }
 
-  // Decrypt only for the ESPN fetch path; next write re-encrypts at rest.
+  // Decrypt only for the ESPN fetch; Sync must not write these cookies back
+  // (a reconnect with rotated cookies mid-sync would otherwise be overwritten).
   let swid: string | undefined;
   let espnS2: string | undefined;
   try {
@@ -187,5 +230,6 @@ export async function refreshUserLeague(userId: string): Promise<LeagueData> {
     swid,
     espnS2,
     bypassCache: true,
+    persistCookies: false,
   });
 }
