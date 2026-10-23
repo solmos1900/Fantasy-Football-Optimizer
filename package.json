@@ -24,6 +24,7 @@
     "verify:pool": "tsx scripts/verify-pool.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
     "verify:espn-null-stats": "tsx scripts/verify-espn-null-stats.ts",
+    "verify:espn-gamelog": "tsx scripts/verify-espn-gamelog.ts",
     "verify:team-selection": "tsx scripts/verify-team-selection.ts",
     "verify:trend-null-wipe": "tsx scripts/verify-trend-null-wipe.ts",
     "verify:trend-fa-wipe": "tsx scripts/verify-trend-fa-wipe.ts",
