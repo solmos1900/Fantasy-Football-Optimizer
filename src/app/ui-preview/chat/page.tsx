@@ -5,14 +5,16 @@ import { BrandWordmark } from "@/components/brand";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { MessageList } from "@/components/chat/message-list";
 import { TemplateButtons } from "@/components/chat/template-buttons";
-import { TemplateCard } from "@/components/chat/template-cards";
 import { ChatToolResultView } from "@/components/chat/tool-result-cards";
 import { PendingLink } from "@/components/pending-link";
 import type { UIMessage } from "ai";
-import type { ChatPlayerMetricCard } from "@/lib/chat/tool-runners";
+import liveSample from "./live-sample.json";
 
 /**
  * Auth-free preview for chat screenshot / QA states.
+ * Trade + Who to Start answers use live-sample.json built from Sleeper /
+ * nflverse / ESPN via the shared chat tool runners (see
+ * scripts/build-chat-live-sample.ts and docs/screenshots/CHAT_SCREENSHOT_SOURCES.md).
  * Enable with NODE_ENV=development or NEXT_PUBLIC_ALLOW_UI_PREVIEW=1.
  */
 type PreviewState =
@@ -21,27 +23,6 @@ type PreviewState =
   | "trade"
   | "who-to-start"
   | "connect-unlock";
-
-const mockCard = (
-  partial: Partial<ChatPlayerMetricCard> &
-    Pick<ChatPlayerMetricCard, "espnId" | "label" | "position">,
-): ChatPlayerMetricCard => ({
-  injuryStatus: "ACTIVE",
-  injuryLabel: null,
-  seasonPpg: 16.2,
-  last3Avg: 18.1,
-  sleeperProj: 15.4,
-  byeThisWeek: false,
-  opponent: "@SEA",
-  formLine: "Last 3 games avg 18.1 vs season 16.2: trending up",
-  spark: [
-    { week: 1, points: 12 },
-    { week: 2, points: 18 },
-    { week: 3, points: 15 },
-    { week: 4, points: 19 },
-  ],
-  ...partial,
-});
 
 export default function ChatPreviewPage() {
   const allowed =
@@ -54,12 +35,7 @@ export default function ChatPreviewPage() {
       {
         id: "u1",
         role: "user",
-        parts: [
-          {
-            type: "text",
-            text: "Trade: LEFT Puka Nacua (LAR) + Kyren Williams (LAR) for RIGHT Ja'Marr Chase (CIN) + Chase Brown (CIN)",
-          },
-        ],
+        parts: [{ type: "text", text: liveSample.trade.userText }],
       },
       {
         id: "a1",
@@ -67,60 +43,14 @@ export default function ChatPreviewPage() {
         parts: [
           {
             type: "text",
-            text: "Side B is ahead on chip value — Side A would usually want something else back.",
+            text: liveSample.trade.assistantOneLiner,
           },
           {
             type: "tool-analyze_trade",
             toolCallId: "t1",
             state: "output-available",
             input: {},
-            output: {
-              ok: true,
-              kind: "trade",
-              headline:
-                "Lopsided: Side B gets 4.2 more points of value; Side A shouldn't accept.",
-              differenceLabel: "+4.2 for Side B",
-              winner: "b",
-              giveValue: 28.1,
-              receiveValue: 32.3,
-              valueGap: 4.2,
-              verdictLabel: "Lean reject",
-              sideA: [
-                mockCard({
-                  espnId: 1,
-                  label: "Puka Nacua (LAR)",
-                  position: "WR",
-                }),
-                mockCard({
-                  espnId: 2,
-                  label: "Kyren Williams (LAR)",
-                  position: "RB",
-                  seasonPpg: 14.8,
-                  last3Avg: 13.2,
-                }),
-              ],
-              sideB: [
-                mockCard({
-                  espnId: 3,
-                  label: "Ja'Marr Chase (CIN)",
-                  position: "WR",
-                  seasonPpg: 18.4,
-                  last3Avg: 20.1,
-                }),
-                mockCard({
-                  espnId: 4,
-                  label: "Chase Brown (CIN)",
-                  position: "RB",
-                  seasonPpg: 13.5,
-                  last3Avg: 15.0,
-                }),
-              ],
-              freshness: {
-                label: "Stats through Week 4 · updated 6 min ago",
-                warning: null,
-              },
-              facts: [],
-            },
+            output: liveSample.trade.toolOutput,
           },
         ],
       },
@@ -132,12 +62,7 @@ export default function ChatPreviewPage() {
       {
         id: "u2",
         role: "user",
-        parts: [
-          {
-            type: "text",
-            text: "Who to Start: Amon-Ra St. Brown (DET) vs DK Metcalf (PIT)",
-          },
-        ],
+        parts: [{ type: "text", text: liveSample.whoToStart.userText }],
       },
       {
         id: "a2",
@@ -145,44 +70,14 @@ export default function ChatPreviewPage() {
         parts: [
           {
             type: "text",
-            text: "Start Amon-Ra St. Brown (DET) — clearer projection edge this week.",
+            text: liveSample.whoToStart.assistantOneLiner,
           },
           {
             type: "tool-compare_who_to_start",
             toolCallId: "t2",
             state: "output-available",
             input: {},
-            output: {
-              ok: true,
-              kind: "who-to-start",
-              headline: "START Amon-Ra St. Brown (DET)",
-              verdictLabel: "START A",
-              edge: 3.2,
-              players: [
-                mockCard({
-                  espnId: 10,
-                  label: "Amon-Ra St. Brown (DET)",
-                  position: "WR",
-                  sleeperProj: 17.8,
-                }),
-                mockCard({
-                  espnId: 11,
-                  label: "DK Metcalf (PIT)",
-                  position: "WR",
-                  sleeperProj: 14.6,
-                  seasonPpg: 13.1,
-                  last3Avg: 12.4,
-                }),
-              ],
-              reasons: [
-                "Projected 17.8 vs 14.6 this week (Sleeper full PPR).",
-                "Amon-Ra St. Brown (DET) holds the stronger recent form.",
-              ],
-              freshness: {
-                label: "Stats through Week 4 · updated 6 min ago",
-                warning: null,
-              },
-            },
+            output: liveSample.whoToStart.toolOutput,
           },
         ],
       },
@@ -197,10 +92,17 @@ export default function ChatPreviewPage() {
     );
   }
 
+  const filled = liveSample.trade.filledTemplate;
+
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-3 py-6 sm:px-4">
       <p className="type-eyebrow text-orange-700">UI preview · chat</p>
       <h1 className="type-page text-emerald-950">Chat home states</h1>
+      <p className="mt-1 max-w-xl text-xs text-emerald-950/50">
+        Week {liveSample.currentWeek} {liveSample.season} live sample · stats
+        through Week {liveSample.statsThroughWeek} · see{" "}
+        <code className="text-[10px]">docs/screenshots/CHAT_SCREENSHOT_SOURCES.md</code>
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {(
           [
@@ -285,23 +187,27 @@ export default function ChatPreviewPage() {
                   <div className="space-y-2">
                     <p className="type-eyebrow text-orange-700">Left</p>
                     <div className="flex flex-wrap gap-1.5">
-                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
-                        Puka Nacua (LAR)
-                      </span>
-                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
-                        Kyren Williams (LAR)
-                      </span>
+                      {filled.left.map((p) => (
+                        <span
+                          key={p.name}
+                          className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold"
+                        >
+                          {p.name} ({p.nflTeam})
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <div className="space-y-2">
                     <p className="type-eyebrow text-orange-700">Right</p>
                     <div className="flex flex-wrap gap-1.5">
-                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
-                        Ja&apos;Marr Chase (CIN)
-                      </span>
-                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
-                        Chase Brown (CIN)
-                      </span>
+                      {filled.right.map((p) => (
+                        <span
+                          key={p.name}
+                          className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold"
+                        >
+                          {p.name} ({p.nflTeam})
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>

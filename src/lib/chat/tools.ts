@@ -21,10 +21,10 @@ export function buildChatTools(ctx: ChatDataContext) {
   return {
     analyze_trade: tool({
       description:
-        "Grade a fantasy trade between two sides using Gridiron IQ chip values (season points / shared trade logic). Pass ESPN player ids from @ mentions or templates.",
+        "Grade a fantasy trade between Left and Right using Gridiron IQ trade value (shared season points / trade logic). Pass ESPN player ids from @ mentions or templates.",
       inputSchema: z.object({
-        leftEspnIds: espnIdList.describe("Side A / LEFT player ESPN ids"),
-        rightEspnIds: espnIdList.describe("Side B / RIGHT player ESPN ids"),
+        leftEspnIds: espnIdList.describe("Left-side player ESPN ids"),
+        rightEspnIds: espnIdList.describe("Right-side player ESPN ids"),
       }),
       execute: async ({ leftEspnIds, rightEspnIds }) => {
         const left = resolvePlayers(ctx, leftEspnIds);
@@ -50,7 +50,7 @@ export function buildChatTools(ctx: ChatDataContext) {
 
     compare_who_to_start: tool({
       description:
-        "Who to Start comparison for 2+ players using shared Gridiron IQ logic (Sleeper proj, form, injury, matchup).",
+        "Who to Start comparison for 2+ players using shared Gridiron IQ logic (Sleeper projected points, recent form, injury, matchup).",
       inputSchema: z.object({
         espnIds: z
           .array(z.number().int().positive())
@@ -79,7 +79,7 @@ export function buildChatTools(ctx: ChatDataContext) {
 
     player_outlook: tool({
       description:
-        "Season PPG, last-3 PPR, Sleeper projection, injury, bye/matchup for one player.",
+        "Points per game this season, last-3-game average, Sleeper projected points this week, injury, bye/matchup for one player.",
       inputSchema: z.object({
         espnId: z.number().int().positive(),
       }),

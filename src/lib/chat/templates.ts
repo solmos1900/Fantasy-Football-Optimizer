@@ -46,7 +46,7 @@ export const CHAT_TEMPLATES: ChatTemplateDef[] = [
   {
     id: "outlook",
     label: "Player outlook",
-    hint: "Form + proj",
+    hint: "Season form",
     promptHint: "Mention a player for season form and this-week outlook.",
   },
 ];

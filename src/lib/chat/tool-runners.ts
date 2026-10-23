@@ -119,6 +119,11 @@ export type TradeToolResult = {
   headline: string;
   differenceLabel: string;
   winner: "a" | "b" | "even";
+  /** Relative gap vs higher side (0–1) from shared whoBenefitsCopy. */
+  pctGap: number;
+  tier: "even" | "slight_edge" | "lopsided";
+  /** Never green on "shouldn't accept". */
+  tone: "neutral" | "positive" | "caution";
   giveValue: number;
   receiveValue: number;
   valueGap: number;
@@ -173,6 +178,9 @@ export function runTradeCompare(options: {
     headline: benefit.headline,
     differenceLabel: benefit.differenceLabel,
     winner: benefit.winner,
+    pctGap: benefit.pctGap,
+    tier: benefit.tier,
+    tone: benefit.tone,
     giveValue: analysis.giveValue,
     receiveValue: analysis.receiveValue,
     valueGap: analysis.valueGap,

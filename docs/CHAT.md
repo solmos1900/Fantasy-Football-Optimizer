@@ -24,5 +24,7 @@ Model id: `CHAT_MODEL_ID` in `src/lib/chat/config.ts` (default `google/gemini-2.
 - **UI:** `src/components/chat/*` — composer with `@` mentions, templates, tool-result cards.
 - **API:** `POST /api/chat` (AI SDK `streamText` + tools), `GET /api/players/search`, conversation CRUD under `/api/chat/conversations`.
 - **Tools:** wrap `comparePlayerPackages`, `whoBenefitsCopy`, `compareWhoToStart`, pool freshness — model never invents numbers.
+- **Trade verdicts:** percentage gap vs the lower side (`whoBenefitsCopy`) — even &lt;5%, slight edge 5–15%, lopsided &gt;15%. UI tone is caution (never green) when someone shouldn't accept. Labels are Left/Right (or You give / You get).
 - **Guests:** conversations in `localStorage`; rate limit by IP + guest user id.
 - **Signed-in:** conversations in Neon; higher daily cap.
+- **Screenshot QA:** `/ui-preview/chat` loads `live-sample.json` from `npm run build:chat-live-sample` (Sleeper + nflverse + ESPN → same tool runners). Sources: `docs/screenshots/CHAT_SCREENSHOT_SOURCES.md`.

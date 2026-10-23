@@ -548,28 +548,34 @@ function LeanResultsCard({
     analysis.giveValue,
     analysis.receiveValue,
   );
-  const giveLabel = mode === "team" ? "You give" : "Side A";
-  const getLabel = mode === "team" ? "You get" : "Side B";
+  const giveLabel = mode === "team" ? "You give" : "Left";
+  const getLabel = mode === "team" ? "You get" : "Right";
   const [openImpact, setOpenImpact] = useState<string | null>(null);
   // Structural hard-reject rules only (not value-gap copy — that is the headline).
   const structuralReject = analysis.hardRejectReasons.find(
     (r) => !/too far apart|value|chip/i.test(r),
   );
+  const headlineClass =
+    benefit.tone === "caution"
+      ? "text-[color-mix(in_srgb,var(--danger)_75%,white)]"
+      : benefit.tone === "positive"
+        ? "text-[color-mix(in_srgb,var(--success)_85%,white)]"
+        : "text-emerald-950";
 
   return (
     <article
       className={cn(
         "animate-fade-up surface-card border-l-4 py-5 pl-4 pr-4",
-        analysis.verdict === "hard_reject"
+        benefit.tone === "caution" || analysis.verdict === "hard_reject"
           ? "border-l-danger"
-          : analysis.verdict === "lean_reject"
+          : analysis.verdict === "lean_reject" || benefit.tier === "slight_edge"
             ? "border-l-warning"
-            : analysis.verdict === "fair"
+            : analysis.verdict === "fair" || benefit.tier === "even"
               ? "border-l-[#797979]"
               : "border-l-success",
       )}
     >
-      <h2 className="type-section text-emerald-950">{benefit.headline}</h2>
+      <h2 className={cn("type-section", headlineClass)}>{benefit.headline}</h2>
       {structuralReject && (
         <p className="type-body mt-2 text-sm text-emerald-950/70">
           {structuralReject}
@@ -1016,12 +1022,12 @@ export function TradeAnalyzer({
 
           <div>
             <h2 className="type-section text-emerald-950">
-              {mode === "team" ? "You give" : "Side A"}
+              {mode === "team" ? "You give" : "Left"}
             </h2>
             <p className="type-body mt-1 text-sm text-emerald-950/55">
               {mode === "team"
                 ? `From ${you.name} — select one or more players.`
-                : "Type a name to add one or more players leaving Side A."}
+                : "Type a name to add one or more players on the Left."}
             </p>
             {mode === "team" ? (
               <div className="mt-3 border-t border-emerald-950/10">
@@ -1045,7 +1051,7 @@ export function TradeAnalyzer({
                   onSelect={selectGive}
                   onRemove={removeGive}
                   trends={trends}
-                  inputLabel="Search Side A"
+                  inputLabel="Search Left"
                   toolMeta={toolMeta}
                 />
               </div>
@@ -1083,7 +1089,7 @@ export function TradeAnalyzer({
       {step === "theirs" && (
         <section className="animate-fade-up space-y-5">
           <SelectedSummary
-            label={mode === "team" ? "You give" : "Side A"}
+            label={mode === "team" ? "You give" : "Left"}
             players={give}
           />
 
@@ -1113,12 +1119,12 @@ export function TradeAnalyzer({
 
           <div>
             <h2 className="type-section text-emerald-950">
-              {mode === "team" ? "You get" : "Side B"}
+              {mode === "team" ? "You get" : "Right"}
             </h2>
             <p className="type-body mt-1 text-sm text-emerald-950/55">
               {mode === "team"
                 ? `From ${partner!.name} — select one or more players.`
-                : "Type a name to add one or more players leaving Side B."}
+                : "Type a name to add one or more players on the Right."}
             </p>
             {mode === "team" ? (
               <div className="mt-3 border-t border-emerald-950/10">
@@ -1142,7 +1148,7 @@ export function TradeAnalyzer({
                   onSelect={selectReceive}
                   onRemove={removeReceive}
                   trends={trends}
-                  inputLabel="Search Side B"
+                  inputLabel="Search Right"
                   toolMeta={toolMeta}
                 />
               </div>
@@ -1180,11 +1186,11 @@ export function TradeAnalyzer({
         <section className="space-y-5">
           <div className="animate-fade-up space-y-2">
             <SelectedSummary
-              label={mode === "team" ? "You give" : "Side A"}
+              label={mode === "team" ? "You give" : "Left"}
               players={give}
             />
             <SelectedSummary
-              label={mode === "team" ? "You get" : "Side B"}
+              label={mode === "team" ? "You get" : "Right"}
               players={receive}
             />
           </div>

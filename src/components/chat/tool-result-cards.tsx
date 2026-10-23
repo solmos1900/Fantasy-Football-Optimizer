@@ -47,10 +47,16 @@ function PlayerStatCard({ card }: { card: ChatPlayerMetricCard }) {
         <InjuryBadge card={card} />
       </div>
       <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-        <Metric label="Season PPG" value={dashNum(card.seasonPpg)} />
-        <Metric label="Last 3 games" value={dashNum(card.last3Avg)} />
         <Metric
-          label="This week proj"
+          label="Points per game this season"
+          value={dashNum(card.seasonPpg)}
+        />
+        <Metric
+          label="Avg last 3 games"
+          value={dashNum(card.last3Avg)}
+        />
+        <Metric
+          label="Projected points this week"
           value={card.byeThisWeek ? "BYE" : dashNum(card.sleeperProj)}
         />
       </div>
@@ -129,11 +135,13 @@ export function ChatToolResultView({ output }: { output: unknown }) {
     const freshness = data.freshness as
       | { label: string; warning: string | null }
       | undefined;
-    const winner = data.winner as string;
+    const tone = (data.tone as string | undefined) ?? "neutral";
     const edgeClass =
-      winner === "even"
-        ? "text-emerald-950"
-        : "text-[color-mix(in_srgb,var(--success)_80%,white)]";
+      tone === "caution"
+        ? "text-[color-mix(in_srgb,var(--danger)_75%,white)]"
+        : tone === "positive"
+          ? "text-[color-mix(in_srgb,var(--success)_85%,white)]"
+          : "text-emerald-950";
     return (
       <div className="space-y-3">
         <div>
@@ -141,19 +149,20 @@ export function ChatToolResultView({ output }: { output: unknown }) {
             {String(data.headline)}
           </p>
           <p className="type-caption mt-0.5 text-emerald-950/50">
-            Side A {dashNum(data.giveValue as number)} · Side B{" "}
-            {dashNum(data.receiveValue as number)} · {String(data.differenceLabel)}
+            Left {dashNum(data.giveValue as number)} · Right{" "}
+            {dashNum(data.receiveValue as number)} ·{" "}
+            {String(data.differenceLabel)}
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="space-y-2">
-            <p className="type-eyebrow text-orange-700">Left / Side A</p>
+            <p className="type-eyebrow text-orange-700">Left</p>
             {sideA.map((c) => (
               <PlayerStatCard key={c.espnId} card={c} />
             ))}
           </div>
           <div className="space-y-2">
-            <p className="type-eyebrow text-orange-700">Right / Side B</p>
+            <p className="type-eyebrow text-orange-700">Right</p>
             {sideB.map((c) => (
               <PlayerStatCard key={c.espnId} card={c} />
             ))}

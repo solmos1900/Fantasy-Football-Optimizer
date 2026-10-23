@@ -1,11 +1,14 @@
 /**
  * Unit guard: Trade Analyzer winner / difference / plain verdict must agree.
+ * Verdict tiers are percentage-based (<5% even, 5–15% slight edge, >15% lopsided).
  * Run: npm run verify:trade-benefits
  */
 
 import assert from "node:assert/strict";
 import {
   bothSidesHaveValue,
+  tradeRelativeGapPct,
+  tradeVerdictTierFromPct,
   whoBenefitsCopy,
 } from "../src/lib/insights/trade-benefits";
 import {
@@ -35,37 +38,55 @@ function player(
   };
 }
 
-// ── Critical: Side A 17.8, Side B 0 → Side A ahead; difference never negative ──
+// ── Percentage tiers (shared helpers) ──
+{
+  assert.equal(tradeVerdictTierFromPct(0.049), "even");
+  assert.equal(tradeVerdictTierFromPct(0.05), "slight_edge");
+  assert.equal(tradeVerdictTierFromPct(0.1), "slight_edge");
+  assert.equal(tradeVerdictTierFromPct(0.15), "slight_edge");
+  assert.equal(tradeVerdictTierFromPct(0.16), "lopsided");
+
+  // 28.1 vs 32.3 ≈ 14.9% of the lower side → slight edge (not lopsided)
+  const pct = tradeRelativeGapPct(28.1, 32.3);
+  assert.ok(pct > 0.14 && pct < 0.15, `expected ~14.9%, got ${pct}`);
+  assert.equal(tradeVerdictTierFromPct(pct), "slight_edge");
+}
+
+// ── Critical: Left 17.8, Right 0 → Left ahead; lopsided; difference never negative ──
 {
   const giveValue = 17.8;
   const receiveValue = 0.0;
   const gap = receiveValue - giveValue; // -17.8
   const free = whoBenefitsCopy(gap, "free", giveValue, receiveValue);
   assert.equal(free.winner, "a");
-  assert.match(free.headline, /Lopsided: Side A gets 17\.8 more/i);
-  assert.match(free.headline, /Side B shouldn't accept/i);
-  assert.ok(!/Side B gets/i.test(free.headline));
+  assert.equal(free.tier, "lopsided");
+  assert.equal(free.tone, "caution");
+  assert.match(free.headline, /Lopsided: Left gets 17\.8 more/i);
+  assert.match(free.headline, /Right shouldn't accept/i);
+  assert.ok(!/Side A|Side B|chip value/i.test(free.headline));
   assert.ok(!/HARD REJECT|wins this deal/i.test(free.headline));
-  assert.equal(free.differenceLabel, "+17.8 for Side A");
+  assert.equal(free.differenceLabel, "+17.8 for Left");
   assert.ok(!free.differenceLabel.includes("-"));
 
   const team = whoBenefitsCopy(gap, "team", giveValue, receiveValue);
   assert.equal(team.winner, "a");
+  assert.equal(team.tone, "caution");
   assert.match(team.headline, /You give 17\.8 more/i);
   assert.match(team.headline, /you shouldn't accept/i);
   assert.equal(team.differenceLabel, "+17.8 for Them");
 }
 
-// Side B higher → gap positive → Side B / You ahead; positive difference label
+// Right higher by ~45% → lopsided
 {
   const giveValue = 8;
   const receiveValue = 14.5;
   const gap = receiveValue - giveValue; // +6.5
   const free = whoBenefitsCopy(gap, "free", giveValue, receiveValue);
   assert.equal(free.winner, "b");
-  assert.match(free.headline, /Lopsided: Side B gets 6\.5 more/i);
-  assert.match(free.headline, /Side A shouldn't accept/i);
-  assert.equal(free.differenceLabel, "+6.5 for Side B");
+  assert.equal(free.tier, "lopsided");
+  assert.match(free.headline, /Lopsided: Right gets 6\.5 more/i);
+  assert.match(free.headline, /Left shouldn't accept/i);
+  assert.equal(free.differenceLabel, "+6.5 for Right");
 
   const team = whoBenefitsCopy(gap, "team", giveValue, receiveValue);
   assert.equal(team.winner, "b");
@@ -74,23 +95,50 @@ function player(
   assert.equal(team.differenceLabel, "+6.5 for You");
 }
 
-// Bijan 17.8 vs Downs 6.3 → +11.5 for Side A
+// Bijan 17.8 vs Downs 6.3 → ~65% → lopsided Left
 {
   const copy = whoBenefitsCopy(-11.5, "free", 17.8, 6.3);
   assert.equal(copy.winner, "a");
-  assert.equal(copy.differenceLabel, "+11.5 for Side A");
+  assert.equal(copy.tier, "lopsided");
+  assert.equal(copy.differenceLabel, "+11.5 for Left");
   assert.match(
     copy.headline,
-    /Lopsided: Side A gets 11\.5 more points of value; Side B shouldn't accept\./,
+    /Lopsided: Left gets 11\.5 more points of value/,
   );
 }
 
-// Even
+// 10% slight edge (100 vs 110)
+{
+  const copy = whoBenefitsCopy(10, "free", 100, 110);
+  assert.equal(copy.tier, "slight_edge");
+  assert.equal(copy.tone, "caution");
+  assert.match(copy.headline, /Slight edge: Right gets/i);
+  assert.match(copy.headline, /Left shouldn't accept/i);
+  assert.ok(!/Lopsided/i.test(copy.headline));
+}
+
+// 4.9% even (100 vs 104.9)
+{
+  const even = whoBenefitsCopy(4.9, "free", 100, 104.9);
+  assert.equal(even.winner, "even");
+  assert.equal(even.tier, "even");
+  assert.equal(even.tone, "neutral");
+  assert.match(even.headline, /even/i);
+  assert.equal(even.differenceLabel, "Even");
+}
+
+// 16% lopsided (100 vs 116)
+{
+  const lop = whoBenefitsCopy(16, "free", 100, 116);
+  assert.equal(lop.tier, "lopsided");
+  assert.match(lop.headline, /Lopsided/i);
+}
+
+// Near-even absolute gap but check % still drives tier when both large
 {
   const even = whoBenefitsCopy(0.2, "free", 10, 10.1);
   assert.equal(even.winner, "even");
   assert.match(even.headline, /even/i);
-  assert.equal(even.differenceLabel, "Even");
 }
 
 // Sign must match: winner "a" iff gap < 0 (beyond even band); label never bare-negative
@@ -102,16 +150,16 @@ for (const [a, b] of [
 ] as const) {
   const gap = b - a;
   const copy = whoBenefitsCopy(gap, "free", a, b);
-  if (Math.abs(gap) < 0.5) {
+  if (copy.tier === "even") {
     assert.equal(copy.winner, "even");
   } else if (gap > 0) {
     assert.equal(copy.winner, "b", `gap=${gap}`);
     assert.match(copy.differenceLabel, /^\+/);
-    assert.match(copy.differenceLabel, /Side B/);
+    assert.match(copy.differenceLabel, /Right/);
   } else {
     assert.equal(copy.winner, "a", `gap=${gap}`);
     assert.match(copy.differenceLabel, /^\+/);
-    assert.match(copy.differenceLabel, /Side A/);
+    assert.match(copy.differenceLabel, /Left/);
   }
   assert.ok(!/^-/.test(copy.differenceLabel), copy.differenceLabel);
 }
