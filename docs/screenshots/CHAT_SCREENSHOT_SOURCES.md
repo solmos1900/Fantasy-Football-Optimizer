@@ -1,6 +1,6 @@
 # Chat screenshot number sources (Week 7, 2026)
 
-Generated: 2026-10-23T20:05:22.379Z
+Generated: 2026-10-23T21:04:24.238Z
 
 All card numbers come from the shared chat tool runners (`runTradeCompare` / `runWhoToStartCompare` → `buildPlayerMetricCard`). No fixture invents PPG, opponent, or trend text.
 
@@ -64,9 +64,11 @@ All card numbers come from the shared chat tool runners (`runTradeCompare` / `ru
 
 ## Trade verdict
 
-- Left package value: **46.7** · Right: **33.2**
-- Gap: **-13.5** · relative **40.5%** → tier **lopsided** · tone **caution**
-- Headline: Lopsided: Left gets 13.5 more points of value (40%); Right shouldn't accept.
+- **Value basis:** season points per game (sum). Not `chipValue` blend.
+- Left package value: **42.8** · Right: **29.0**
+- Per-player trade values: Puka Nacua (LAR)=23.0, Kyren Williams (LAR)=19.8, Ja'Marr Chase (CIN)=16.0, Chase Brown (CIN)=13.0
+- Gap: **-13.8** · relative **47.6%** vs **lower side** → tier **lopsided** · tone **caution**
+- Headline: Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.
 - Freshness: `Stats through Week 6 · updated just now` (stats through Week 6)
 
 ## Who to Start

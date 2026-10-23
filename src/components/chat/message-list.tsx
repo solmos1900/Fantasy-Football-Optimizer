@@ -27,9 +27,39 @@ export function MessageList({
   );
 }
 
+function toolOutputHasHeadline(parts: UIMessage["parts"]): boolean {
+  for (const part of parts ?? []) {
+    if (
+      typeof part.type === "string" &&
+      (part.type.startsWith("tool-") || part.type === "dynamic-tool")
+    ) {
+      const toolPart = part as { state?: string; output?: unknown };
+      if (toolPart.state !== "output-available" && toolPart.output == null) {
+        continue;
+      }
+      const out = toolPart.output;
+      if (
+        out &&
+        typeof out === "object" &&
+        "headline" in out &&
+        typeof (out as { headline?: unknown }).headline === "string" &&
+        (out as { headline: string }).headline.trim().length > 0 &&
+        (out as { ok?: unknown }).ok !== false
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
   const parts = message.parts ?? [];
+  // Tool cards own the styled verdict — skip the model's one-liner when it
+  // would duplicate the headline (plain text + red line).
+  const hideAssistantText =
+    !isUser && toolOutputHasHeadline(parts);
 
   return (
     <div
@@ -48,6 +78,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
       >
         {parts.map((part, i) => {
           if (part.type === "text") {
+            if (hideAssistantText) return null;
             const text = isUser
               ? mentionChipsToDisplay(part.text)
               : part.text;

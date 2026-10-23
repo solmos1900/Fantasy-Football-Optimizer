@@ -3,8 +3,7 @@
  * Numbers always come from these functions (never the model).
  */
 
-import { comparePlayerPackages } from "@/lib/insights/trade-analyzer";
-import { whoBenefitsCopy } from "@/lib/insights/trade-benefits";
+import { whoBenefitsCopy, bothSidesHaveValue } from "@/lib/insights/trade-benefits";
 import { compareWhoToStart } from "@/lib/insights/who-to-start";
 import {
   formImpactLine,
@@ -12,6 +11,10 @@ import {
   type ToolDisplayMeta,
 } from "@/lib/insights/tool-display";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
+import {
+  seasonPpgTradeValue,
+  sideSeasonPpgTradeValue,
+} from "@/lib/insights/trade-value";
 import { formatPoolFreshnessLabel } from "@/lib/players/pool";
 import type {
   FantasyPlayer,
@@ -29,6 +32,11 @@ export type ChatPlayerMetricCard = {
   injuryLabel: string | null;
   /** Season points per game — null → show "—" */
   seasonPpg: number | null;
+  /**
+   * Trade package contribution — same as season PPG (approved chat rule).
+   * Side totals = sum of these values.
+   */
+  tradeValue: number | null;
   /** Last-3-week average PPR — null → "—" */
   last3Avg: number | null;
   /** Sleeper full-PPR projection this week — null → "—" */
@@ -87,13 +95,17 @@ export function buildPlayerMetricCard(
           : null,
     }));
 
+  const ppg = seasonPpg(player);
+  const tradeValue = seasonPpgTradeValue(player);
   return {
     espnId: player.espnId,
     label: formatPlayerLabel(player.name, player.nflTeam),
     position: player.position,
     injuryStatus: status,
     injuryLabel,
-    seasonPpg: seasonPpg(player),
+    seasonPpg: ppg,
+    // Chat trade rule: value = season points per game (same number).
+    tradeValue,
     last3Avg: last3Avg(player),
     sleeperProj: preferredProjOrNull(player, meta),
     byeThisWeek,
@@ -119,12 +131,21 @@ export type TradeToolResult = {
   headline: string;
   differenceLabel: string;
   winner: "a" | "b" | "even";
-  /** Relative gap vs higher side (0–1) from shared whoBenefitsCopy. */
+  /**
+   * Relative gap vs the **lower** side (0–1) from whoBenefitsCopy —
+   * abs(Left−Right) / min(Left, Right), where Left/Right are season-PPG sums.
+   */
   pctGap: number;
+  /** What giveValue / receiveValue / tradeValue are: season points per game. */
+  valueBasis: "season_ppg";
+  /** Human label for the % gap denominator. */
+  pctGapBasisLabel: string;
   tier: "even" | "slight_edge" | "lopsided";
   /** Never green on "shouldn't accept". */
   tone: "neutral" | "positive" | "caution";
+  /** Left package = sum of each player's season PPG. */
   giveValue: number;
+  /** Right package = sum of each player's season PPG. */
   receiveValue: number;
   valueGap: number;
   verdictLabel: string;
@@ -147,31 +168,40 @@ export function runTradeCompare(options: {
   meta?: ToolDisplayMeta | null;
   freshness: PlayerPoolFreshness;
 }): TradeToolResult | TradeToolError {
-  const { sideA, sideB, trends, meta, freshness } = options;
+  const { sideA, sideB, meta, freshness } = options;
   if (!sideA.length || !sideB.length) {
     return { ok: false, kind: "trade", message: "Add at least one player on each side." };
   }
-  const trendMap =
-    trends && Object.keys(trends).length
-      ? new Map(
-          Object.entries(trends).map(([k, v]) => [Number(k), v] as const),
-        )
-      : undefined;
-  const analysis = comparePlayerPackages(sideA, sideB, trendMap);
-  if (!analysis) {
+  // Approved chat rule: trade value = season points per game (not Insights chip blend).
+  const giveValue = sideSeasonPpgTradeValue(sideA);
+  const receiveValue = sideSeasonPpgTradeValue(sideB);
+  if (!bothSidesHaveValue(giveValue, receiveValue)) {
     return {
       ok: false,
       kind: "trade",
       message:
-        "Not enough scoring data to grade this trade yet (missing season points or projections). Try again after stats refresh.",
+        "Not enough scoring data to grade this trade yet (missing season points). Try again after stats refresh.",
     };
   }
-  const benefit = whoBenefitsCopy(
-    analysis.valueGap,
-    "free",
-    analysis.giveValue,
-    analysis.receiveValue,
-  );
+  const valueGap = receiveValue - giveValue;
+  const benefit = whoBenefitsCopy(valueGap, "free", giveValue, receiveValue);
+  const cardsA = sideA.map((p) => buildPlayerMetricCard(p, meta));
+  const cardsB = sideB.map((p) => buildPlayerMetricCard(p, meta));
+  const sumA = cardsA.reduce((s, c) => s + (c.tradeValue ?? 0), 0);
+  const sumB = cardsB.reduce((s, c) => s + (c.tradeValue ?? 0), 0);
+  // Guard: package totals must equal sum of per-card trade values.
+  if (Math.abs(sumA - giveValue) > 0.05 || Math.abs(sumB - receiveValue) > 0.05) {
+    return {
+      ok: false,
+      kind: "trade",
+      message: "Trade totals out of sync with per-player season points per game.",
+    };
+  }
+  const facts = [
+    `Trade value = season points per game (nflverse full PPR). Left ${giveValue.toFixed(1)} = ${cardsA.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
+    `Right ${receiveValue.toFixed(1)} = ${cardsB.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
+    `% gap uses the lower side as the base: |Left − Right| / min(Left, Right) = ${(benefit.pctGap * 100).toFixed(1)}%.`,
+  ];
   return {
     ok: true,
     kind: "trade",
@@ -179,17 +209,29 @@ export function runTradeCompare(options: {
     differenceLabel: benefit.differenceLabel,
     winner: benefit.winner,
     pctGap: benefit.pctGap,
+    valueBasis: "season_ppg",
+    pctGapBasisLabel:
+      "% gap vs lower side (season points per game package totals)",
     tier: benefit.tier,
     tone: benefit.tone,
-    giveValue: analysis.giveValue,
-    receiveValue: analysis.receiveValue,
-    valueGap: analysis.valueGap,
-    verdictLabel: analysis.verdictLabel,
-    sideA: sideA.map((p) => buildPlayerMetricCard(p, meta)),
-    sideB: sideB.map((p) => buildPlayerMetricCard(p, meta)),
+    giveValue,
+    receiveValue,
+    valueGap,
+    verdictLabel:
+      benefit.tier === "even"
+        ? "Fair"
+        : benefit.winner === "b"
+          ? "Lean reject"
+          : "Lean accept",
+    sideA: cardsA,
+    sideB: cardsB,
     freshness: freshnessBlock(freshness),
-    facts: analysis.facts.slice(0, 6),
+    facts,
   };
+}
+
+function dashTrade(v: number | null): string {
+  return v == null || !Number.isFinite(v) ? "—" : v.toFixed(1);
 }
 
 export type WhoToStartToolResult = {

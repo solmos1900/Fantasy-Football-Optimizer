@@ -27,7 +27,14 @@ function InjuryBadge({ card }: { card: ChatPlayerMetricCard }) {
   );
 }
 
-function PlayerStatCard({ card }: { card: ChatPlayerMetricCard }) {
+function PlayerStatCard({
+  card,
+  showTradeValue,
+}: {
+  card: ChatPlayerMetricCard;
+  /** When true (trade answers), show the package contribution that sums into Left/Right. */
+  showTradeValue?: boolean;
+}) {
   return (
     <div className="min-w-0 rounded-lg border border-emerald-950/12 bg-[color-mix(in_srgb,var(--kraft)_70%,transparent)] p-2.5">
       <div className="flex items-start justify-between gap-2">
@@ -46,6 +53,18 @@ function PlayerStatCard({ card }: { card: ChatPlayerMetricCard }) {
         </div>
         <InjuryBadge card={card} />
       </div>
+      {showTradeValue ? (
+        <p className="mt-1.5 text-xs text-emerald-950/70">
+          Trade value{" "}
+          <span className="font-semibold text-emerald-950">
+            {dashNum(card.tradeValue ?? card.seasonPpg)}
+          </span>
+          <span className="text-emerald-950/45">
+            {" "}
+            (points per game this season)
+          </span>
+        </p>
+      ) : null}
       <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
         <Metric
           label="Points per game this season"
@@ -142,6 +161,10 @@ export function ChatToolResultView({ output }: { output: unknown }) {
         : tone === "positive"
           ? "text-[color-mix(in_srgb,var(--success)_85%,white)]"
           : "text-emerald-950";
+    const pctBasis =
+      typeof data.pctGapBasisLabel === "string"
+        ? data.pctGapBasisLabel
+        : "% gap vs lower side (season points per game)";
     return (
       <div className="space-y-3">
         <div>
@@ -153,18 +176,21 @@ export function ChatToolResultView({ output }: { output: unknown }) {
             {dashNum(data.receiveValue as number)} ·{" "}
             {String(data.differenceLabel)}
           </p>
+          <p className="type-caption mt-0.5 text-emerald-950/40">
+            Totals = sum of each player&apos;s season points per game · {pctBasis}
+          </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="space-y-2">
             <p className="type-eyebrow text-orange-700">Left</p>
             {sideA.map((c) => (
-              <PlayerStatCard key={c.espnId} card={c} />
+              <PlayerStatCard key={c.espnId} card={c} showTradeValue />
             ))}
           </div>
           <div className="space-y-2">
             <p className="type-eyebrow text-orange-700">Right</p>
             {sideB.map((c) => (
-              <PlayerStatCard key={c.espnId} card={c} />
+              <PlayerStatCard key={c.espnId} card={c} showTradeValue />
             ))}
           </div>
         </div>

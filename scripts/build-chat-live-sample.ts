@@ -329,8 +329,15 @@ async function main() {
         tier: trade.tier,
         tone: trade.tone,
         headline: trade.headline,
+        valueBasis: trade.valueBasis,
+        pctGapBasisLabel: trade.pctGapBasisLabel,
         source:
-          "comparePlayerPackages → whoBenefitsCopy (percentage gap vs lower side; Left/Right labels)",
+          "sideSeasonPpgTradeValue (sum of season PPG) → whoBenefitsCopy; % gap = |Left−Right|/min(Left,Right). Not Insights chipValue blend.",
+        perPlayerTradeValues: [...trade.sideA, ...trade.sideB].map((c) => ({
+          label: c.label,
+          tradeValue: c.tradeValue,
+          seasonPpg: c.seasonPpg,
+        })),
       },
     },
   };
@@ -381,10 +388,16 @@ async function main() {
   md.push("## Trade verdict");
   md.push("");
   md.push(
+    `- **Value basis:** season points per game (sum). Not \`chipValue\` blend.`,
+  );
+  md.push(
     `- Left package value: **${trade.giveValue.toFixed(1)}** · Right: **${trade.receiveValue.toFixed(1)}**`,
   );
   md.push(
-    `- Gap: **${trade.valueGap.toFixed(1)}** · relative **${(trade.pctGap * 100).toFixed(1)}%** → tier **${trade.tier}** · tone **${trade.tone}**`,
+    `- Per-player trade values: ${[...trade.sideA, ...trade.sideB].map((c) => `${c.label}=${c.tradeValue?.toFixed(1)}`).join(", ")}`,
+  );
+  md.push(
+    `- Gap: **${trade.valueGap.toFixed(1)}** · relative **${(trade.pctGap * 100).toFixed(1)}%** vs **lower side** → tier **${trade.tier}** · tone **${trade.tone}**`,
   );
   md.push(`- Headline: ${trade.headline}`);
   md.push(

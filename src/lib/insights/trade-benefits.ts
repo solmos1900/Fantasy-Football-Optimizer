@@ -4,12 +4,13 @@
  * valueGap = receiveValue − giveValue (Right − Left in free mode;
  * you-get − you-give in team mode).
  *
- * Verdict tiers use the **percentage** gap vs the higher side's value —
- * never a raw point threshold alone:
+ * Verdict tiers use the **percentage** gap vs the **lower** side's value
+ * (`abs(a−b) / min(a,b)`) — never a raw point threshold alone:
  *   < 5%  → even
  *   5–15% → slight edge
  *   > 15% → lopsided
  *
+ * For chat free trades, a/b are season-points-per-game package totals.
  * Winner is always the higher-value side. Difference is always shown
  * from the winner's view as a positive (“+11.5 for Left”) — never negative.
  */
@@ -35,7 +36,7 @@ export type TradeBenefitsCopy = {
   winner: "a" | "b" | "even";
   /** Absolute value gap (always ≥ 0). */
   absGap: number;
-  /** Percentage gap vs the higher side (0–1). Even when winner is even. */
+  /** Percentage gap vs the **lower** side (0–1). Even when winner is even. */
   pctGap: number;
   /** even | slight_edge | lopsided */
   tier: TradeVerdictTier;

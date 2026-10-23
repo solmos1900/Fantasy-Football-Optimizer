@@ -1,25 +1,27 @@
 {
-  "generatedAt": "2026-10-23T20:05:22.379Z",
+  "generatedAt": "2026-10-23T21:04:24.238Z",
   "season": 2026,
   "currentWeek": 7,
   "statsThroughWeek": 6,
   "note": "Built from public Sleeper + nflverse + ESPN scoreboard via the same chat tool runners (runTradeCompare / runWhoToStartCompare). Verdict text is the shared whoBenefitsCopy / compareWhoToStart headline (no AI Gateway).",
   "trade": {
     "userText": "Trade: LEFT Puka Nacua (LAR) + Kyren Williams (LAR) for RIGHT Ja'Marr Chase (CIN) + Chase Brown (CIN)",
-    "assistantOneLiner": "Lopsided: Left gets 13.5 more points of value (40%); Right shouldn't accept.",
+    "assistantOneLiner": "Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.",
     "toolOutput": {
       "ok": true,
       "kind": "trade",
-      "headline": "Lopsided: Left gets 13.5 more points of value (40%); Right shouldn't accept.",
-      "differenceLabel": "+13.5 for Left",
+      "headline": "Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.",
+      "differenceLabel": "+13.8 for Left",
       "winner": "a",
-      "pctGap": 0.4046922776836763,
+      "pctGap": 0.4763054980446284,
+      "valueBasis": "season_ppg",
+      "pctGapBasisLabel": "% gap vs lower side (season points per game package totals)",
       "tier": "lopsided",
       "tone": "caution",
-      "giveValue": 46.68958333333333,
-      "receiveValue": 33.238299999999995,
-      "valueGap": -13.451283333333336,
-      "verdictLabel": "Lean reject",
+      "giveValue": 42.78333333333333,
+      "receiveValue": 28.98,
+      "valueGap": -13.803333333333331,
+      "verdictLabel": "Lean accept",
       "sideA": [
         {
           "espnId": 4426515,
@@ -28,6 +30,7 @@
           "injuryStatus": "ACTIVE",
           "injuryLabel": null,
           "seasonPpg": 22.950000000000003,
+          "tradeValue": 22.950000000000003,
           "last3Avg": 26.46666666666667,
           "sleeperProj": 22.3,
           "byeThisWeek": false,
@@ -59,6 +62,7 @@
           "injuryStatus": "ACTIVE",
           "injuryLabel": null,
           "seasonPpg": 19.833333333333332,
+          "tradeValue": 19.833333333333332,
           "last3Avg": 22,
           "sleeperProj": 19.8,
           "byeThisWeek": false,
@@ -100,6 +104,7 @@
           "injuryStatus": "ACTIVE",
           "injuryLabel": null,
           "seasonPpg": 15.98,
+          "tradeValue": 15.98,
           "last3Avg": 16.733333333333334,
           "sleeperProj": 18.8,
           "byeThisWeek": false,
@@ -135,6 +140,7 @@
           "injuryStatus": "ACTIVE",
           "injuryLabel": null,
           "seasonPpg": 13,
+          "tradeValue": 13,
           "last3Avg": 11.666666666666666,
           "sleeperProj": 14.8,
           "byeThisWeek": false,
@@ -170,10 +176,9 @@
         "statsThroughWeek": 6
       },
       "facts": [
-        "Scoring assumed: full PPR, standard 1QB redraft.",
-        "Side A chips: 46.7 (Puka Nacua (LAR) + Kyren Williams (LAR)).",
-        "Side B chips: 33.2 (Ja'Marr Chase (CIN) + Chase Brown (CIN)).",
-        "Value gap (Side B − Side A): -13.5."
+        "Trade value = season points per game (nflverse full PPR). Left 42.8 = Puka Nacua (LAR) 23.0 + Kyren Williams (LAR) 19.8.",
+        "Right 29.0 = Ja'Marr Chase (CIN) 16.0 + Chase Brown (CIN) 13.0.",
+        "% gap uses the lower side as the base: |Left − Right| / min(Left, Right) = 47.6%."
       ]
     },
     "filledTemplate": {
@@ -216,6 +221,7 @@
           "injuryStatus": "ACTIVE",
           "injuryLabel": null,
           "seasonPpg": 20.84,
+          "tradeValue": 20.84,
           "last3Avg": 13.433333333333332,
           "sleeperProj": 19.5,
           "byeThisWeek": false,
@@ -251,6 +257,7 @@
           "injuryStatus": "ACTIVE",
           "injuryLabel": null,
           "seasonPpg": 11.483333333333334,
+          "tradeValue": 11.483333333333334,
           "last3Avg": 14.033333333333333,
           "sleeperProj": 12.4,
           "byeThisWeek": false,
@@ -723,14 +730,38 @@
       }
     ],
     "tradeValues": {
-      "giveValue": 46.68958333333333,
-      "receiveValue": 33.238299999999995,
-      "valueGap": -13.451283333333336,
-      "pctGap": 0.4046922776836763,
+      "giveValue": 42.78333333333333,
+      "receiveValue": 28.98,
+      "valueGap": -13.803333333333331,
+      "pctGap": 0.4763054980446284,
       "tier": "lopsided",
       "tone": "caution",
-      "headline": "Lopsided: Left gets 13.5 more points of value (40%); Right shouldn't accept.",
-      "source": "comparePlayerPackages → whoBenefitsCopy (percentage gap vs lower side; Left/Right labels)"
+      "headline": "Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.",
+      "valueBasis": "season_ppg",
+      "pctGapBasisLabel": "% gap vs lower side (season points per game package totals)",
+      "source": "sideSeasonPpgTradeValue (sum of season PPG) → whoBenefitsCopy; % gap = |Left−Right|/min(Left,Right). Not Insights chipValue blend.",
+      "perPlayerTradeValues": [
+        {
+          "label": "Puka Nacua (LAR)",
+          "tradeValue": 22.950000000000003,
+          "seasonPpg": 22.950000000000003
+        },
+        {
+          "label": "Kyren Williams (LAR)",
+          "tradeValue": 19.833333333333332,
+          "seasonPpg": 19.833333333333332
+        },
+        {
+          "label": "Ja'Marr Chase (CIN)",
+          "tradeValue": 15.98,
+          "seasonPpg": 15.98
+        },
+        {
+          "label": "Chase Brown (CIN)",
+          "tradeValue": 13,
+          "seasonPpg": 13
+        }
+      ]
     }
   }
 }

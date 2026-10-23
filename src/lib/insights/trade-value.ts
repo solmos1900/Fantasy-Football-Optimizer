@@ -184,6 +184,28 @@ export function chipValueOrNull(
   return chipValue(p, trendsOrOpts);
 }
 
+/**
+ * Approved chat / free-trade display value: **season points per game**
+ * (mean of scored nflverse week PPR). Not the Insights chip blend
+ * (`0.7×form + 0.3×proj` × scarcity) used by {@link chipValue}.
+ * Bye weeks: weekly projection is ignored here (season PPG only).
+ */
+export function seasonPpgTradeValue(p: FantasyPlayer): number | null {
+  const pts = (p.recentWeeks ?? [])
+    .map((w) => w.points)
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
+  if (!pts.length) return null;
+  return pts.reduce((a, b) => a + b, 0) / pts.length;
+}
+
+/** Sum of {@link seasonPpgTradeValue} for a package (0 when every player lacks weeks). */
+export function sideSeasonPpgTradeValue(players: FantasyPlayer[]): number {
+  return players.reduce((sum, p) => {
+    const v = seasonPpgTradeValue(p);
+    return sum + (v ?? 0);
+  }, 0);
+}
+
 export function sideValue(
   players: FantasyPlayer[],
   trends?: TrendLookup,
