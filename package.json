@@ -34,6 +34,7 @@
     "verify:espn-public-no-actuals": "tsx scripts/verify-espn-public-no-actuals.ts",
     "verify:nflverse-backfill": "tsx scripts/verify-nflverse-backfill.ts",
     "verify:pool-injury-merge": "tsx scripts/verify-pool-injury-merge.ts",
+    "verify:live-stats-guest-week": "tsx scripts/verify-live-stats-guest-week.ts",
     "verify:team-selection": "tsx scripts/verify-team-selection.ts",
     "verify:trend-null-wipe": "tsx scripts/verify-trend-null-wipe.ts",
     "verify:trend-fa-wipe": "tsx scripts/verify-trend-fa-wipe.ts",
