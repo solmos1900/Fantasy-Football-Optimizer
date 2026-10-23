@@ -167,30 +167,20 @@ export function enrichLeagueOpponents(
 }
 
 /**
- * Optional historical club on a past-week row. Not part of WeeklyScore yet;
- * callers (and tests) may attach it when known (e.g. PlayerWeekStat.nflTeam).
- * Never infer this from FantasyPlayer.nflTeam — that is the *current* club.
- */
-export type RecentWeekWithHistoricalTeam = {
-  week: number;
-  points: number | null;
-  projectedPoints?: number;
-  opponent?: string;
-  /** NFL team the player was on for this week, when known. */
-  nflTeam?: string;
-};
-
-/**
  * Resolve the club to use for a past-week scoreboard lookup.
- * Prefers the week row's own nflTeam; returns undefined when unknown so we
- * leave opponent unset instead of guessing from the player's current team.
+ * Prefers the week row's own nflTeam (from ESPN stats[].proTeamId / DB);
+ * falls back to the player's current FantasyPlayer.nflTeam only when the
+ * per-week club is missing — otherwise non-traded players stay blank.
  */
 export function historicalTeamForRecentWeek(
-  week: RecentWeekWithHistoricalTeam,
+  week: { nflTeam?: string },
+  currentNflTeam?: string,
 ): string | undefined {
-  const team = normalizeNflAbbrev(week.nflTeam);
-  if (!team || team === "FA") return undefined;
-  return team;
+  const fromWeek = normalizeNflAbbrev(week.nflTeam);
+  if (fromWeek && fromWeek !== "FA") return fromWeek;
+  const fromCurrent = normalizeNflAbbrev(currentNflTeam);
+  if (fromCurrent && fromCurrent !== "FA") return fromCurrent;
+  return undefined;
 }
 
 /**
@@ -198,9 +188,10 @@ export function historicalTeamForRecentWeek(
  * schedules. Never invents opponents; leaves opponent unset when unknown.
  * Drops any week >= current scoring period (incomplete / future).
  *
- * Past-week lookups must use that week's historical NFL team (week.nflTeam),
- * never FantasyPlayer.nflTeam (current club). Mid-season trades otherwise get
- * the new team's old-week opponent — or a fabricated BYE.
+ * Past-week lookups prefer that week's historical NFL team (week.nflTeam from
+ * mapPlayer / PlayerWeekStat). Falls back to FantasyPlayer.nflTeam only when
+ * per-week data is missing so stable players still get opponents. Mid-season
+ * trades must carry week.nflTeam so they keep the old club's matchup.
  */
 export function enrichRecentWeekOpponents(
   league: LeagueData,
@@ -218,10 +209,7 @@ export function enrichRecentWeekOpponents(
         if (w.opponent) return w;
         const schedule = weekSchedules.get(w.week);
         if (!schedule) return w;
-        // Prefer the club recorded for this week; never the player's current team.
-        const teamForWeek = historicalTeamForRecentWeek(
-          w as RecentWeekWithHistoricalTeam,
-        );
+        const teamForWeek = historicalTeamForRecentWeek(w, player.nflTeam);
         if (!teamForWeek) return w;
         const label = formatOpponentLabel(teamForWeek, schedule);
         return label ? { ...w, opponent: label } : w;
@@ -234,7 +222,8 @@ export function enrichRecentWeekOpponents(
           w.week === weeks[i].week &&
           w.points === weeks[i].points &&
           w.opponent === weeks[i].opponent &&
-          w.projectedPoints === weeks[i].projectedPoints,
+          w.projectedPoints === weeks[i].projectedPoints &&
+          w.nflTeam === weeks[i].nflTeam,
       );
     if (unchanged) return player;
     return { ...player, recentWeeks: next.length ? next : undefined };
