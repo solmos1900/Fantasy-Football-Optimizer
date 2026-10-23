@@ -27,6 +27,8 @@
     "verify:pool": "tsx scripts/verify-pool.ts",
     "verify:sleeper-proj-name-match": "tsx scripts/verify-sleeper-proj-name-match.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
+    "verify:trade-value-ppg": "tsx scripts/verify-trade-value-ppg.ts",
+    "verify:trade-verdict-tiers": "tsx scripts/verify-trade-verdict-tiers.ts",
     "verify:trade-injury-consistency": "tsx scripts/verify-trade-injury-consistency.ts",
     "verify:espn-null-stats": "tsx scripts/verify-espn-null-stats.ts",
     "verify:espn-gamelog": "tsx scripts/verify-espn-gamelog.ts",

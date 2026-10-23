@@ -301,7 +301,7 @@ export function analyzeTrade(
   ].filter((x) => x.impacts.length > 0);
 
   const facts = [
-    `Scoring assumed: full PPR, standard 1QB redraft (QB chips discounted; ~70% ROS/form + ~30% this-week).`,
+    `Scoring assumed: full PPR, standard 1QB redraft (QB chips discounted; trade value = season points per game from played weeks).`,
     `Your side chips: ${giveValue.toFixed(1)} (${names(give)}).`,
     `Their side chips: ${receiveValue.toFixed(1)} (${names(receive)}).`,
     `Value gap (you): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
