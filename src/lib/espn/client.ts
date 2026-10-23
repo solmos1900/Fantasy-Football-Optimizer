@@ -17,6 +17,7 @@ import type {
   LeagueData,
   Matchup,
   PlayerPosition,
+  WeeklyScore,
 } from "@/lib/types";
 import { nflTeamFromEspn } from "@/lib/espn/pro-teams";
 import {
@@ -27,6 +28,7 @@ import {
   type ScoreboardEvent,
 } from "@/lib/espn/scoreboard";
 import { finiteEspnAppliedTotal } from "@/lib/espn/stats";
+import type { EspnPlayerStatBlock, EspnRawPlayer } from "@/lib/espn/types";
 import { defaultEspnSeason } from "@/lib/season";
 
 const ESPN_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
@@ -161,14 +163,22 @@ function injuryFromPlayer(player: Record<string, unknown>): InjuryStatus {
   return "ACTIVE";
 }
 
+/** NFL abbrev from a weekly ESPN stats row's proTeamId (0 / missing → undefined). */
+function nflTeamFromWeekStat(stat: EspnPlayerStatBlock): string | undefined {
+  const weekProTeamId = Number(stat.proTeamId ?? 0);
+  if (!weekProTeamId) return undefined;
+  const abbrev = nflTeamFromEspn(weekProTeamId);
+  return abbrev === "FA" ? undefined : abbrev;
+}
+
 /** Map an ESPN roster / player-pool entry. Exported for regression tests. */
 export function mapPlayer(
   entry: Record<string, unknown>,
   scoringPeriodId: number,
 ): FantasyPlayer {
   const playerPoolEntry = (entry.playerPoolEntry ?? entry) as Record<string, unknown>;
-  const player = (playerPoolEntry.player ?? playerPoolEntry) as Record<string, unknown>;
-  const stats = (player.stats as Record<string, unknown>[] | undefined) ?? [];
+  const player = (playerPoolEntry.player ?? playerPoolEntry) as EspnRawPlayer;
+  const stats: EspnPlayerStatBlock[] = player.stats ?? [];
   const projected = stats.find(
     (s) =>
       s.scoringPeriodId === scoringPeriodId &&
@@ -186,7 +196,7 @@ export function mapPlayer(
   const position = POS_MAP[defaultPositionId] ?? "WR";
   const lineupSlotId = Number(entry.lineupSlotId ?? 20);
   const slot = SLOT_MAP[lineupSlotId] ?? "BN";
-  const ownership = (player.ownership as Record<string, number> | undefined) ?? {};
+  const ownership = player.ownership ?? {};
   const proTeamId = Number(player.proTeamId ?? 0);
   // Prefer an abbreviation ESPN already returned; fall back to the proTeamId table.
   const preferredAbbrev =
@@ -194,15 +204,10 @@ export function mapPlayer(
       ? player.proTeamAbbreviation
       : undefined) ??
     (typeof player.proTeamAbbrev === "string" ? player.proTeamAbbrev : undefined) ??
-    (typeof (player.proTeam as { abbrev?: string } | undefined)?.abbrev === "string"
-      ? (player.proTeam as { abbrev: string }).abbrev
-      : undefined);
+    (typeof player.proTeam?.abbrev === "string" ? player.proTeam.abbrev : undefined);
 
   const recentWeeks = (() => {
-    const byWeek = new Map<
-      number,
-      { week: number; points: number | null; projectedPoints?: number }
-    >();
+    const byWeek = new Map<number, WeeklyScore>();
 
     for (const s of stats) {
       const week = Number(s.scoringPeriodId);
@@ -212,10 +217,15 @@ export function mapPlayer(
       if (total == null) continue;
 
       const existing = byWeek.get(week) ?? { week, points: null };
+      const weekTeam = nflTeamFromWeekStat(s);
       if (Number(s.statSourceId) === 0) {
         existing.points = total;
+        // Actual week's proTeamId is the club the player played for that week.
+        if (weekTeam) existing.nflTeam = weekTeam;
       } else if (Number(s.statSourceId) === 1) {
         existing.projectedPoints = total;
+        // Projection only fills historical team when actual hasn't set it.
+        if (weekTeam && !existing.nflTeam) existing.nflTeam = weekTeam;
       }
       byWeek.set(week, existing);
     }
@@ -232,7 +242,7 @@ export function mapPlayer(
     name: String(player.fullName ?? "Unknown"),
     position,
     nflTeam: nflTeamFromEspn(proTeamId, preferredAbbrev),
-    injuryStatus: injuryFromPlayer(player),
+    injuryStatus: injuryFromPlayer(player as Record<string, unknown>),
     // Missing ESPN stat blocks → null (unknown). Real published 0.0 stays 0.
     projectedPoints: finiteEspnAppliedTotal(projected?.appliedTotal),
     actualPoints: finiteEspnAppliedTotal(actual?.appliedTotal),
