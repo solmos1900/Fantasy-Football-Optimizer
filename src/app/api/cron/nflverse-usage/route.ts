@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { defaultEspnSeason } from "@/lib/season";
 import {
+  backfillMissingNflverseWeeks,
   detectLatestNflverseWeek,
   ingestNflverseUsage,
 } from "@/lib/nflverse";
@@ -49,7 +50,8 @@ export async function GET(request: Request) {
     }
 
     let week: number;
-    if (weekParam != null && weekParam !== "") {
+    const explicitWeek = weekParam != null && weekParam !== "";
+    if (explicitWeek) {
       week = Number(weekParam);
       if (!Number.isFinite(week) || week < 1 || week > 22) {
         return NextResponse.json({ error: "Invalid week" }, { status: 400 });
@@ -58,12 +60,25 @@ export async function GET(request: Request) {
       week = await detectLatestNflverseWeek(season);
     }
 
-    const result = await ingestNflverseUsage({
-      season,
-      week,
-      includeSnaps: true,
-      mergeIntoLeagueRows: true,
-    });
+    // Explicit ?week=N → single-week ingest (debug / manual). Default cron path
+    // backfills every missing week 1..latest so mid-season cron start does not
+    // leave W1–W4 empty (#126). Helper is isolated for coordination with #119.
+    const backfill = explicitWeek
+      ? null
+      : await backfillMissingNflverseWeeks({
+          season,
+          throughWeek: week,
+          includeSnaps: true,
+          mergeIntoLeagueRows: true,
+        });
+    const result =
+      backfill?.lastResult ??
+      (await ingestNflverseUsage({
+        season,
+        week,
+        includeSnaps: true,
+        mergeIntoLeagueRows: true,
+      }));
 
     // Secondary source: ESPN gamelog fills null-PPR gaps (e.g. Troy Franklin W4)
     // without overwriting nflverse_ppr.
@@ -112,6 +127,16 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       ...result,
+      ...(backfill
+        ? {
+            backfill: {
+              throughWeek: backfill.throughWeek,
+              weeksIngested: backfill.weeksIngested,
+              weeksSkipped: backfill.weeksSkipped,
+              errors: backfill.errors,
+            },
+          }
+        : {}),
       espnGaps,
       golden,
       poolValidation,
