@@ -35,7 +35,10 @@ assert.equal(isEspnRegularSeasonType("Postseason"), false);
  * receivingTouchdowns, fumblesLost
  *
  * Full PPR: passYds/25 + passTD×4 − INT×2 + rushYds/10 + rushTD×6
- *         + rec + recYds/10 + recTD×6 − FL×2
+ *         + rec + recYds/10 + recTD×6 − FL×2 (+ 2pt / ST TD when present)
+ *
+ * Schema must include fumblesLost — QB lines that omit it yield no weeks
+ * (see verify:scoring-actuals / issue #127).
  */
 const names = [
   "passingYards",
@@ -199,6 +202,36 @@ assert.equal(
   emptyCats[0]!.actualPpr,
   0,
   "empty-category → 0 behavior unchanged (issue #92 is separate)",
+);
+
+// #127: gamelog schema without fumblesLost must not invent PPR (QB lines).
+assert.deepEqual(
+  parseEspnGamelogPpr({
+    names: [
+      "passingYards",
+      "passingTouchdowns",
+      "interceptions",
+      "rushingYards",
+      "rushingTouchdowns",
+    ],
+    events: {
+      "qb-w3": { week: 3, atVs: "@", opponent: { abbreviation: "PIT" } },
+    },
+    seasonTypes: [
+      {
+        displayName: "2026 Regular Season",
+        categories: [
+          {
+            events: [
+              { eventId: "qb-w3", stats: ["282", "3", "0", "13", "0"] },
+            ],
+          },
+        ],
+      },
+    ],
+  }),
+  [],
+  "missing fumblesLost column must not invent actualPpr",
 );
 
 console.log("verify-espn-gamelog: ok");
