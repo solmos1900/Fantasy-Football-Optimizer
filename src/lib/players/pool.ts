@@ -439,6 +439,8 @@ async function loadPlayersFromDb(options: {
             : null,
         projectedPoints: r.projectedPpr ?? undefined,
         opponent: r.opponent ?? undefined,
+        // Historical club for past-week opponent enrichment (issue #106).
+        nflTeam: r.nflTeam ?? undefined,
       }))
       .filter((w) => w.points != null || w.projectedPoints != null)
       .sort((a, b) => b.week - a.week)
