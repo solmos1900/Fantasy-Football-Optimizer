@@ -167,9 +167,40 @@ export function enrichLeagueOpponents(
 }
 
 /**
+ * Optional historical club on a past-week row. Not part of WeeklyScore yet;
+ * callers (and tests) may attach it when known (e.g. PlayerWeekStat.nflTeam).
+ * Never infer this from FantasyPlayer.nflTeam — that is the *current* club.
+ */
+export type RecentWeekWithHistoricalTeam = {
+  week: number;
+  points: number | null;
+  projectedPoints?: number;
+  opponent?: string;
+  /** NFL team the player was on for this week, when known. */
+  nflTeam?: string;
+};
+
+/**
+ * Resolve the club to use for a past-week scoreboard lookup.
+ * Prefers the week row's own nflTeam; returns undefined when unknown so we
+ * leave opponent unset instead of guessing from the player's current team.
+ */
+export function historicalTeamForRecentWeek(
+  week: RecentWeekWithHistoricalTeam,
+): string | undefined {
+  const team = normalizeNflAbbrev(week.nflTeam);
+  if (!team || team === "FA") return undefined;
+  return team;
+}
+
+/**
  * Attach real NFL opponents onto prior-week scores using per-week scoreboard
  * schedules. Never invents opponents; leaves opponent unset when unknown.
  * Drops any week >= current scoring period (incomplete / future).
+ *
+ * Past-week lookups must use that week's historical NFL team (week.nflTeam),
+ * never FantasyPlayer.nflTeam (current club). Mid-season trades otherwise get
+ * the new team's old-week opponent — or a fabricated BYE.
  */
 export function enrichRecentWeekOpponents(
   league: LeagueData,
@@ -187,7 +218,12 @@ export function enrichRecentWeekOpponents(
         if (w.opponent) return w;
         const schedule = weekSchedules.get(w.week);
         if (!schedule) return w;
-        const label = formatOpponentLabel(player.nflTeam, schedule);
+        // Prefer the club recorded for this week; never the player's current team.
+        const teamForWeek = historicalTeamForRecentWeek(
+          w as RecentWeekWithHistoricalTeam,
+        );
+        if (!teamForWeek) return w;
+        const label = formatOpponentLabel(teamForWeek, schedule);
         return label ? { ...w, opponent: label } : w;
       });
 
