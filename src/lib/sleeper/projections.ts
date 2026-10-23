@@ -7,8 +7,10 @@
  * Note: `/v1/projections/...` returns empty shells `{}` — do not use it.
  *
  * Crosswalk priority:
- * 1. Sleeper `espn_id` → ESPN id
- * 2. Fallback: normalized `full_name|TEAM` (many rookies have null espn_id)
+ * 1. Stored `Player.sleeperId` → Sleeper player_id
+ * 2. Sleeper `espn_id` → ESPN id
+ * 3. Fallback: normalized `full_name|TEAM` (many rookies have null espn_id;
+ *    strips Jr/Sr/II–V so "Kyle Pitts Sr." matches "Kyle Pitts")
  *
  * Bye / missing pts_ppr → omit (UI shows —). Never invent or relabel ESPN as Sleeper.
  */
@@ -19,6 +21,11 @@ import { secureFetch } from "@/lib/http/secure-fetch";
 export type SleeperProjectionMap = {
   /** espnId → full-PPR projection for the requested week */
   byEspnId: Map<number, number>;
+  /**
+   * Sleeper player_id → pts (preferred when Player.sleeperId is known).
+   * Optional so empty catch maps elsewhere stay type-compatible.
+   */
+  bySleeperId?: Map<string, number>;
   /** "full name|TEAM" → pts (fallback when espn_id missing on Sleeper) */
   byNameTeam: Map<string, number>;
   season: number;
@@ -62,11 +69,29 @@ let playersCache:
     }
   | null = null;
 
+/** Generational / name suffixes that differ across ESPN vs Sleeper. */
+const NAME_SUFFIX_RE = /\b(?:jr|sr|ii|iii|iv|v)\b\.?/g;
+
+/**
+ * Normalize a player display name for cross-provider matching:
+ * lowercase, strip punctuation, strip Jr/Sr/II–V, collapse whitespace.
+ */
+export function normalizeSleeperPlayerName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[.'\u2019]/g, "")
+    .replace(NAME_SUFFIX_RE, " ")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function sleeperNameTeamKey(
   name: string,
   team?: string | null,
 ): string {
-  const n = name.trim().toLowerCase().replace(/\s+/g, " ");
+  const n = normalizeSleeperPlayerName(name);
   const t = (team ?? "").trim().toUpperCase();
   return t ? `${n}|${t}` : n;
 }
@@ -139,8 +164,24 @@ function ptsPprFromRow(row: SleeperProjRow | null | undefined): number | null {
   return null;
 }
 
+function emptyMap(
+  season: number,
+  week: number,
+  fetchedAt: string,
+): SleeperProjectionMap {
+  return {
+    byEspnId: new Map(),
+    bySleeperId: new Map(),
+    byNameTeam: new Map(),
+    season,
+    week,
+    fetchedAt,
+    emptyFeed: true,
+  };
+}
+
 /**
- * Fetch current-week Sleeper full-PPR projections keyed by ESPN id + name|team.
+ * Fetch current-week Sleeper full-PPR projections keyed by sleeper id, ESPN id, and name|team.
  * Empty feed → maps empty + emptyFeed true (UI shows —).
  */
 export async function fetchSleeperProjections(options?: {
@@ -151,6 +192,7 @@ export async function fetchSleeperProjections(options?: {
   const week = options?.week ?? 1;
   const fetchedAt = new Date().toISOString();
   const byEspnId = new Map<number, number>();
+  const bySleeperId = new Map<string, number>();
   const byNameTeam = new Map<string, number>();
 
   try {
@@ -163,14 +205,7 @@ export async function fetchSleeperProjections(options?: {
     ]);
 
     if (!projRes.ok) {
-      return {
-        byEspnId,
-        byNameTeam,
-        season,
-        week,
-        fetchedAt,
-        emptyFeed: true,
-      };
+      return emptyMap(season, week, fetchedAt);
     }
 
     const rawParsed: unknown = await projRes.json();
@@ -178,14 +213,7 @@ export async function fetchSleeperProjections(options?: {
       rawParsed == null ||
       (typeof rawParsed !== "object" && !Array.isArray(rawParsed))
     ) {
-      return {
-        byEspnId,
-        byNameTeam,
-        season,
-        week,
-        fetchedAt,
-        emptyFeed: true,
-      };
+      return emptyMap(season, week, fetchedAt);
     }
     const raw = rawParsed as SleeperProjRow[] | Record<string, SleeperProjRow>;
 
@@ -207,6 +235,8 @@ export async function fetchSleeperProjections(options?: {
       if (pts == null) continue;
       const sid = String(row.player_id ?? row.player?.player_id ?? "");
       if (!sid) continue;
+
+      bySleeperId.set(sid, pts);
 
       const meta = sleeperMeta.get(sid);
       const espn =
@@ -234,6 +264,7 @@ export async function fetchSleeperProjections(options?: {
 
     return {
       byEspnId,
+      bySleeperId,
       byNameTeam,
       season,
       week,
@@ -241,26 +272,29 @@ export async function fetchSleeperProjections(options?: {
       emptyFeed: nonempty === 0,
     };
   } catch {
-    return {
-      byEspnId,
-      byNameTeam,
-      season,
-      week,
-      fetchedAt,
-      emptyFeed: true,
-    };
+    return emptyMap(season, week, fetchedAt);
   }
 }
 
-/** Resolve a player's Sleeper full-PPR proj via espn id, then name|team. */
+/** Resolve a player's Sleeper full-PPR proj via sleeper id, espn id, then name|team. */
 export function sleeperProjForPlayer(
   map: SleeperProjectionMap | null | undefined,
-  player: { espnId: number; name: string; nflTeam: string },
+  player: {
+    espnId: number;
+    name: string;
+    nflTeam: string;
+    sleeperId?: string | null;
+  },
 ): number | null {
   if (!map) return null;
+  const sid = (player.sleeperId ?? "").trim();
+  if (sid) {
+    const bySid = map.bySleeperId?.get(sid);
+    if (bySid != null) return bySid;
+  }
   const byId = map.byEspnId.get(player.espnId);
   if (byId != null) return byId;
-  return map.byNameTeam.get(
-    sleeperNameTeamKey(player.name, player.nflTeam),
-  ) ?? null;
+  return (
+    map.byNameTeam.get(sleeperNameTeamKey(player.name, player.nflTeam)) ?? null
+  );
 }
