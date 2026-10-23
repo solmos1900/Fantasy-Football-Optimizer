@@ -25,6 +25,7 @@
     "verify:auth-linking": "tsx scripts/verify-auth-linking.ts",
     "verify:golden": "tsx scripts/verify-golden.ts",
     "verify:pool": "tsx scripts/verify-pool.ts",
+    "verify:sleeper-proj-name-match": "tsx scripts/verify-sleeper-proj-name-match.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
     "verify:trade-injury-consistency": "tsx scripts/verify-trade-injury-consistency.ts",
     "verify:espn-null-stats": "tsx scripts/verify-espn-null-stats.ts",
