@@ -109,8 +109,9 @@ async function main() {
 
   const map = await fetchSleeperProjections({ season, week });
   assert.equal(map.emptyFeed, false, "Sleeper projection feed must be non-empty");
-  assert.ok(map.bySleeperId.size > 0, "bySleeperId must be populated");
+  assert.ok(map.bySleeperId && map.bySleeperId.size > 0, "bySleeperId must be populated");
   assert.ok(map.byNameTeam.size > 0, "byNameTeam must be populated");
+  const bySleeperId = map.bySleeperId!;
 
   const rows: Array<{
     player: string;
@@ -120,7 +121,7 @@ async function main() {
   }> = [];
 
   for (const p of ISSUE_PLAYERS) {
-    const feedPts = map.bySleeperId.get(p.sleeperId) ?? null;
+    const feedPts = bySleeperId.get(p.sleeperId) ?? null;
     assert.ok(
       feedPts != null && Number.isFinite(feedPts),
       `${p.label}: Sleeper feed missing pts for sleeperId ${p.sleeperId}`,
