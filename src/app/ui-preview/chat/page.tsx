@@ -67,7 +67,7 @@ export default function ChatPreviewPage() {
         parts: [
           {
             type: "text",
-            text: "Slight edge to the Right side on chip value — rewrite if you need a sweeterener.",
+            text: "Side B is ahead on chip value — Side A would usually want something else back.",
           },
           {
             type: "tool-analyze_trade",
@@ -276,11 +276,41 @@ export default function ChatPreviewPage() {
 
           {state === "trade" ? (
             <div className="space-y-4">
-              <TemplateCard
-                templateId="trade"
-                onCancel={() => undefined}
-                onRun={() => undefined}
-              />
+              <div className="rounded-xl border border-orange-500/25 bg-[color-mix(in_srgb,var(--kraft)_80%,transparent)] p-3 sm:p-4">
+                <p className="text-sm font-semibold text-emerald-950">Trade</p>
+                <p className="type-caption text-emerald-950/50">
+                  Add players on each side, then Run.
+                </p>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <p className="type-eyebrow text-orange-700">Left</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
+                        Puka Nacua (LAR)
+                      </span>
+                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
+                        Kyren Williams (LAR)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="type-eyebrow text-orange-700">Right</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
+                        Ja&apos;Marr Chase (CIN)
+                      </span>
+                      <span className="rounded-md border border-orange-500/35 bg-orange-600/15 px-2 py-1 text-xs font-semibold">
+                        Chase Brown (CIN)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <span className="rounded-lg bg-orange-600 px-3 py-1.5 text-sm font-semibold text-white">
+                    Run
+                  </span>
+                </div>
+              </div>
               <MessageList messages={tradeMessages} />
             </div>
           ) : null}
