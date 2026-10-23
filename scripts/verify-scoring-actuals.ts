@@ -188,17 +188,39 @@ assertPpr(
 );
 
 // Prefer published fantasy_points_ppr over a divergent component rebuild.
+{
+  const warns: string[] = [];
+  const orig = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warns.push(args.map(String).join(" "));
+  };
+  try {
+    assertPpr(
+      "published wins over wrong components",
+      fullPprFromNflverseRow({
+        player_display_name: "Fixture",
+        week: "1",
+        fantasy_points_ppr: "22.58",
+        // Deliberately incomplete components — must not override published.
+        passing_yards: "282",
+        passing_tds: "3",
+      }),
+      22.58,
+    );
+  } finally {
+    console.warn = orig;
+  }
+  assert.ok(
+    warns.some((w) => w.includes("nflverse PPR cross-check")),
+    "divergent components should log a cross-check warning",
+  );
+}
+
+// ESPN / manual path still scores offensive fumble-recovery TDs.
 assertPpr(
-  "published wins over wrong components",
-  fullPprFromNflverseRow({
-    player_display_name: "Fixture",
-    week: "1",
-    fantasy_points_ppr: "22.58",
-    // Deliberately incomplete components — must not override published.
-    passing_yards: "282",
-    passing_tds: "3",
-  }),
-  22.58,
+  "fumble recovery TD (+6)",
+  fullPprFromCategories({ fumbleRecoveryTd: 1 }),
+  6,
 );
 
 // ── ESPN_STAT mapping: 2pt + fumbles-lost ────────────────────────────────────

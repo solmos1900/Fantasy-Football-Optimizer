@@ -174,8 +174,9 @@ export function fullPprFromNflverseRow(row: Record<string, string>): number | nu
     pass2pt: num("passing_2pt_conversions"),
     rush2pt: num("rushing_2pt_conversions"),
     rec2pt: num("receiving_2pt_conversions"),
+    // special_teams_tds are in nflverse fantasy_points_ppr; defensive
+    // fumble_recovery_tds are not (IDP) — omit so the cross-check stays clean.
     specialTeamsTd: num("special_teams_tds"),
-    fumbleRecoveryTd: num("fumble_recovery_tds"),
   });
 
   const published = num("fantasy_points_ppr");
