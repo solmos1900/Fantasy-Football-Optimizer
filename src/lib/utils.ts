@@ -59,6 +59,7 @@ export function statusColor(status: string) {
       return "border border-warning/45 bg-warning/20 font-sans font-semibold text-[color-mix(in_srgb,var(--warning)_55%,white)]";
     case "OUT":
     case "IR":
+    case "PUP":
     case "SUSPENSION":
       return "border border-danger/40 bg-danger/15 font-sans font-semibold text-[color-mix(in_srgb,var(--danger)_55%,white)]";
     default:

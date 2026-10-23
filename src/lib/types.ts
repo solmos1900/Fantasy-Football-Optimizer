@@ -6,6 +6,7 @@ export type InjuryStatus =
   | "DOUBTFUL"
   | "OUT"
   | "IR"
+  | "PUP"
   | "SUSPENSION"
   | "UNKNOWN";
 

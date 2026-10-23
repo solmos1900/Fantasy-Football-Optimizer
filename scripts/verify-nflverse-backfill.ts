@@ -1,6 +1,6 @@
 /**
  * Regression: weeks 1..N must be backfill candidates when coverage is thin
- * (#126). Also asserts pool/cron call the helper (not tip-week-only ingest).
+ * (#126). Cron owns the helper; the guest pool only notices gaps (#136).
  *
  * Optional live check (DATABASE_URL): golden fixture players have W1–W6
  * nflverse actuals and Lamar / Trevor Lawrence are trade-selectable.
@@ -42,13 +42,18 @@ assert.deepEqual(
   "all covered → nothing to ingest",
 );
 
-// Source guards: pool + cron use the backfill helper; pool no longer caps at 500.
+// Source guards: cron uses the backfill helper; pool notices gaps only (no
+// heavy ingest on the request path). Pool no longer caps at 500.
 const poolSrc = fs.readFileSync(
   path.join(process.cwd(), "src/lib/players/pool.ts"),
   "utf8",
 );
-assert.match(poolSrc, /backfillMissingNflverseWeeks/);
-assert.match(poolSrc, /ensureCompletedWeekIngest/);
+assert.match(poolSrc, /findMissingNflverseWeeks/);
+assert.doesNotMatch(
+  poolSrc,
+  /backfillMissingNflverseWeeks/,
+  "pool must not call backfillMissingNflverseWeeks (#136 request-path timeout)",
+);
 assert.doesNotMatch(
   poolSrc,
   /take:\s*500/,
@@ -60,6 +65,7 @@ const cronSrc = fs.readFileSync(
   "utf8",
 );
 assert.match(cronSrc, /backfillMissingNflverseWeeks/);
+assert.match(cronSrc, /runNflverseActualsRebuild/);
 
 const helperSrc = fs.readFileSync(
   path.join(process.cwd(), "src/lib/nflverse/backfill-missing-weeks.ts"),
@@ -103,8 +109,8 @@ async function liveChecks() {
     `expected statsThroughWeek >= 6, got ${pool.freshness.statsThroughWeek}`,
   );
 
-  // Sample golden players — require W1–W6 actuals when the fixture has them.
-  const sampleNames = ["Joe Burrow", "Josh Allen", "Justin Jefferson"];
+  // Sample golden fixture players only (Josh Allen is not in the fixture).
+  const sampleNames = ["Joe Burrow", "Ja'Marr Chase", "Bijan Robinson"];
   for (const name of sampleNames) {
     const fixture = golden.players.find((p) => p.name === name);
     assert.ok(fixture, `golden fixture missing ${name}`);

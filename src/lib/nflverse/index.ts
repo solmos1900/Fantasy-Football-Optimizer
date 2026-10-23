@@ -13,6 +13,19 @@ export {
   type BackfillMissingNflverseWeeksResult,
 } from "./backfill-missing-weeks";
 export {
+  NFLVERSE_ACTUALS_DATA_VERSION,
+  resolveNflverseActualsRebuildMode,
+  runNflverseActualsRebuild,
+  weeksNeedingForcedRebuild,
+  completedWeeksForTarget,
+  countEspnCategoryActuals,
+  clearEspnCategoryActuals,
+  loadNflverseActualsVersionStamp,
+  type NflverseActualsRebuildMode,
+  type NflverseActualsRebuildResult,
+  type RunNflverseActualsRebuildOptions,
+} from "./actuals-rebuild";
+export {
   mapNflverseWeekRow,
   mergeNullUsageOnly,
   NFLVERSE_LEAGUE_ID,

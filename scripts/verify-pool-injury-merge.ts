@@ -82,10 +82,9 @@ assert.equal(
 );
 
 // Sleeper alone (report empty) still upgrades ACTIVE → Doubtful.
-const afterSleeperOnly = applySleeperInjuryStatuses(
-  [montgomery],
-  new Map([[MONTGOMERY_ESPN, { injuryStatus: "Doubtful" }]]),
-);
+const afterSleeperOnly = applySleeperInjuryStatuses([montgomery], {
+  byEspnId: new Map([[MONTGOMERY_ESPN, { injuryStatus: "Doubtful" }]]),
+});
 assert.equal(afterSleeperOnly[0]!.injuryStatus, "DOUBTFUL");
 
 // More serious wins across sources: ESPN Q + Sleeper Out → Out.
@@ -101,7 +100,9 @@ const merged = applySleeperInjuryStatuses(
       status: "QUESTIONABLE",
     },
   ]),
-  new Map([[MONTGOMERY_ESPN, { injuryStatus: "Out" }]]),
+  {
+    byEspnId: new Map([[MONTGOMERY_ESPN, { injuryStatus: "Out" }]]),
+  },
 );
 assert.equal(merged[0]!.injuryStatus, "OUT");
 
@@ -119,10 +120,9 @@ const outPlayer = applyInjuryReport(
     },
   ],
 );
-const notDowngraded = applySleeperInjuryStatuses(
-  outPlayer,
-  new Map([[1, { injuryStatus: "Questionable" }]]),
-);
+const notDowngraded = applySleeperInjuryStatuses(outPlayer, {
+  byEspnId: new Map([[1, { injuryStatus: "Questionable" }]]),
+});
 assert.equal(notDowngraded[0]!.injuryStatus, "OUT");
 
 // Pool must call both apply paths.

@@ -105,6 +105,7 @@ export function isVolumeCompetitor(
 function plainStatusSuffix(status: InjuryStatus): string {
   const code = formatStatusCode(status);
   if (code === "IR") return "on IR";
+  if (code === "PUP") return "on PUP";
   if (code === "OUT") return "out";
   if (code === "DOUBTFUL") return "doubtful";
   if (code === "QUESTIONABLE") return "questionable";
@@ -116,6 +117,7 @@ function plainStatusSuffix(status: InjuryStatus): string {
 function plainStatusIs(status: InjuryStatus): string {
   const code = formatStatusCode(status);
   if (code === "IR") return "is on IR";
+  if (code === "PUP") return "is on PUP";
   if (code === "OUT") return "is out";
   if (code === "DOUBTFUL") return "is doubtful";
   if (code === "QUESTIONABLE") return "is questionable";
@@ -143,6 +145,7 @@ function parseInjuryNote(
       u === "DOUBTFUL" ||
       u === "OUT" ||
       u === "IR" ||
+      u === "PUP" ||
       u === "SUSPENSION"
     ) {
       return u as InjuryStatus;
