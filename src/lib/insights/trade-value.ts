@@ -259,15 +259,23 @@ export function isForbiddenOneForOne(
   return (give[0].position === "QB") !== (receive[0].position === "QB");
 }
 
-export function isOutrageousValue(
+/** Chip-value ratio used by fairness / hard-reject (same math as displayed totals). */
+export function sideValueRatio(gv: number, rv: number): number {
+  return Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
+}
+
+/** Higher is fairer. Aligns with outrage cap (~1.55). Prefer when side values are already known. */
+export function fairnessFromSideValues(gv: number, rv: number): number {
+  return Math.max(0, OUTRAGEOUS_VALUE_RATIO - sideValueRatio(gv, rv));
+}
+
+export function isOutrageousFromSideValues(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
-  trends?: TrendLookup,
+  gv: number,
+  rv: number,
 ): boolean {
-  const gv = sideValue(give, trends);
-  const rv = sideValue(receive, trends);
-  const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  if (ratio > OUTRAGEOUS_VALUE_RATIO) return true;
+  if (sideValueRatio(gv, rv) > OUTRAGEOUS_VALUE_RATIO) return true;
 
   if (give.length === 1 && receive.length === 1) {
     const gap = Math.abs(
@@ -278,16 +286,28 @@ export function isOutrageousValue(
   return false;
 }
 
+export function isOutrageousValue(
+  give: FantasyPlayer[],
+  receive: FantasyPlayer[],
+  trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
+): boolean {
+  const gv = sideValue(give, trends, teammateDeltaByEspnId);
+  const rv = sideValue(receive, trends, teammateDeltaByEspnId);
+  return isOutrageousFromSideValues(give, receive, gv, rv);
+}
+
 /** Higher is fairer. Aligns with outrage cap (~1.55). */
 export function fairnessScore(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
 ): number {
-  const gv = sideValue(give, trends);
-  const rv = sideValue(receive, trends);
-  const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  return Math.max(0, 1.55 - ratio);
+  return fairnessFromSideValues(
+    sideValue(give, trends, teammateDeltaByEspnId),
+    sideValue(receive, trends, teammateDeltaByEspnId),
+  );
 }
 
 export function trendFitBonus(
@@ -357,6 +377,8 @@ export function acceptanceReason(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
+  sideValues?: { give: number; receive: number },
 ): string {
   const parts: string[] = [];
 
@@ -381,8 +403,12 @@ export function acceptanceReason(
     );
   }
 
+  const gv =
+    sideValues?.give ?? sideValue(give, trends, teammateDeltaByEspnId);
+  const rv =
+    sideValues?.receive ?? sideValue(receive, trends, teammateDeltaByEspnId);
   parts.push(
-    `Chip values close on a full-PPR 1QB scale with QBs discounted (${sideValue(give, trends).toFixed(1)} vs ${sideValue(receive, trends).toFixed(1)}).`,
+    `Chip values close on a full-PPR 1QB scale with QBs discounted (${gv.toFixed(1)} vs ${rv.toFixed(1)}).`,
   );
 
   const theirNeed = give.filter((p) => needsPosition(them, p.position));
@@ -418,6 +444,8 @@ export function hardRejectReasons(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
+  sideValues?: { give: number; receive: number },
 ): string[] {
   const reasons: string[] = [];
 
@@ -429,10 +457,13 @@ export function hardRejectReasons(
     );
   }
 
-  if (isOutrageousValue(give, receive, trends)) {
-    const gv = sideValue(give, trends);
-    const rv = sideValue(receive, trends);
-    const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
+  const gv =
+    sideValues?.give ?? sideValue(give, trends, teammateDeltaByEspnId);
+  const rv =
+    sideValues?.receive ?? sideValue(receive, trends, teammateDeltaByEspnId);
+
+  if (isOutrageousFromSideValues(give, receive, gv, rv)) {
+    const ratio = sideValueRatio(gv, rv);
     if (ratio > OUTRAGEOUS_VALUE_RATIO) {
       reasons.push(
         `The values are too far apart (${gv.toFixed(1)} vs ${rv.toFixed(1)}). One side is giving up way more than they're getting.`,

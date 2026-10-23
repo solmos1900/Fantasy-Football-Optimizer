@@ -10,7 +10,7 @@ import {
   acceptanceReason,
   chipValue,
   depthAtPosition,
-  fairnessScore,
+  fairnessFromSideValues,
   hardRejectReasons,
   needFitScore,
   needsPosition,
@@ -147,6 +147,9 @@ function theirAcceptanceLean(
   receive: FantasyPlayer[],
   fair: number,
   hardRejected: boolean,
+  /** Injury/trend-adjusted chip totals — same basis as displayed give/receive. */
+  giveValue: number,
+  receiveValue: number,
 ): AcceptanceLean {
   if (hardRejected) return "none";
 
@@ -155,7 +158,8 @@ function theirAcceptanceLean(
     receive.some(
       (p) => needsPosition(them, p.position) && !needsPosition(you, p.position),
     ) && !fillsTheirNeed;
-  const valueFavorThem = sideValue(give) >= sideValue(receive) * 0.95;
+  // They receive `give`; value must favor them on the same scale as the chips.
+  const valueFavorThem = giveValue >= receiveValue * 0.95;
 
   if (fillsTheirNeed && fair >= 0.45 && valueFavorThem) return "high";
   if (fillsTheirNeed && fair >= 0.3) return "medium";
@@ -201,14 +205,22 @@ export function analyzeTrade(
   if (!give.length || !receive.length) return null;
 
   const deltaMap = teammateInjury?.chipDeltaByEspnId;
+  // One valuation for chips, fairness, hard-reject, and acceptance lean.
   const giveValue = sideValue(give, trends, deltaMap);
   const receiveValue = sideValue(receive, trends, deltaMap);
+  const sideValues = { give: giveValue, receive: receiveValue };
   // Never show a verdict when either side grades at ~0 chip value.
   if (!bothSidesHaveValue(giveValue, receiveValue)) return null;
   const valueGap = receiveValue - giveValue;
-  const rejects = hardRejectReasons(give, receive, trends);
+  const rejects = hardRejectReasons(
+    give,
+    receive,
+    trends,
+    deltaMap,
+    sideValues,
+  );
   const hardRejected = rejects.length > 0;
-  const fair = fairnessScore(give, receive, trends);
+  const fair = fairnessFromSideValues(giveValue, receiveValue);
   const fit = needFitScore(you, them, give, receive);
   const same = samePosBonus(give, receive);
   const trendBonus = trendFitBonus(give, receive, trends);
@@ -227,6 +239,8 @@ export function analyzeTrade(
     receive,
     fair,
     hardRejected,
+    giveValue,
+    receiveValue,
   );
 
   const forYou = buildForYou(you, give, receive, trends);
@@ -240,7 +254,15 @@ export function analyzeTrade(
     verdict === "lean_accept" ||
     verdict === "fair"
   ) {
-    whyAcceptedOrNot = acceptanceReason(you, them, give, receive, trends);
+    whyAcceptedOrNot = acceptanceReason(
+      you,
+      them,
+      give,
+      receive,
+      trends,
+      deltaMap,
+      sideValues,
+    );
   } else {
     const gaps: string[] = [];
     if (fair < 0.35) {
@@ -356,13 +378,21 @@ export function comparePlayerPackages(
   }
 
   const deltaMap = teammateInjury?.chipDeltaByEspnId;
+  // One valuation for chips, fairness, hard-reject, and acceptance lean.
   const giveValue = sideValue(sideA, trends, deltaMap);
   const receiveValue = sideValue(sideB, trends, deltaMap);
+  const sideValues = { give: giveValue, receive: receiveValue };
   if (!bothSidesHaveValue(giveValue, receiveValue)) return null;
   const valueGap = receiveValue - giveValue;
-  const rejects = hardRejectReasons(sideA, sideB, trends);
+  const rejects = hardRejectReasons(
+    sideA,
+    sideB,
+    trends,
+    deltaMap,
+    sideValues,
+  );
   const hardRejected = rejects.length > 0;
-  const fair = fairnessScore(sideA, sideB, trends);
+  const fair = fairnessFromSideValues(giveValue, receiveValue);
   const same = samePosBonus(sideA, sideB);
   const trendBonus = trendFitBonus(sideA, sideB, trends);
 
