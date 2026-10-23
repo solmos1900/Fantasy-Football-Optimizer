@@ -159,6 +159,7 @@ function injuryFromPlayer(player: Record<string, unknown>): InjuryStatus {
   if (upper.includes("DOUBTFUL")) return "DOUBTFUL";
   if (upper.includes("OUT")) return "OUT";
   if (upper.includes("INJURY") || upper === "IR") return "IR";
+  if (upper === "PUP" || upper.includes("PHYSICALLY UNABLE")) return "PUP";
   if (upper.includes("SUSPENSION")) return "SUSPENSION";
   return "ACTIVE";
 }

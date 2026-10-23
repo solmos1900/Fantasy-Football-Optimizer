@@ -4,6 +4,7 @@ import {
   backfillMissingNflverseWeeks,
   detectLatestNflverseWeek,
   ingestNflverseUsage,
+  runNflverseActualsRebuild,
 } from "@/lib/nflverse";
 import {
   loadGoldenFixture,
@@ -25,9 +26,18 @@ export const maxDuration = 300;
  * After ingest, re-validates tests/fixtures/golden-players.json and persists
  * a visible notice payload for Insights when assert mode fails.
  *
+ * Versioned rebuild (#136): ENABLED by default after merge. Logs a dry-run
+ * plan + before/after health probes, then clears espn_category leftovers and
+ * force-reingests W1..N in batches (data-version stamp; resumes across runs).
+ * Kill-switch: DATA_REBUILD_DISABLED=1.
+ *
  * Secure with CRON_SECRET (Authorization: Bearer <secret>).
  * Optional query: ?season=2026&week=4 — defaults to DEFAULT_ESPN_SEASON + latest REG week.
  * Schedule: see vercel.json (Tue/Wed).
+ *
+ * Coordination with draft PR #119: that PR adds sync-log / freshness around
+ * this route. Keep both the backfill + rebuild calls and #119's logging when
+ * merging.
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim();
@@ -36,6 +46,10 @@ export async function GET(request: Request) {
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Soft deadline so golden / pool validation still fit in maxDuration=300.
+  const runStartedMs = Date.now();
+  const rebuildDeadlineMs = runStartedMs + 240_000;
 
   try {
     const url = new URL(request.url);
@@ -59,6 +73,15 @@ export async function GET(request: Request) {
     } else {
       week = await detectLatestNflverseWeek(season);
     }
+
+    // Versioned force-rebuild (default OFF). Runs before coverage backfill so
+    // stale formula rows and espn_category pollution are corrected once.
+    const rebuild = await runNflverseActualsRebuild({
+      season,
+      throughWeek: week,
+      maxWeeksPerRun: explicitWeek ? 1 : 2,
+      deadlineMs: rebuildDeadlineMs,
+    });
 
     // Explicit ?week=N → single-week ingest (debug / manual). Default cron path
     // backfills every missing week 1..latest so mid-season cron start does not
@@ -127,6 +150,15 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       ...result,
+      actualsRebuild: {
+        mode: rebuild.mode,
+        skipped: rebuild.skipped,
+        skipReason: rebuild.skipReason,
+        complete: rebuild.complete,
+        targetVersion: rebuild.targetVersion,
+        appliedVersionAfter: rebuild.appliedVersionAfter,
+        summary: rebuild.summary,
+      },
       ...(backfill
         ? {
             backfill: {
