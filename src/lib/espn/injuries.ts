@@ -17,7 +17,34 @@ export type EspnInjuryRow = {
   detail: string | null;
 };
 
-function mapStatus(raw: string | undefined | null): InjuryStatus | null {
+/** Higher = more serious. Used to merge ESPN report + Sleeper injury_status. */
+export function injurySeverityRank(status: InjuryStatus): number {
+  switch (status) {
+    case "IR":
+    case "OUT":
+    case "SUSPENSION":
+      return 4;
+    case "DOUBTFUL":
+      return 3;
+    case "QUESTIONABLE":
+      return 2;
+    case "UNKNOWN":
+      return 1;
+    case "ACTIVE":
+    default:
+      return 0;
+  }
+}
+
+/** Prefer the more serious of two injury statuses (owner rule for guest pool). */
+export function moreSeriousInjuryStatus(
+  a: InjuryStatus,
+  b: InjuryStatus,
+): InjuryStatus {
+  return injurySeverityRank(b) > injurySeverityRank(a) ? b : a;
+}
+
+export function mapStatus(raw: string | undefined | null): InjuryStatus | null {
   if (!raw) return null;
   const u = raw.toUpperCase();
   if (u.includes("INJURY RESERVE") || u === "IR" || u.includes("INJURED RESERVE"))
@@ -28,6 +55,25 @@ function mapStatus(raw: string | undefined | null): InjuryStatus | null {
   if (u.includes("SUSPENSION")) return "SUSPENSION";
   if (u === "ACTIVE" || u.includes("PROBABLE")) return "ACTIVE";
   return null;
+}
+
+/**
+ * Map Sleeper `injury_status` strings onto InjuryStatus.
+ * Returns null for empty / non-injury labels (e.g. DNR — handled by roster authority).
+ */
+export function mapSleeperInjuryStatus(
+  raw: string | null | undefined,
+): InjuryStatus | null {
+  if (!raw) return null;
+  const u = raw.trim().toUpperCase();
+  if (!u) return null;
+  if (
+    u === "DNR" ||
+    /DID\s*NOT\s*REPORT|LEFT\s*SQUAD|RESERVE\/?\s*LEFT/i.test(u)
+  ) {
+    return null;
+  }
+  return mapStatus(u);
 }
 
 function mapPos(raw: string | undefined | null): PlayerPosition | null {
@@ -103,20 +149,12 @@ export async function fetchEspnInjuryReport(): Promise<EspnInjuryRow[]> {
           details?.fantasyStatus?.description,
         ];
         let status: InjuryStatus | null = null;
-        const rank = (s: InjuryStatus) =>
-          s === "IR" || s === "OUT"
-            ? 4
-            : s === "DOUBTFUL"
-              ? 3
-              : s === "QUESTIONABLE"
-                ? 2
-                : s === "SUSPENSION"
-                  ? 4
-                  : 0;
         for (const c of candidates) {
           const mapped = mapStatus(c ?? null);
           if (!mapped) continue;
-          if (!status || rank(mapped) > rank(status)) status = mapped;
+          if (!status || injurySeverityRank(mapped) > injurySeverityRank(status)) {
+            status = mapped;
+          }
         }
         if (!status || status === "ACTIVE") continue;
         const posRaw =
@@ -179,19 +217,31 @@ export function applyInjuryReport<
     if (!hit) return p;
     // Prefer harsher report status over ACTIVE placeholder; don't overwrite
     // a harder roster status with a softer report.
-    const rank = (s: InjuryStatus) =>
-      s === "IR" || s === "OUT"
-        ? 4
-        : s === "DOUBTFUL"
-          ? 3
-          : s === "QUESTIONABLE"
-            ? 2
-            : s === "SUSPENSION"
-              ? 4
-              : 0;
-    if (rank(hit.status) >= rank(p.injuryStatus)) {
+    if (injurySeverityRank(hit.status) >= injurySeverityRank(p.injuryStatus)) {
       return { ...p, injuryStatus: hit.status };
     }
     return p;
+  });
+}
+
+/**
+ * Overlay Sleeper injury_status onto pool players, keeping the more serious
+ * of the current status and Sleeper's (owner rule vs ESPN report).
+ */
+export function applySleeperInjuryStatuses<
+  T extends { espnId: number; injuryStatus: InjuryStatus },
+>(
+  players: T[],
+  byEspnId: Map<number, { injuryStatus: string | null }>,
+): T[] {
+  if (!byEspnId.size) return players;
+  return players.map((p) => {
+    const sleeper = byEspnId.get(p.espnId);
+    const mapped = mapSleeperInjuryStatus(sleeper?.injuryStatus);
+    if (!mapped || mapped === "ACTIVE") return p;
+    return {
+      ...p,
+      injuryStatus: moreSeriousInjuryStatus(p.injuryStatus, mapped),
+    };
   });
 }
