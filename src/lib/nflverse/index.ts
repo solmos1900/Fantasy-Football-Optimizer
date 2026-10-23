@@ -14,6 +14,8 @@ export {
 } from "./backfill-missing-weeks";
 export {
   NFLVERSE_ACTUALS_DATA_VERSION,
+  DATA_REBUILD_DISABLED_ENV,
+  REBUILD_PROBE_MCMILLAN,
   resolveNflverseActualsRebuildMode,
   runNflverseActualsRebuild,
   weeksNeedingForcedRebuild,
@@ -21,8 +23,12 @@ export {
   countEspnCategoryActuals,
   clearEspnCategoryActuals,
   loadNflverseActualsVersionStamp,
+  countTwoPointConversionEventsFromRows,
+  mcmillanW4FromNflverseRows,
+  formatRebuildHealthLog,
   type NflverseActualsRebuildMode,
   type NflverseActualsRebuildResult,
+  type RebuildHealthSnapshot,
   type RunNflverseActualsRebuildOptions,
 } from "./actuals-rebuild";
 export {

@@ -1,20 +1,20 @@
 /**
  * Manual / ops CLI for the versioned nflverse actuals rebuild (#136).
  *
- * Clears guest-pool espn_category actuals and force-reingests weeks 1..N
- * from nflverse (same path the cron uses when NFLVERSE_ACTUALS_REBUILD_MODE
- * is set). Idempotent; progress is stamped in EspnRawResponse.
+ * Same path the cron uses (enabled by default after merge). Idempotent;
+ * progress stamped in EspnRawResponse. Logs before/after Week 4 coverage,
+ * Tetairoa McMillan (CAR) W4 points, and 2-pt conversion event counts.
  *
- * DO NOT run against production from CI or an agent. Sebastian enables
- * production via Vercel env NFLVERSE_ACTUALS_REBUILD_MODE=apply after review.
+ * DO NOT run against production from CI or an agent — cron owns prod after
+ * merge. Kill-switch: DATA_REBUILD_DISABLED=1.
  *
  * Usage:
- *   npm run rebuild:nflverse-actuals -- --dry-run
- *   npm run rebuild:nflverse-actuals -- --apply
- *   npm run rebuild:nflverse-actuals -- --apply --season 2026 --through-week 6
- *   npm run rebuild:nflverse-actuals -- --apply --max-weeks 6   # one-shot all weeks
+ *   npm run rebuild:nflverse-actuals
+ *   npm run rebuild:nflverse-actuals -- --season 2026 --through-week 6
+ *   npm run rebuild:nflverse-actuals -- --max-weeks 6
+ *   DATA_REBUILD_DISABLED=1 npm run rebuild:nflverse-actuals   # no-op
  *
- * Requires DATABASE_URL. Defaults to dry-run when neither --apply nor --dry-run.
+ * Requires DATABASE_URL.
  */
 
 import { config } from "dotenv";
@@ -23,6 +23,7 @@ config({ path: ".env.local", override: true });
 
 import {
   detectLatestNflverseWeek,
+  resolveNflverseActualsRebuildMode,
   runNflverseActualsRebuild,
   type NflverseActualsRebuildMode,
 } from "../src/lib/nflverse";
@@ -44,11 +45,9 @@ async function main() {
     process.exit(1);
   }
 
-  let mode: NflverseActualsRebuildMode = "dry-run";
+  let mode: NflverseActualsRebuildMode = resolveNflverseActualsRebuildMode();
+  if (hasFlag("--disabled") || hasFlag("--off")) mode = "disabled";
   if (hasFlag("--apply")) mode = "apply";
-  else if (hasFlag("--dry-run") || hasFlag("--off")) {
-    mode = hasFlag("--off") ? "off" : "dry-run";
-  }
 
   const season = Number(argValue("--season") ?? defaultEspnSeason());
   if (!Number.isFinite(season) || season < 1999) {
@@ -82,7 +81,7 @@ async function main() {
 
   if (mode === "apply" && !result.complete && !result.skipped) {
     console.log(
-      "Partial progress — re-run with --apply to continue remaining weeks.",
+      "Partial progress — re-run to continue remaining weeks (or wait for cron).",
     );
   }
 }

@@ -6,19 +6,19 @@
  * `backfillMissingNflverseWeeks` skips any week with ≥25 nflverse rows, so
  * those weeks never get rescored unless we force a re-ingest.
  *
- * This helper:
- * 1. Clears `actualSource=espn_category` on leagueId="" rows
- * 2. Force-reingests weeks 1..throughWeek from nflverse (overwrites)
- * 3. Records progress in EspnRawResponse under a data-version stamp so a
- *    later cron run continues / no-ops once complete
+ * Default: ENABLED on cron after deploy (Sebastian's merge = approval).
+ * Kill-switch: DATA_REBUILD_DISABLED=1 (or "true"/"yes") skips apply.
  *
- * Gated by NFLVERSE_ACTUALS_REBUILD_MODE (default off). Never enables itself.
- * Safe to re-run; batched with a soft deadline for Vercel maxDuration.
+ * Each run logs a dry-run summary first, then applies cleanup + force
+ * re-ingest for pending weeks. Progress is stamped so it runs once per
+ * data version and resumes across cron invocations within maxDuration.
  */
 
 import { prisma } from "@/lib/db";
 import { ingestNflverseUsage } from "@/lib/nflverse/ingest";
-import { NFLVERSE_LEAGUE_ID } from "@/lib/nflverse/map";
+import { NFLVERSE_LEAGUE_ID, NFLVERSE_SOURCE } from "@/lib/nflverse/map";
+import { fetchGunzipText, parseCsv } from "@/lib/nflverse/csv";
+import { playerWeekStatsCsvGzUrl } from "@/lib/nflverse/urls";
 import { defaultEspnSeason } from "@/lib/season";
 
 /** Bump when scoring/source contract changes and W1..N must be rewritten. */
@@ -27,7 +27,32 @@ export const NFLVERSE_ACTUALS_DATA_VERSION = 2;
 export const NFLVERSE_REBUILD_LEAGUE_ID = "__nflverse_rebuild__";
 export const NFLVERSE_REBUILD_VIEW = "nflverse_actuals_version";
 
-export type NflverseActualsRebuildMode = "off" | "dry-run" | "apply";
+/** Kill-switch env — when set, cron skips the rebuild (rollback). */
+export const DATA_REBUILD_DISABLED_ENV = "DATA_REBUILD_DISABLED";
+
+/** Probe player for before/after run log (#136). */
+export const REBUILD_PROBE_MCMILLAN = {
+  name: "Tetairoa McMillan",
+  nflTeam: "CAR",
+  week: 4,
+  /** nflverse fantasy_points_ppr for 2026 W4 (14-192-2). */
+  expectedActualPpr: 45.2,
+} as const;
+
+export type NflverseActualsRebuildMode = "disabled" | "apply";
+
+export type RebuildHealthSnapshot = {
+  week4NflverseRowCount: number;
+  /** Tetairoa McMillan (CAR) W4 actualPpr from guest-pool rows; null if missing. */
+  mcmillanW4Points: number | null;
+  /**
+   * Sum of pass+rush+rec 2-pt conversion *events* in nflverse REG skill rows
+   * for weeks 1..throughWeek (source file). 0 when CSV unavailable.
+   */
+  twoPointConversionEvents: number;
+  throughWeek: number;
+  capturedAt: string;
+};
 
 export type NflverseActualsRebuildSummary = {
   espnCategoryRowsFound: number;
@@ -37,6 +62,9 @@ export type NflverseActualsRebuildSummary = {
   weeksRemaining: number[];
   weekStatsUpserted: number;
   errors: Array<{ week: number; error: string }>;
+  before: RebuildHealthSnapshot | null;
+  after: RebuildHealthSnapshot | null;
+  dryRunLogged: boolean;
 };
 
 export type NflverseActualsRebuildResult = {
@@ -77,6 +105,9 @@ function emptySummary(): NflverseActualsRebuildSummary {
     weeksRemaining: [],
     weekStatsUpserted: 0,
     errors: [],
+    before: null,
+    after: null,
+    dryRunLogged: false,
   };
 }
 
@@ -104,26 +135,33 @@ function emptyStamp(): NflverseActualsVersionStamp {
 }
 
 /**
- * Resolve rebuild mode from env. Default OFF so production is unchanged until
- * Sebastian sets NFLVERSE_ACTUALS_REBUILD_MODE=apply (or dry-run to log only).
+ * Kill-switch: DATA_REBUILD_DISABLED=1 → disabled.
+ * Default (unset) → apply. Merging the PR is Sebastian's approval to run.
  */
 export function resolveNflverseActualsRebuildMode(
   env: Record<string, string | undefined> = process.env,
 ): NflverseActualsRebuildMode {
-  const raw = (env.NFLVERSE_ACTUALS_REBUILD_MODE ?? "").trim().toLowerCase();
+  const kill = (env[DATA_REBUILD_DISABLED_ENV] ?? "").trim().toLowerCase();
   if (
-    raw === "apply" ||
-    raw === "on" ||
-    raw === "1" ||
-    raw === "true" ||
-    raw === "yes"
+    kill === "1" ||
+    kill === "true" ||
+    kill === "yes" ||
+    kill === "on" ||
+    kill === "disabled"
   ) {
-    return "apply";
+    return "disabled";
   }
-  if (raw === "dry-run" || raw === "dryrun" || raw === "dry") {
-    return "dry-run";
+  // Legacy override still honored for local dry-ops if someone sets mode=off.
+  const legacy = (env.NFLVERSE_ACTUALS_REBUILD_MODE ?? "").trim().toLowerCase();
+  if (
+    legacy === "off" ||
+    legacy === "disabled" ||
+    legacy === "0" ||
+    legacy === "false"
+  ) {
+    return "disabled";
   }
-  return "off";
+  return "apply";
 }
 
 export async function loadNflverseActualsVersionStamp(options?: {
@@ -203,14 +241,11 @@ export function completedWeeksForTarget(
   targetVersion: number,
 ): number[] {
   if (stamp.appliedVersion >= targetVersion) {
-    return stamp.completedWeeks.length
-      ? stamp.completedWeeks
-      : [];
+    return stamp.completedWeeks.length ? stamp.completedWeeks : [];
   }
   if (stamp.workingTarget === targetVersion) {
     return stamp.completedWeeks;
   }
-  // New target (or first run) — start fresh.
   return [];
 }
 
@@ -245,6 +280,158 @@ export async function clearEspnCategoryActuals(options?: {
   return result.count;
 }
 
+async function countWeek4NflverseRows(season: number): Promise<number> {
+  return prisma.playerWeekStat.count({
+    where: {
+      season,
+      week: REBUILD_PROBE_MCMILLAN.week,
+      leagueId: NFLVERSE_LEAGUE_ID,
+      OR: [
+        { actualSource: "nflverse_ppr" },
+        { source: NFLVERSE_SOURCE },
+      ],
+    },
+  });
+}
+
+async function readMcmillanW4Points(season: number): Promise<number | null> {
+  const row = await prisma.playerWeekStat.findFirst({
+    where: {
+      season,
+      week: REBUILD_PROBE_MCMILLAN.week,
+      leagueId: NFLVERSE_LEAGUE_ID,
+      playerName: { equals: REBUILD_PROBE_MCMILLAN.name, mode: "insensitive" },
+      OR: [
+        { actualSource: "nflverse_ppr" },
+        { source: NFLVERSE_SOURCE },
+        { actualPpr: { not: null } },
+      ],
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { actualPpr: true, actualSource: true },
+  });
+  if (!row) return null;
+  // Prefer nflverse; ignore espn_category leftovers for the probe.
+  if (row.actualSource === "espn_category") return null;
+  if (row.actualPpr == null || !Number.isFinite(row.actualPpr)) return null;
+  return Math.round(row.actualPpr * 10) / 10;
+}
+
+/**
+ * Count 2-pt conversion *events* in nflverse REG skill rows for weeks 1..throughWeek.
+ * Pure helper also used by the verify script on fixture CSV text.
+ */
+export function countTwoPointConversionEventsFromRows(
+  rows: Array<Record<string, string>>,
+  throughWeek: number,
+): number {
+  const max = Math.floor(throughWeek);
+  if (!Number.isFinite(max) || max < 1) return 0;
+  let total = 0;
+  for (const row of rows) {
+    const seasonType = (row.season_type ?? "").toUpperCase();
+    if (seasonType && seasonType !== "REG") continue;
+    const week = Number(row.week);
+    if (!Number.isFinite(week) || week < 1 || week > max) continue;
+    const pos = (row.position ?? "").toUpperCase();
+    if (pos && !["QB", "RB", "WR", "TE", "FB"].includes(pos)) continue;
+    for (const key of [
+      "passing_2pt_conversions",
+      "rushing_2pt_conversions",
+      "receiving_2pt_conversions",
+    ]) {
+      const n = Number(row[key] ?? 0);
+      if (Number.isFinite(n) && n > 0) total += n;
+    }
+  }
+  return total;
+}
+
+/** Pure: read McMillan W4 fantasy_points_ppr from fixture/csv rows. */
+export function mcmillanW4FromNflverseRows(
+  rows: Array<Record<string, string>>,
+): number | null {
+  for (const row of rows) {
+    const seasonType = (row.season_type ?? "").toUpperCase();
+    if (seasonType && seasonType !== "REG") continue;
+    const week = Number(row.week);
+    if (week !== REBUILD_PROBE_MCMILLAN.week) continue;
+    const name = (
+      row.player_display_name ??
+      row.player_name ??
+      row.player ??
+      ""
+    ).trim();
+    const team = (row.team ?? row.recent_team ?? "").trim().toUpperCase();
+    if (
+      name.toLowerCase() !== REBUILD_PROBE_MCMILLAN.name.toLowerCase() &&
+      !name.toLowerCase().includes("mcmillan")
+    ) {
+      continue;
+    }
+    if (team && team !== REBUILD_PROBE_MCMILLAN.nflTeam) continue;
+    const pts = Number(row.fantasy_points_ppr);
+    if (!Number.isFinite(pts)) return null;
+    return Math.round(pts * 10) / 10;
+  }
+  return null;
+}
+
+async function countTwoPointConversionEventsFromSource(
+  season: number,
+  throughWeek: number,
+): Promise<number> {
+  try {
+    const text = await fetchGunzipText(playerWeekStatsCsvGzUrl(season));
+    return countTwoPointConversionEventsFromRows(parseCsv(text), throughWeek);
+  } catch (err) {
+    console.warn(
+      "[nflverse-actuals-rebuild] 2pt source count unavailable",
+      err,
+    );
+    return 0;
+  }
+}
+
+export async function collectRebuildHealthSnapshot(options: {
+  season: number;
+  throughWeek: number;
+}): Promise<RebuildHealthSnapshot> {
+  const [week4NflverseRowCount, mcmillanW4Points, twoPointConversionEvents] =
+    await Promise.all([
+      countWeek4NflverseRows(options.season),
+      readMcmillanW4Points(options.season),
+      countTwoPointConversionEventsFromSource(
+        options.season,
+        options.throughWeek,
+      ),
+    ]);
+  return {
+    week4NflverseRowCount,
+    mcmillanW4Points,
+    twoPointConversionEvents,
+    throughWeek: options.throughWeek,
+    capturedAt: new Date().toISOString(),
+  };
+}
+
+/** Format before/after probe lines for cron logs. */
+export function formatRebuildHealthLog(
+  label: "before" | "after",
+  snap: RebuildHealthSnapshot,
+): string {
+  const mcm =
+    snap.mcmillanW4Points == null
+      ? "missing"
+      : String(snap.mcmillanW4Points);
+  return [
+    `[nflverse-actuals-rebuild] ${label}`,
+    `week4NflverseRows=${snap.week4NflverseRowCount}`,
+    `Tetairoa McMillan (CAR) W4=${mcm}`,
+    `twoPointConversionEvents=${snap.twoPointConversionEvents}`,
+  ].join(" ");
+}
+
 export type RunNflverseActualsRebuildOptions = {
   season: number;
   throughWeek: number;
@@ -259,13 +446,14 @@ export type RunNflverseActualsRebuildOptions = {
   maxWeeksPerRun?: number;
   /** Target data version (default NFLVERSE_ACTUALS_DATA_VERSION). */
   targetVersion?: number;
+  /** Skip live CSV/DB health probes (unit tests). */
+  skipHealthSnapshot?: boolean;
 };
 
 /**
  * Idempotent rebuild step for cron / CLI.
- * - off: no-op
- * - dry-run: count + plan only (no DB writes, no ingest)
- * - apply: clear espn_category once, force-ingest pending weeks, stamp progress
+ * Default mode=apply (enabled). Kill-switch → disabled no-op.
+ * Always logs a dry-run plan first, then applies when enabled.
  */
 export async function runNflverseActualsRebuild(
   options: RunNflverseActualsRebuildOptions,
@@ -283,7 +471,7 @@ export async function runNflverseActualsRebuild(
   const completedForTarget = completedWeeksForTarget(stamp, targetVersion);
   const pending = weeksNeedingForcedRebuild(throughWeek, completedForTarget);
 
-  if (mode === "off") {
+  if (mode === "disabled") {
     return {
       mode,
       season: options.season,
@@ -292,7 +480,7 @@ export async function runNflverseActualsRebuild(
       appliedVersionBefore: appliedBefore,
       appliedVersionAfter: appliedBefore,
       skipped: true,
-      skipReason: "mode_off",
+      skipReason: "data_rebuild_disabled",
       complete: appliedBefore >= targetVersion && pending.length === 0,
       summary,
     };
@@ -319,35 +507,31 @@ export async function runNflverseActualsRebuild(
   summary.weeksPlanned = pending.slice(0, maxWeeks);
   summary.weeksRemaining = pending.slice(maxWeeks);
 
-  if (mode === "dry-run") {
-    summary.weeksPlanned = pending;
-    summary.weeksRemaining = pending;
-    console.info(
-      "[nflverse-actuals-rebuild] dry-run",
-      JSON.stringify({
-        season: options.season,
-        throughWeek,
-        targetVersion,
-        appliedVersion: appliedBefore,
-        espnCategoryRowsFound: summary.espnCategoryRowsFound,
-        weeksWouldIngest: pending,
-      }),
-    );
-    return {
-      mode,
+  if (!options.skipHealthSnapshot) {
+    summary.before = await collectRebuildHealthSnapshot({
+      season: options.season,
+      throughWeek,
+    });
+    console.info(formatRebuildHealthLog("before", summary.before));
+  }
+
+  // Dry-run summary first (always), then apply.
+  console.info(
+    "[nflverse-actuals-rebuild] dry-run plan",
+    JSON.stringify({
       season: options.season,
       throughWeek,
       targetVersion,
-      appliedVersionBefore: appliedBefore,
-      appliedVersionAfter: appliedBefore,
-      skipped: false,
-      skipReason: null,
-      complete: false,
-      summary,
-    };
-  }
+      appliedVersion: appliedBefore,
+      espnCategoryRowsWouldClear: summary.espnCategoryRowsFound,
+      weeksWouldIngestThisRun: summary.weeksPlanned,
+      weeksWouldRemainAfter: summary.weeksRemaining,
+      before: summary.before,
+    }),
+  );
+  summary.dryRunLogged = true;
 
-  // apply mode — clear polluted ESPN actuals once per rebuild target
+  // apply — clear polluted ESPN actuals, then force-ingest pending weeks
   if (summary.espnCategoryRowsFound > 0) {
     summary.espnCategoryRowsCleared = await clearEspnCategoryActuals({
       season: options.season,
@@ -390,6 +574,14 @@ export async function runNflverseActualsRebuild(
     ? targetVersion
     : Math.min(appliedBefore, targetVersion - 1);
 
+  if (!options.skipHealthSnapshot) {
+    summary.after = await collectRebuildHealthSnapshot({
+      season: options.season,
+      throughWeek,
+    });
+    console.info(formatRebuildHealthLog("after", summary.after));
+  }
+
   await persistStamp(options.season, {
     kind: "nflverse_actuals_version",
     appliedVersion: appliedAfter,
@@ -404,7 +596,7 @@ export async function runNflverseActualsRebuild(
   });
 
   console.info(
-    "[nflverse-actuals-rebuild] apply",
+    "[nflverse-actuals-rebuild] apply done",
     JSON.stringify({
       season: options.season,
       throughWeek,
@@ -413,6 +605,8 @@ export async function runNflverseActualsRebuild(
       weeksRemaining: summary.weeksRemaining,
       espnCategoryRowsCleared: summary.espnCategoryRowsCleared,
       complete,
+      before: summary.before,
+      after: summary.after,
     }),
   );
 

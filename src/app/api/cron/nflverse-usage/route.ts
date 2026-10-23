@@ -26,9 +26,10 @@ export const maxDuration = 300;
  * After ingest, re-validates tests/fixtures/golden-players.json and persists
  * a visible notice payload for Insights when assert mode fails.
  *
- * Optional versioned rebuild (#136): when NFLVERSE_ACTUALS_REBUILD_MODE=apply
- * (default off), clears espn_category leftovers and force-reingests W1..N in
- * batches keyed on a data-version stamp. dry-run logs only.
+ * Versioned rebuild (#136): ENABLED by default after merge. Logs a dry-run
+ * plan + before/after health probes, then clears espn_category leftovers and
+ * force-reingests W1..N in batches (data-version stamp; resumes across runs).
+ * Kill-switch: DATA_REBUILD_DISABLED=1.
  *
  * Secure with CRON_SECRET (Authorization: Bearer <secret>).
  * Optional query: ?season=2026&week=4 — defaults to DEFAULT_ESPN_SEASON + latest REG week.
