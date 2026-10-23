@@ -14,6 +14,7 @@
     "verify:cleanup": "tsx scripts/verify-ephemeral-cleanup.ts",
     "verify:cookie-crypto": "tsx scripts/verify-cookie-crypto.ts",
     "verify:cookie-reconnect": "tsx scripts/verify-cookie-reconnect.ts",
+    "verify:connect-blank-cookies": "tsx scripts/verify-connect-blank-cookies.ts",
     "verify:sync-stale-cookies": "tsx scripts/verify-sync-stale-cookies.ts",
     "verify:fa-refresh-failure": "tsx scripts/verify-fa-refresh-failure.ts",
     "verify:sync-freshness": "tsx scripts/verify-sync-freshness.ts",
