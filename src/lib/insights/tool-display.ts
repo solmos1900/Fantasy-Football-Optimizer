@@ -140,6 +140,7 @@ export function injuryTagFor(status: InjuryStatus): string | null {
   if (code === "DOUBTFUL") return "D";
   if (code === "OUT") return "O";
   if (code === "IR") return "IR";
+  if (code === "PUP") return "PUP";
   if (code === "SUSPENSION") return "SUS";
   return code;
 }

@@ -2,14 +2,13 @@
  * No-league NFL player pool for Trade Analyzer / Who to Start.
  *
  * DB-first (Player + PlayerWeekStat), then short-TTL ESPN public refresh for
- * current-week projections/injuries, and nflverse ingest when the latest
- * completed week is missing from Neon.
+ * current-week projections/injuries. Heavy nflverse backfill / force-rebuild
+ * runs on the cron (and optional CLI) — not inside page requests (#136).
  */
 
 import { prisma } from "@/lib/db";
 import { pointsOrZero } from "@/lib/utils";
 import {
-  backfillMissingNflverseWeeks,
   NFLVERSE_WEEK_MIN_COVERAGE,
   nflverseWeekCoverageCount,
 } from "@/lib/nflverse";
@@ -64,7 +63,10 @@ export type PlayerPoolFreshness = {
   statsThroughWeek: number;
   statsUpdatedAt: string | null;
   projectionsUpdatedAt: string | null;
-  /** True when Neon has no completed-week coverage for statsThroughWeek. */
+  /**
+   * True when Neon lacks solid nflverse coverage for any week in
+   * 1..statsThroughWeek (not only the tip week — #136).
+   */
   latestWeekMissing: boolean;
   /** Human-readable refresh / coverage problem — never silent stale-as-current. */
   warning: string | null;
@@ -131,63 +133,25 @@ async function completedWeekCoverage(
 }
 
 /**
- * Ensure every week 1..statsThroughWeek has nflverse coverage (not just the
- * latest finished week — that left W1–W4 empty after the cron shipped mid-season).
+ * Weeks in 1..throughWeek that lack solid nflverse coverage.
+ * Used for the guest-pool data notice — ingest itself is cron-only (#136).
  */
-async function ensureCompletedWeekIngest(options: {
-  season: number;
-  week: number;
-}): Promise<{ ok: boolean; error?: string; updatedAt?: Date }> {
-  if (options.week < 1) {
-    return { ok: true };
+export async function findMissingNflverseWeeks(
+  season: number,
+  throughWeek: number,
+): Promise<number[]> {
+  const max = Math.floor(throughWeek);
+  if (!Number.isFinite(max) || max < 1) return [];
+  const missing: number[] = [];
+  const counts = await Promise.all(
+    Array.from({ length: max }, (_, i) =>
+      nflverseWeekCoverageCount(season, i + 1),
+    ),
+  );
+  for (let i = 0; i < counts.length; i++) {
+    if ((counts[i] ?? 0) < NFLVERSE_WEEK_MIN_COVERAGE) missing.push(i + 1);
   }
-  try {
-    const result = await backfillMissingNflverseWeeks({
-      season: options.season,
-      throughWeek: options.week,
-      includeSnaps: true,
-      mergeIntoLeagueRows: true,
-    });
-    if (result.throughWeek < options.week) {
-      return {
-        ok: false,
-        error: `Latest finished NFL week is ${options.week}, but nflverse has only published through week ${result.throughWeek} so far.`,
-      };
-    }
-    if (
-      result.weeksIngested.length === 0 &&
-      result.errors.length > 0 &&
-      result.weeksSkipped.length === 0
-    ) {
-      return {
-        ok: false,
-        error: result.errors.map((e) => `W${e.week}: ${e.error}`).join("; "),
-      };
-    }
-    if (result.errors.length > 0) {
-      // Partial success — still report remaining gaps.
-      const coverage = await completedWeekCoverage(
-        options.season,
-        result.throughWeek,
-      );
-      return {
-        ok: coverage.count >= NFLVERSE_WEEK_MIN_COVERAGE,
-        error: result.errors.map((e) => `W${e.week}: ${e.error}`).join("; "),
-        updatedAt: coverage.updatedAt ?? undefined,
-      };
-    }
-    const coverage = await completedWeekCoverage(
-      options.season,
-      result.throughWeek,
-    );
-    return {
-      ok: coverage.count >= NFLVERSE_WEEK_MIN_COVERAGE || result.throughWeek < 1,
-      updatedAt: coverage.updatedAt ?? undefined,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: message };
-  }
+  return missing;
 }
 
 async function persistPublicPool(players: FantasyPlayer[], season: number, week: number) {
@@ -356,6 +320,7 @@ async function loadPlayersFromDb(options: {
       upper === "DOUBTFUL" ||
       upper === "OUT" ||
       upper === "IR" ||
+      upper === "PUP" ||
       upper === "SUSPENSION" ||
       upper === "ACTIVE"
     ) {
@@ -364,15 +329,26 @@ async function loadPlayersFromDb(options: {
     return "ACTIVE";
   };
 
+  /** espn_category leftovers are prior-season pollution — never show as points (#136). */
+  const usableActual = (r: {
+    actualPpr: number | null;
+    actualSource: string | null;
+  }): number | null => {
+    if (r.actualSource === "espn_category") return null;
+    if (r.actualPpr == null || !Number.isFinite(r.actualPpr)) return null;
+    return r.actualPpr;
+  };
+
   const out: FantasyPlayer[] = [];
   for (const p of players) {
     const rows = byEspn.get(p.espnId) ?? [];
     const current = rows.find((r) => r.week === options.currentWeek);
-    // One row per week — prefer nflverse full-PPR over ESPN appliedTotal.
+    // One row per week — prefer nflverse full-PPR; ignore espn_category actuals.
     const byWeek = new Map<number, (typeof rows)[number]>();
     for (const r of rows) {
       if (r.week < 1 || r.week > options.statsThroughWeek) continue;
-      if (r.actualPpr == null && r.projectedPpr == null) continue;
+      const actual = usableActual(r);
+      if (actual == null && r.projectedPpr == null) continue;
       const prev = byWeek.get(r.week);
       if (!prev) {
         byWeek.set(r.week, r);
@@ -384,24 +360,25 @@ async function loadPlayersFromDb(options: {
           ? r
           : prev.actualSource === "nflverse_ppr"
             ? prev
-            : prev.actualPpr == null && r.actualPpr != null
+            : usableActual(prev) == null && actual != null
               ? r
               : prev;
       byWeek.set(r.week, prefer);
     }
     const recentWeeks: WeeklyScore[] = [...byWeek.values()]
-      .map((r) => ({
-        week: r.week,
-        // Null when no actual yet — never invent a 0.0 duck from missing data.
-        points:
-          r.actualPpr != null && Number.isFinite(r.actualPpr)
-            ? Math.round(r.actualPpr * 10) / 10
-            : null,
-        projectedPoints: r.projectedPpr ?? undefined,
-        opponent: r.opponent ?? undefined,
-        // Historical club for past-week opponent enrichment (issue #106).
-        nflTeam: r.nflTeam ?? undefined,
-      }))
+      .map((r) => {
+        const actual = usableActual(r);
+        return {
+          week: r.week,
+          // Null when no actual yet — never invent a 0.0 duck from missing data.
+          points:
+            actual != null ? Math.round(actual * 10) / 10 : null,
+          projectedPoints: r.projectedPpr ?? undefined,
+          opponent: r.opponent ?? undefined,
+          // Historical club for past-week opponent enrichment (issue #106).
+          nflTeam: r.nflTeam ?? undefined,
+        };
+      })
       .filter((w) => w.points != null || w.projectedPoints != null)
       .sort((a, b) => b.week - a.week)
       .slice(0, 8);
@@ -472,52 +449,22 @@ export async function getNoLeaguePlayerPool(options?: {
   }
 
   const statsThroughWeek = weekSnap.latestCompletedWeek;
-  let coverage = await completedWeekCoverage(season, statsThroughWeek);
-  let latestWeekMissing =
-    statsThroughWeek > 0 && coverage.count < NFLVERSE_WEEK_MIN_COVERAGE;
-
-  // Always ensure weeks 1..statsThroughWeek are present (not only the tip week).
-  // forceRefresh also re-checks coverage for every prior week.
-  if (latestWeekMissing || force || statsThroughWeek > 0) {
-    const needsAnyBackfill =
-      force ||
-      latestWeekMissing ||
-      (
-        await Promise.all(
-          Array.from({ length: Math.max(0, statsThroughWeek) }, (_, i) =>
-            nflverseWeekCoverageCount(season, i + 1),
-          ),
-        )
-      ).some((c) => c < NFLVERSE_WEEK_MIN_COVERAGE);
-
-    if (needsAnyBackfill) {
-      const ingest = await ensureCompletedWeekIngest({
-        season,
-        week: statsThroughWeek,
-      });
-      if (!ingest.ok) {
-        warning = [
-          warning,
-          ingest.error ??
-            `Completed-week stats for Week ${statsThroughWeek} are missing.`,
-        ]
-          .filter(Boolean)
-          .join(" ");
-      } else {
-        coverage = await completedWeekCoverage(season, statsThroughWeek);
-        latestWeekMissing =
-          statsThroughWeek > 0 &&
-          coverage.count < NFLVERSE_WEEK_MIN_COVERAGE;
-        if (latestWeekMissing) {
-          warning = [
-            warning,
-            `Still missing solid Week ${statsThroughWeek} coverage after refresh.`,
-          ]
-            .filter(Boolean)
-            .join(" ");
-        }
-      }
-    }
+  // Coverage + notices only — do NOT run multi-week nflverse ingest inside the
+  // page request (timed out on /trades after #134; cron owns rebuild #136).
+  const coverage = await completedWeekCoverage(season, statsThroughWeek);
+  const missingWeeks = await findMissingNflverseWeeks(season, statsThroughWeek);
+  const latestWeekMissing = missingWeeks.length > 0;
+  if (latestWeekMissing) {
+    const list =
+      missingWeeks.length <= 4
+        ? missingWeeks.map((w) => `Week ${w}`).join(", ")
+        : `Weeks ${missingWeeks[0]}–${missingWeeks[missingWeeks.length - 1]} (${missingWeeks.length} gaps)`;
+    warning = [
+      warning,
+      `Completed-week stats missing or thin for ${list}. The scheduled nflverse sync will refill; numbers may be incomplete until then.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
 
   let { players, projectionsUpdatedAt } = await loadPlayersFromDb({
@@ -670,15 +617,19 @@ export async function getNoLeaguePlayerPool(options?: {
     });
   }
 
-  // Injury status = more serious of ESPN injury report + Sleeper (#128).
-  // Kona injuryStatus / gameScriptNote alone left most players ACTIVE.
+  // Injury status = more serious of ESPN injury report + Sleeper (#128 / #137).
+  // Match Sleeper by espnId, then normalized name+team (many null espn_ids).
   try {
     const [injuryReport, sleeperDir] = await Promise.all([
       fetchEspnInjuryReport(),
       loadSleeperRosterDirectory(),
     ]);
     players = applyInjuryReport(players, injuryReport);
-    players = applySleeperInjuryStatuses(players, sleeperDir.byEspnId);
+    players = applySleeperInjuryStatuses(players, {
+      byEspnId: sleeperDir.byEspnId,
+      byNameTeam: sleeperDir.byNameTeam,
+      allSkill: sleeperDir.allSkill,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     warning = [

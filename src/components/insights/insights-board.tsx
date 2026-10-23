@@ -147,7 +147,7 @@ function RosterDialog({
           </p>
           <ul className="divide-y divide-emerald-950/8">
             {starters.map((p) => {
-              const out = ["OUT", "IR", "DOUBTFUL", "SUSPENSION"].includes(
+              const out = ["OUT", "IR", "PUP", "DOUBTFUL", "SUSPENSION"].includes(
                 p.injuryStatus,
               );
               const proj = sleeperByEspn.get(p.espnId);
