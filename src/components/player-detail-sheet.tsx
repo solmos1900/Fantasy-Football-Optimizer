@@ -356,6 +356,7 @@ export function PlayerDetailSheet({
   const out =
     player.injuryStatus === "OUT" ||
     player.injuryStatus === "IR" ||
+    player.injuryStatus === "PUP" ||
     player.injuryStatus === "SUSPENSION";
 
   const yearLabel =

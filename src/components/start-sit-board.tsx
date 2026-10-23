@@ -55,6 +55,7 @@ function isOut(player: FantasyPlayer): boolean {
   return (
     player.injuryStatus === "OUT" ||
     player.injuryStatus === "IR" ||
+    player.injuryStatus === "PUP" ||
     player.injuryStatus === "SUSPENSION"
   );
 }
