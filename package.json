@@ -37,6 +37,11 @@
     "verify:team-selection": "tsx scripts/verify-team-selection.ts",
     "verify:trend-null-wipe": "tsx scripts/verify-trend-null-wipe.ts",
     "verify:trend-fa-wipe": "tsx scripts/verify-trend-fa-wipe.ts",
+    "verify:chat-mention": "tsx scripts/verify-chat-mention-search.ts",
+    "verify:chat-templates": "tsx scripts/verify-chat-templates.ts",
+    "verify:chat-rate-limit": "tsx scripts/verify-chat-rate-limit.ts",
+    "verify:chat-tool-numbers": "tsx scripts/verify-chat-tool-numbers.ts",
+    "verify:chat": "npm run verify:chat-mention && npm run verify:chat-templates && npm run verify:chat-rate-limit && npm run verify:chat-tool-numbers",
     "cleanup:espn-category-actuals": "tsx scripts/cleanup-espn-category-actuals.ts",
     "seed:golden": "tsx scripts/seed-golden-fixture.ts",
     "ingest:nflverse": "tsx scripts/ingest-nflverse-usage.ts",
@@ -49,8 +54,11 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^4.0.123",
+    "@ai-sdk/react": "^4.0.154",
     "@auth/prisma-adapter": "^2.11.3",
     "@prisma/client": "^6.19.3",
+    "ai": "^7.0.150",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

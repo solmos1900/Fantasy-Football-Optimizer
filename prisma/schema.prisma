@@ -20,6 +20,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   leagues       LeagueConnection[]
+  chatConversations ChatConversation[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
@@ -552,4 +553,45 @@ model DataIssue {
   @@index([resolved, kind])
   @@index([espnId])
   @@index([createdAt])
+}
+
+/// Signed-in user chat threads (guests keep chats in the browser only).
+model ChatConversation {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String        @default("New chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  /// user | assistant | system
+  role           String
+  /// Plain text body (verdict / user prompt). Structured tool UI lives in partsJson.
+  content        String           @default("")
+  /// UIMessage parts / tool results JSON for rehydration
+  partsJson      String?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// Daily chat question caps (guest IP hash or signed-in user id).
+model ChatRateLimit {
+  id        String   @id @default(cuid())
+  bucketKey String
+  /// UTC calendar day YYYY-MM-DD
+  dayKey    String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([bucketKey, dayKey])
+  @@index([dayKey])
 }
