@@ -451,7 +451,7 @@ export async function getNoLeaguePlayerPool(options?: {
   const statsThroughWeek = weekSnap.latestCompletedWeek;
   // Coverage + notices only — do NOT run multi-week nflverse ingest inside the
   // page request (timed out on /trades after #134; cron owns rebuild #136).
-  let coverage = await completedWeekCoverage(season, statsThroughWeek);
+  const coverage = await completedWeekCoverage(season, statsThroughWeek);
   const missingWeeks = await findMissingNflverseWeeks(season, statsThroughWeek);
   const latestWeekMissing = missingWeeks.length > 0;
   if (latestWeekMissing) {
