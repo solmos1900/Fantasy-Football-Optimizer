@@ -88,7 +88,12 @@ function buildStartSit(
   const matchupCtx = matchupContextFromLeague(league);
 
   for (const b of bench) {
-    if (b.injuryStatus === "OUT" || b.injuryStatus === "IR") continue;
+    if (
+      b.injuryStatus === "OUT" ||
+      b.injuryStatus === "IR" ||
+      b.injuryStatus === "PUP"
+    )
+      continue;
 
     const comparable = starters.filter(
       (s) =>

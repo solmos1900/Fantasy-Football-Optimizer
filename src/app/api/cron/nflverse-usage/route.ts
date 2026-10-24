@@ -4,14 +4,19 @@ import {
   backfillMissingNflverseWeeks,
   detectLatestNflverseWeek,
   ingestNflverseUsage,
+  runEspnCategoryActualsCleanup,
+  runNflverseActualsRebuild,
 } from "@/lib/nflverse";
 import {
-  loadGoldenFixture,
   persistGoldenCheckResult,
   runGoldenAccuracyCheck,
 } from "@/lib/accuracy/golden-check";
-import { fillEspnGamelogGaps } from "@/lib/players/fill-espn-gaps";
-import { runPoolDataValidation } from "@/lib/accuracy/data-issues";
+import {
+  runPoolDataValidation,
+  syncNflverseFreshnessIssues,
+} from "@/lib/accuracy/data-issues";
+import { persistNflverseSyncRun } from "@/lib/nflverse/sync-log";
+import { assessWeekCompleteness } from "@/lib/nflverse/week-completeness";
 
 export const runtime = "nodejs";
 /** Weekly CSV fetch + batch upserts can exceed the default hobby limit. */
@@ -24,10 +29,21 @@ export const maxDuration = 300;
  *
  * After ingest, re-validates tests/fixtures/golden-players.json and persists
  * a visible notice payload for Insights when assert mode fails.
+ * Every run is logged to EspnRawResponse (view=nflverse_sync) for
+ * GET /api/health/data-freshness. Stale/incomplete weeks open DataIssue rows.
+ *
+ * Versioned rebuild (#136 / #141): ENABLED by default after merge. Logs a
+ * dry-run plan + before/after health probes, then clears espn_category
+ * leftovers and force-reingests W1..N in batches (data-version stamp; resumes
+ * across runs). Kill-switch: DATA_REBUILD_DISABLED=1.
+ *
+ * ESPN category cleanup (#147): one-time purge of gap-fill espn_category
+ * actuals that landed after the #141 rebuild. Same kill-switch. nflverse is
+ * the only source of guest-pool actual points — never fill from ESPN gamelog.
  *
  * Secure with CRON_SECRET (Authorization: Bearer <secret>).
  * Optional query: ?season=2026&week=4 — defaults to DEFAULT_ESPN_SEASON + latest REG week.
- * Schedule: see vercel.json (Tue/Wed).
+ * Schedule: see vercel.json (Tue 17:00 UTC / 10 AM MST / noon CDT, Wed 14:00 UTC).
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET?.trim();
@@ -37,19 +53,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Soft deadline so golden / pool validation still fit in maxDuration=300.
+  const runStartedMs = Date.now();
+  const rebuildDeadlineMs = runStartedMs + 240_000;
+  const runAt = new Date(runStartedMs).toISOString();
+  let season = defaultEspnSeason();
+  let week: number | null = null;
+
   try {
     const url = new URL(request.url);
     const seasonParam = url.searchParams.get("season");
     const weekParam = url.searchParams.get("week");
 
-    const season = seasonParam
-      ? Number(seasonParam)
-      : defaultEspnSeason();
+    season = seasonParam ? Number(seasonParam) : defaultEspnSeason();
     if (!Number.isFinite(season) || season < 1999 || season > 2100) {
       return NextResponse.json({ error: "Invalid season" }, { status: 400 });
     }
 
-    let week: number;
     const explicitWeek = weekParam != null && weekParam !== "";
     if (explicitWeek) {
       week = Number(weekParam);
@@ -60,9 +80,23 @@ export async function GET(request: Request) {
       week = await detectLatestNflverseWeek(season);
     }
 
+    // Versioned force-rebuild. Runs before coverage backfill so stale formula
+    // rows and espn_category pollution are corrected once (#141).
+    const rebuild = await runNflverseActualsRebuild({
+      season,
+      throughWeek: week,
+      maxWeeksPerRun: explicitWeek ? 1 : 2,
+      deadlineMs: rebuildDeadlineMs,
+    });
+
+    // One-time purge of espn_category actuals left by the removed gap-fill (#147).
+    const espnCategoryCleanup = await runEspnCategoryActualsCleanup({
+      season,
+    });
+
     // Explicit ?week=N → single-week ingest (debug / manual). Default cron path
     // backfills every missing week 1..latest so mid-season cron start does not
-    // leave W1–W4 empty (#126). Helper is isolated for coordination with #119.
+    // leave W1–W4 empty (#126).
     const backfill = explicitWeek
       ? null
       : await backfillMissingNflverseWeeks({
@@ -80,29 +114,21 @@ export async function GET(request: Request) {
         mergeIntoLeagueRows: true,
       }));
 
-    // Secondary source: ESPN gamelog fills null-PPR gaps (e.g. Troy Franklin W4)
-    // without overwriting nflverse_ppr.
-    let espnGaps = { filled: 0, checked: 0 };
+    let golden: {
+      ok: boolean;
+      error?: string;
+      failureCount?: number;
+      failures?: string[];
+    } | null = null;
     try {
-      const fixture = loadGoldenFixture();
-      espnGaps = await fillEspnGamelogGaps({
-        season,
-        throughWeek: Math.max(week, fixture.season === season ? 5 : week),
-        espnIds: fixture.players.map((p) => p.espnId),
-      });
-    } catch (gapErr) {
-      console.warn("[cron/nflverse-usage] espn gap-fill skipped", gapErr);
-    }
-
-    let golden = null;
-    try {
-      golden = await runGoldenAccuracyCheck();
-      await persistGoldenCheckResult(golden);
-      if (!golden.ok) {
+      const goldenResult = await runGoldenAccuracyCheck();
+      await persistGoldenCheckResult(goldenResult);
+      golden = goldenResult;
+      if (!goldenResult.ok) {
         console.error(
           "[cron/nflverse-usage] golden accuracy failed",
-          golden.failureCount,
-          golden.failures.slice(0, 5),
+          goldenResult.failureCount,
+          goldenResult.failures.slice(0, 5),
         );
       }
     } catch (gErr) {
@@ -124,9 +150,44 @@ export async function GET(request: Request) {
       };
     }
 
+    const completeness = await assessWeekCompleteness({ season, week });
+    const freshnessIssues = await syncNflverseFreshnessIssues({
+      season,
+      week,
+      stale: completeness.stale,
+      weekComplete: completeness.weekComplete,
+      missingTeams: completeness.missingTeams,
+      latestWeekInDb: completeness.latestWeekInDb,
+      latestCompletedWeekEspn: completeness.latestCompletedWeekEspn,
+    });
+
+    await persistNflverseSyncRun({
+      runAt,
+      season,
+      week,
+      sourceFiles: result.sourceFiles ?? [],
+      fetchedRows: result.fetchedRows,
+      upsertedRows: result.weekStatsUpserted,
+      goldenCheckOk: golden?.ok ?? null,
+      goldenCheckError: golden?.error ?? null,
+      weekComplete: completeness.weekComplete,
+      missingTeams: completeness.missingTeams,
+      stale: completeness.stale,
+      error: null,
+    });
+
     return NextResponse.json({
       ok: true,
       ...result,
+      actualsRebuild: {
+        mode: rebuild.mode,
+        skipped: rebuild.skipped,
+        skipReason: rebuild.skipReason,
+        complete: rebuild.complete,
+        targetVersion: rebuild.targetVersion,
+        appliedVersionAfter: rebuild.appliedVersionAfter,
+        summary: rebuild.summary,
+      },
       ...(backfill
         ? {
             backfill: {
@@ -137,13 +198,52 @@ export async function GET(request: Request) {
             },
           }
         : {}),
-      espnGaps,
+      espnCategoryCleanup: {
+        mode: espnCategoryCleanup.mode,
+        skipped: espnCategoryCleanup.skipped,
+        skipReason: espnCategoryCleanup.skipReason,
+        complete: espnCategoryCleanup.complete,
+        targetVersion: espnCategoryCleanup.targetVersion,
+        appliedVersionAfter: espnCategoryCleanup.appliedVersionAfter,
+        beforeCount: espnCategoryCleanup.beforeCount,
+        afterCount: espnCategoryCleanup.afterCount,
+        cleared: espnCategoryCleanup.cleared,
+      },
       golden,
       poolValidation,
+      completeness,
+      freshnessIssues,
     });
   } catch (err) {
     console.error("[cron/nflverse-usage] failed", err);
     const message = err instanceof Error ? err.message : "nflverse ingest failed";
+
+    try {
+      await persistNflverseSyncRun({
+        runAt,
+        season,
+        week,
+        sourceFiles: [],
+        fetchedRows: null,
+        upsertedRows: null,
+        goldenCheckOk: null,
+        goldenCheckError: null,
+        weekComplete: null,
+        missingTeams: null,
+        stale: true,
+        error: message,
+      });
+      await syncNflverseFreshnessIssues({
+        season,
+        week,
+        stale: true,
+        weekComplete: null,
+        error: message,
+      });
+    } catch (logErr) {
+      console.error("[cron/nflverse-usage] failed to persist run log", logErr);
+    }
+
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

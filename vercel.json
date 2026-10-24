@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/cron/nflverse-usage",
-      "schedule": "0 14 * * 2"
+      "schedule": "0 17 * * 2"
     },
     {
       "path": "/api/cron/nflverse-usage",

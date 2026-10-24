@@ -147,7 +147,18 @@ const publicZero = mapEspnPublicPlayer(
 );
 assert.ok(publicZero);
 assert.equal(publicZero!.projectedPoints, 0);
-assert.equal(publicZero!.actualPoints, 0);
+// Product rule (#134/#136): ESPN public never emits completed-week actuals —
+// even a published 0.0 block is ignored; nflverse owns actualPoints.
+assert.equal(
+  publicZero!.actualPoints,
+  null,
+  "ESPN public actualPoints must stay null (nflverse-only actuals)",
+);
+assert.deepEqual(
+  publicZero!.recentWeeks,
+  [],
+  "ESPN public must not emit recentWeeks",
+);
 
 // weekRowsForPlayer: null live fields stay null (unknown week)
 const thinPlayer: FantasyPlayer = {

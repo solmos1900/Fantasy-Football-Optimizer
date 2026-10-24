@@ -229,6 +229,7 @@ function isOutish(status: InjuryStatus): boolean {
   return (
     status === "OUT" ||
     status === "IR" ||
+    status === "PUP" ||
     status === "DOUBTFUL" ||
     status === "SUSPENSION"
   );

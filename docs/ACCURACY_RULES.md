@@ -24,7 +24,7 @@ If a PR violates any rule, it is not merge-ready.
 4. **Full PPR** — no-league / Insights strips use **nflverse box-score full PPR** (`actualSource=nflverse_ppr`). Connected leagues may show league-scored points but must **label** the scoring. Never silent half-PPR / standard; never prefer ESPN `appliedTotal` over category / nflverse full PPR for the public pool.
 5. **Latest completed week post-MNF** — after every game in week N is final, load week N into completed strips (or show an **explicit missing-week notice**). Do not hard-cap at `currentWeek - 1` when the scoreboard says N is done.
 6. **Identical week axes** — every player strip shares the same W1…Wn (+ Proj) scaffold. No per-player trimmed axes.
-7. **No 0 for BYE / DNP / null** — missing weeks are BYE, DNP, or `—`. Never coerce null/absent to `0`. A completed week with snaps but null PPR is `empty` (`—`), not DNP; fill PPR from ESPN gamelog when available without overwriting `nflverse_ppr`.
+7. **No 0 for BYE / DNP / null** — missing weeks are BYE, DNP, or `—`. Never coerce null/absent to `0`. A completed week with snaps but null PPR is `empty` (`—`), not DNP. Guest-pool / Insights actual PPR comes from **nflverse only** — never fill from ESPN gamelog or any other ESPN path (`actualSource=espn_category` is forbidden).
 8. **Matchup venue** — DVP chips use scoreboard `vs` / `@` (e.g. `@ATL`) and state impact (`expect fewer points` / `expect more points`).
 
 ## Integrity
@@ -46,8 +46,10 @@ If a PR violates any rule, it is not merge-ready.
 | 2026-10-13 | Initial list from Insights redesign + teammate injury owner requirements. |
 | 2026-10-13 | Added golden fixture + `verify:golden` CI gate. |
 | 2026-10-13 | Root cause: ESPN `appliedTotal` overwrote nflverse full-PPR (e.g. Burrow W1 8.8 vs 14.16, Swift W1 9.5 vs 32.4). Prefer `nflverse_ppr`; label strips Full PPR (nflverse). Tuesday cron re-validates golden sample + Insights notice. |
+| 2026-10-21 | Tuesday nflverse cron moved to noon CDT (`0 17 * * 2` UTC) so Monday-night publishes land first. Cron runs logged in `EspnRawResponse` (`nflverse_sync`); `GET /api/health/data-freshness` exposes last runs; stale/incomplete weeks open `DataIssue` banner rows. |
 | 2026-10-13 | Fantasy-impact wording rule: every label states what happened + points impact; replaced Opp ↑/↓ jargon and TGT%/AY%/szn/3wk abbreviations. |
 | 2026-10-14 | No-league pool: Sleeper+nflverse roster authority (never FA for rostered players); Sleeper full-PPR proj only (never ESPN 0); DataIssue cross-check + UI notices; `verify:pool`. |
 | 2026-10-14 | Roster identity joins on `sleeper_id` (never name). Team source priority: most recent Sleeper `news_updated` vs nflverse weekly roster week wins. `team_mismatch` DataIssues only for same-day pending moves (UI notice). |
 | 2026-10-14 | Stale pre-2026 Sleeper-only rows → FA/excluded. Same-team nflverse CUT vs Sleeper → DataIssue + exclude. Practice squad (DEV) + Sleeper-only post-cut labels in UI. |
 | 2026-10-14 | Sleeper Active + no current-season nflverse weekly rows: do not trust Sleeper status. Prior-season RES or Sleeper DNR → Reserve/Left Squad (unrosterable, no trade value). Missing proj/trade value → `—` / plain-English reason, never fake 0.0. |
+| 2026-10-24 | Guest-pool actuals are nflverse-only (#147). Removed ESPN gamelog gap-fill from cron; one-time cleanup clears `espn_category` leftovers. ESPN remains injuries + ownership only. |

@@ -13,6 +13,33 @@ export {
   type BackfillMissingNflverseWeeksResult,
 } from "./backfill-missing-weeks";
 export {
+  NFLVERSE_ACTUALS_DATA_VERSION,
+  DATA_REBUILD_DISABLED_ENV,
+  REBUILD_PROBE_MCMILLAN,
+  resolveNflverseActualsRebuildMode,
+  runNflverseActualsRebuild,
+  weeksNeedingForcedRebuild,
+  completedWeeksForTarget,
+  countEspnCategoryActuals,
+  clearEspnCategoryActuals,
+  loadNflverseActualsVersionStamp,
+  countTwoPointConversionEventsFromRows,
+  mcmillanW4FromNflverseRows,
+  formatRebuildHealthLog,
+  type NflverseActualsRebuildMode,
+  type NflverseActualsRebuildResult,
+  type RebuildHealthSnapshot,
+  type RunNflverseActualsRebuildOptions,
+} from "./actuals-rebuild";
+export {
+  ESPN_CATEGORY_CLEANUP_VERSION,
+  ESPN_CATEGORY_CLEANUP_VIEW,
+  runEspnCategoryActualsCleanup,
+  loadEspnCategoryCleanupStamp,
+  type EspnCategoryCleanupResult,
+  type RunEspnCategoryCleanupOptions,
+} from "./espn-category-cleanup";
+export {
   mapNflverseWeekRow,
   mergeNullUsageOnly,
   NFLVERSE_LEAGUE_ID,
@@ -24,3 +51,16 @@ export {
   playerWeekStatsCsvGzUrl,
   snapCountsCsvGzUrl,
 } from "./urls";
+export {
+  persistNflverseSyncRun,
+  loadNflverseSyncRuns,
+  NFLVERSE_SYNC_LEAGUE_ID,
+  NFLVERSE_SYNC_VIEW,
+  type NflverseSyncRunRecord,
+  type NflverseSourceFileMeta,
+} from "./sync-log";
+export {
+  assessWeekCompleteness,
+  loadLatestWeekInDb,
+  type WeekCompletenessResult,
+} from "./week-completeness";

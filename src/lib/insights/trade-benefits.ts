@@ -74,6 +74,26 @@ export function tradeVerdictTierFromPct(pctGap: number): TradeVerdictTier {
   return "lopsided";
 }
 
+/** @deprecated Prefer TRADE_EVEN_PCT — alias kept for #130 call sites. */
+export const EVEN_GAP_RATIO = TRADE_EVEN_PCT;
+/** @deprecated Prefer TRADE_LOPSIDED_PCT — alias kept for #130 call sites. */
+export const SLIGHT_EDGE_GAP_RATIO = TRADE_LOPSIDED_PCT;
+/** @deprecated Prefer TradeVerdictTier. */
+export type VerdictTier = TradeVerdictTier;
+
+/**
+ * Classify absGap / sideScale with the shared even / slight / lopsided bands.
+ * Callers should pass the **lower** side as `sideScale` (same as
+ * {@link tradeRelativeGapPct}). sideScale ≤ 0 → even.
+ */
+export function verdictTierFromGap(
+  absGap: number,
+  sideScale: number,
+): TradeVerdictTier {
+  if (!(sideScale > 0) || !(absGap > 0)) return "even";
+  return tradeVerdictTierFromPct(absGap / sideScale);
+}
+
 /**
  * @param valueGap receiveValue − giveValue
  * @param giveValue Left / you-give total
