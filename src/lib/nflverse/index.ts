@@ -51,3 +51,16 @@ export {
   playerWeekStatsCsvGzUrl,
   snapCountsCsvGzUrl,
 } from "./urls";
+export {
+  persistNflverseSyncRun,
+  loadNflverseSyncRuns,
+  NFLVERSE_SYNC_LEAGUE_ID,
+  NFLVERSE_SYNC_VIEW,
+  type NflverseSyncRunRecord,
+  type NflverseSourceFileMeta,
+} from "./sync-log";
+export {
+  assessWeekCompleteness,
+  loadLatestWeekInDb,
+  type WeekCompletenessResult,
+} from "./week-completeness";

@@ -20,7 +20,17 @@ export type DataIssueKind =
   | "ppr_mismatch"
   | "roster_fa_conflict"
   | "projection_missing"
-  | "single_source_team";
+  | "single_source_team"
+  /** nflverse cron lagged ESPN's latest completed week (e.g. ran before MNF published). */
+  | "nflverse_stale"
+  /** Loaded week is missing stat rows for one or more scoreboard game teams. */
+  | "nflverse_incomplete";
+
+/** System-wide issues (no espnId) that should always appear in the pool banner. */
+export const SYSTEM_DATA_ISSUE_KINDS: ReadonlySet<string> = new Set([
+  "nflverse_stale",
+  "nflverse_incomplete",
+]);
 
 export type DataIssueSummary = {
   openCount: number;
@@ -85,6 +95,18 @@ export function formatDataIssueNotice(row: {
   if (row.kind === "projection_missing") {
     return `${who}: no weekly projection available yet`;
   }
+  if (row.kind === "nflverse_stale") {
+    return (
+      row.detail?.trim() ||
+      "Player usage stats look behind the latest finished NFL week — Monday night may be missing"
+    );
+  }
+  if (row.kind === "nflverse_incomplete") {
+    return (
+      row.detail?.trim() ||
+      "Player usage stats for the latest week look incomplete — some games may still be missing"
+    );
+  }
   return row.detail?.trim() || `${who}: data needs a review`;
 }
 
@@ -127,6 +149,8 @@ export async function loadOpenDataIssueSummary(options?: {
   });
 
   const relevant = open.filter((row) => {
+    // Always surface system freshness issues (no player espnId).
+    if (SYSTEM_DATA_ISSUE_KINDS.has(row.kind)) return true;
     if (poolSet == null) return true;
     if (row.espnId == null) return false;
     return poolSet.has(row.espnId);
@@ -137,8 +161,12 @@ export async function loadOpenDataIssueSummary(options?: {
     byKind[row.kind] = (byKind[row.kind] ?? 0) + 1;
   }
   const ranked = [...relevant].sort((a, b) => {
-    const rank = (k: string) =>
-      k === "team_mismatch" ? 0 : k === "single_source_team" ? 1 : 2;
+    const rank = (k: string) => {
+      if (k === "nflverse_stale" || k === "nflverse_incomplete") return 0;
+      if (k === "team_mismatch") return 1;
+      if (k === "single_source_team") return 2;
+      return 3;
+    };
     return rank(a.kind) - rank(b.kind);
   });
   const notices = ranked.slice(0, limit).map((row) => formatDataIssueNotice(row));
@@ -158,9 +186,14 @@ async function upsertIssue(input: {
     where: {
       resolved: false,
       kind: input.kind,
-      espnId: input.espnId ?? undefined,
-      week: input.week ?? undefined,
-      season: input.season ?? undefined,
+      // Preserve explicit null (system issues) vs omit (player issues without id).
+      ...(input.espnId !== undefined ? { espnId: input.espnId } : {}),
+      ...(input.week !== undefined && input.week !== null
+        ? { week: input.week }
+        : {}),
+      ...(input.season !== undefined && input.season !== null
+        ? { season: input.season }
+        : {}),
     },
   });
   const sources = input.sources ? JSON.stringify(input.sources) : null;
@@ -188,6 +221,100 @@ async function upsertIssue(input: {
     },
   });
   return created.id;
+}
+
+async function resolveOpenKind(options: {
+  kind: DataIssueKind;
+  season: number;
+}): Promise<number> {
+  const open = await prisma.dataIssue.findMany({
+    where: {
+      resolved: false,
+      kind: options.kind,
+      season: options.season,
+      espnId: null,
+    },
+    select: { id: true },
+  });
+  for (const row of open) {
+    await prisma.dataIssue.update({
+      where: { id: row.id },
+      data: { resolved: true, updatedAt: new Date() },
+    });
+  }
+  return open.length;
+}
+
+/**
+ * Open / close banner DataIssues for nflverse freshness after a cron run.
+ * Stale = DB week behind ESPN's latest completed week.
+ * Incomplete = scoreboard game teams missing from PlayerWeekStat for the loaded week.
+ */
+export async function syncNflverseFreshnessIssues(options: {
+  season: number;
+  week: number | null;
+  stale: boolean;
+  weekComplete: boolean | null;
+  missingTeams?: string[];
+  latestWeekInDb?: number | null;
+  latestCompletedWeekEspn?: number | null;
+  error?: string | null;
+}): Promise<{ opened: string[]; resolved: string[] }> {
+  const opened: string[] = [];
+  const resolved: string[] = [];
+  const {
+    season,
+    week,
+    stale,
+    weekComplete,
+    missingTeams = [],
+    latestWeekInDb = null,
+    latestCompletedWeekEspn = null,
+    error = null,
+  } = options;
+
+  if (stale || error) {
+    const detail = error
+      ? `nflverse sync failed: ${error}`
+      : `Usage stats are behind the latest finished NFL week (database through week ${
+          latestWeekInDb ?? "—"
+        }, ESPN completed week ${latestCompletedWeekEspn ?? "—"}). Monday night may be missing.`;
+    await upsertIssue({
+      kind: "nflverse_stale",
+      espnId: null,
+      season,
+      week: week ?? latestCompletedWeekEspn,
+      detail,
+      sources: {
+        latestWeekInDb,
+        latestCompletedWeekEspn,
+        error,
+      },
+    });
+    opened.push("nflverse_stale");
+  } else {
+    const n = await resolveOpenKind({ kind: "nflverse_stale", season });
+    if (n > 0) resolved.push("nflverse_stale");
+  }
+
+  if (weekComplete === false) {
+    const missing =
+      missingTeams.length > 0 ? missingTeams.join(", ") : "unknown teams";
+    await upsertIssue({
+      kind: "nflverse_incomplete",
+      espnId: null,
+      season,
+      week,
+      detail: `Week ${week ?? "—"} usage stats look incomplete — missing teams: ${missing}.`,
+      sources: { missingTeams, week },
+    });
+    opened.push("nflverse_incomplete");
+  } else if (weekComplete === true) {
+    const n = await resolveOpenKind({ kind: "nflverse_incomplete", season });
+    if (n > 0) resolved.push("nflverse_incomplete");
+  }
+
+  return { opened, resolved };
 }
 
 /**
@@ -411,6 +538,12 @@ export async function runPoolDataValidation(options?: {
       // Corrected or no longer applicable
       keep = false;
     } else if (row.kind === "ppr_mismatch" || row.kind === "projection_missing") {
+      keep = true;
+    } else if (
+      row.kind === "nflverse_stale" ||
+      row.kind === "nflverse_incomplete"
+    ) {
+      // Owned by nflverse cron / data-freshness — do not auto-close here.
       keep = true;
     } else {
       keep = Boolean(auth?.pickerEligible);
