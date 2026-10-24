@@ -4,14 +4,13 @@ import {
   backfillMissingNflverseWeeks,
   detectLatestNflverseWeek,
   ingestNflverseUsage,
+  runEspnCategoryActualsCleanup,
   runNflverseActualsRebuild,
 } from "@/lib/nflverse";
 import {
-  loadGoldenFixture,
   persistGoldenCheckResult,
   runGoldenAccuracyCheck,
 } from "@/lib/accuracy/golden-check";
-import { fillEspnGamelogGaps } from "@/lib/players/fill-espn-gaps";
 import { runPoolDataValidation } from "@/lib/accuracy/data-issues";
 
 export const runtime = "nodejs";
@@ -30,6 +29,10 @@ export const maxDuration = 300;
  * plan + before/after health probes, then clears espn_category leftovers and
  * force-reingests W1..N in batches (data-version stamp; resumes across runs).
  * Kill-switch: DATA_REBUILD_DISABLED=1.
+ *
+ * ESPN category cleanup (#147): one-time purge of gap-fill espn_category
+ * actuals that landed after the #141 rebuild. Same kill-switch. nflverse is
+ * the only source of guest-pool actual points — never fill from ESPN gamelog.
  *
  * Secure with CRON_SECRET (Authorization: Bearer <secret>).
  * Optional query: ?season=2026&week=4 — defaults to DEFAULT_ESPN_SEASON + latest REG week.
@@ -83,6 +86,11 @@ export async function GET(request: Request) {
       deadlineMs: rebuildDeadlineMs,
     });
 
+    // One-time purge of espn_category actuals left by the removed gap-fill (#147).
+    const espnCategoryCleanup = await runEspnCategoryActualsCleanup({
+      season,
+    });
+
     // Explicit ?week=N → single-week ingest (debug / manual). Default cron path
     // backfills every missing week 1..latest so mid-season cron start does not
     // leave W1–W4 empty (#126). Helper is isolated for coordination with #119.
@@ -102,20 +110,6 @@ export async function GET(request: Request) {
         includeSnaps: true,
         mergeIntoLeagueRows: true,
       }));
-
-    // Secondary source: ESPN gamelog fills null-PPR gaps (e.g. Troy Franklin W4)
-    // without overwriting nflverse_ppr.
-    let espnGaps = { filled: 0, checked: 0 };
-    try {
-      const fixture = loadGoldenFixture();
-      espnGaps = await fillEspnGamelogGaps({
-        season,
-        throughWeek: Math.max(week, fixture.season === season ? 5 : week),
-        espnIds: fixture.players.map((p) => p.espnId),
-      });
-    } catch (gapErr) {
-      console.warn("[cron/nflverse-usage] espn gap-fill skipped", gapErr);
-    }
 
     let golden = null;
     try {
@@ -169,7 +163,17 @@ export async function GET(request: Request) {
             },
           }
         : {}),
-      espnGaps,
+      espnCategoryCleanup: {
+        mode: espnCategoryCleanup.mode,
+        skipped: espnCategoryCleanup.skipped,
+        skipReason: espnCategoryCleanup.skipReason,
+        complete: espnCategoryCleanup.complete,
+        targetVersion: espnCategoryCleanup.targetVersion,
+        appliedVersionAfter: espnCategoryCleanup.appliedVersionAfter,
+        beforeCount: espnCategoryCleanup.beforeCount,
+        afterCount: espnCategoryCleanup.afterCount,
+        cleared: espnCategoryCleanup.cleared,
+      },
       golden,
       poolValidation,
     });

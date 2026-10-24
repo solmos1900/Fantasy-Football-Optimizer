@@ -1,10 +1,13 @@
 /**
- * ESPN athlete gamelog → full-PPR by week (secondary source when nflverse
- * has no box-score row). Used to fill null actualPpr gaps only.
+ * ESPN athlete gamelog → full-PPR by week (parser / scoring helpers only).
+ *
+ * Product rule (#147): nflverse is the ONLY source of guest-pool actual
+ * fantasy points. Do not persist gamelog PPR onto PlayerWeekStat. ESPN is
+ * injuries + ownership for the public pool.
  *
  * Only Regular Season seasonTypes are kept — ESPN reuses week numbers for
- * Postseason (and Preseason), so mixing them would write playoff PPR into
- * regular-season PlayerWeekStat slots (issue #103).
+ * Postseason (and Preseason), so mixing them would treat playoff PPR as
+ * regular-season weeks (issue #103).
  *
  * When the gamelog schema omits `fumblesLost` entirely (typical for QB
  * lines), we refuse to invent a full-PPR total — missing FL must not become

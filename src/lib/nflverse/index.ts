@@ -32,6 +32,14 @@ export {
   type RunNflverseActualsRebuildOptions,
 } from "./actuals-rebuild";
 export {
+  ESPN_CATEGORY_CLEANUP_VERSION,
+  ESPN_CATEGORY_CLEANUP_VIEW,
+  runEspnCategoryActualsCleanup,
+  loadEspnCategoryCleanupStamp,
+  type EspnCategoryCleanupResult,
+  type RunEspnCategoryCleanupOptions,
+} from "./espn-category-cleanup";
+export {
   mapNflverseWeekRow,
   mergeNullUsageOnly,
   NFLVERSE_LEAGUE_ID,

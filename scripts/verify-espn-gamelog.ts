@@ -2,9 +2,9 @@
  * Regression: ESPN Postseason (and Preseason) weeks must never be treated as
  * regular-season actualPpr (issue #103).
  *
- * ESPN reuses week numbers across seasonTypes. Gap-fill upserts by week only
- * onto leagueId=""; if REG week N is missing but POST week N exists, playoff
- * PPR used to land in PlayerWeekStat as that REG week's actuals.
+ * ESPN reuses week numbers across seasonTypes. If REG week N is missing but
+ * POST week N exists, playoff PPR must not be treated as that REG week
+ * (historical gap-fill bug #103; guest-pool writes removed in #147).
  *
  * Run: npm run verify:espn-gamelog
  */
