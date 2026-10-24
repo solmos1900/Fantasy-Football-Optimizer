@@ -164,6 +164,7 @@ If cookies were encrypted with a different key, either restore that key or recon
 | `npx tsx scripts/verify-ephemeral-cleanup.ts` | Guest TTL helpers + cleanup route guards (no DB) |
 | `npm run verify:cookie-crypto` | ESPN cookie encrypt-at-rest unit checks |
 | `npm run verify:sync-freshness` | Sync lastSyncedAt overlay + cookie fail-closed guards |
+| `npm run verify:sleeper-ppr` | Sleeper projections use full-PPR only (no half/standard fallback) |
 
 ---
 

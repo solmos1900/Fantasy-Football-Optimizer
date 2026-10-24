@@ -26,6 +26,7 @@
     "verify:golden": "tsx scripts/verify-golden.ts",
     "verify:pool": "tsx scripts/verify-pool.ts",
     "verify:sleeper-proj-name-match": "tsx scripts/verify-sleeper-proj-name-match.ts",
+    "verify:sleeper-ppr": "tsx scripts/verify-sleeper-ppr.ts",
     "verify:trade-benefits": "tsx scripts/verify-trade-benefits.ts",
     "verify:trade-value-ppg": "tsx scripts/verify-trade-value-ppg.ts",
     "verify:trade-verdict-tiers": "tsx scripts/verify-trade-verdict-tiers.ts",
