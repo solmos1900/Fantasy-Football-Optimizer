@@ -22,7 +22,7 @@ This app assumes **1QB redraft**: a season-long league where you start one quart
 | **Guest** | Try the product with only a display name. No email required. No-league tools work immediately; connect ESPN to unlock league screens. Guest data does not carry over if you later sign in. |
 | **Signed in** | Google, GitHub, or email/password. League connections stay on that account. Same no-league tools until you connect. |
 
-After you enter, open **Trades** for the NFL player pool, or **Connect ESPN** (with the How to connect guide) to unlock league-only features.
+After you enter, **Home** opens fantasy AI chat (mentions, trade / who-to-start templates, DB-backed tools via Vercel AI Gateway — see `docs/CHAT.md`). Open **Trades** for the classic Trade Analyzer / Who to Start UI, or **Connect ESPN** to unlock league-only features.
 
 ---
 

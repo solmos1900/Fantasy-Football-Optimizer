@@ -1,0 +1,767 @@
+{
+  "generatedAt": "2026-10-23T21:04:24.238Z",
+  "season": 2026,
+  "currentWeek": 7,
+  "statsThroughWeek": 6,
+  "note": "Built from public Sleeper + nflverse + ESPN scoreboard via the same chat tool runners (runTradeCompare / runWhoToStartCompare). Verdict text is the shared whoBenefitsCopy / compareWhoToStart headline (no AI Gateway).",
+  "trade": {
+    "userText": "Trade: LEFT Puka Nacua (LAR) + Kyren Williams (LAR) for RIGHT Ja'Marr Chase (CIN) + Chase Brown (CIN)",
+    "assistantOneLiner": "Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.",
+    "toolOutput": {
+      "ok": true,
+      "kind": "trade",
+      "headline": "Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.",
+      "differenceLabel": "+13.8 for Left",
+      "winner": "a",
+      "pctGap": 0.4763054980446284,
+      "valueBasis": "season_ppg",
+      "pctGapBasisLabel": "% gap vs lower side (season points per game package totals)",
+      "tier": "lopsided",
+      "tone": "caution",
+      "giveValue": 42.78333333333333,
+      "receiveValue": 28.98,
+      "valueGap": -13.803333333333331,
+      "verdictLabel": "Lean accept",
+      "sideA": [
+        {
+          "espnId": 4426515,
+          "label": "Puka Nacua (LAR)",
+          "position": "WR",
+          "injuryStatus": "ACTIVE",
+          "injuryLabel": null,
+          "seasonPpg": 22.950000000000003,
+          "tradeValue": 22.950000000000003,
+          "last3Avg": 26.46666666666667,
+          "sleeperProj": 22.3,
+          "byeThisWeek": false,
+          "opponent": "@LV",
+          "formLine": "Last 3 games avg 26.5 vs season 23.0: trending up",
+          "spark": [
+            {
+              "week": 1,
+              "points": 12.4
+            },
+            {
+              "week": 4,
+              "points": 27.7
+            },
+            {
+              "week": 5,
+              "points": 37.7
+            },
+            {
+              "week": 6,
+              "points": 14
+            }
+          ]
+        },
+        {
+          "espnId": 4430737,
+          "label": "Kyren Williams (LAR)",
+          "position": "RB",
+          "injuryStatus": "ACTIVE",
+          "injuryLabel": null,
+          "seasonPpg": 19.833333333333332,
+          "tradeValue": 19.833333333333332,
+          "last3Avg": 22,
+          "sleeperProj": 19.8,
+          "byeThisWeek": false,
+          "opponent": "@LV",
+          "formLine": "Last 3 games avg 22.0 vs season 19.8: holding steady",
+          "spark": [
+            {
+              "week": 1,
+              "points": 15.5
+            },
+            {
+              "week": 2,
+              "points": 15.7
+            },
+            {
+              "week": 3,
+              "points": 21.8
+            },
+            {
+              "week": 4,
+              "points": 36.7
+            },
+            {
+              "week": 5,
+              "points": 19.6
+            },
+            {
+              "week": 6,
+              "points": 9.7
+            }
+          ]
+        }
+      ],
+      "sideB": [
+        {
+          "espnId": 4362628,
+          "label": "Ja'Marr Chase (CIN)",
+          "position": "WR",
+          "injuryStatus": "ACTIVE",
+          "injuryLabel": null,
+          "seasonPpg": 15.98,
+          "tradeValue": 15.98,
+          "last3Avg": 16.733333333333334,
+          "sleeperProj": 18.8,
+          "byeThisWeek": false,
+          "opponent": "@BAL",
+          "formLine": "Last 3 games avg 16.7 vs season 16.0: holding steady",
+          "spark": [
+            {
+              "week": 1,
+              "points": 3.2
+            },
+            {
+              "week": 2,
+              "points": 26.5
+            },
+            {
+              "week": 3,
+              "points": 24.8
+            },
+            {
+              "week": 4,
+              "points": 5.7
+            },
+            {
+              "week": 5,
+              "points": 19.7
+            }
+          ]
+        },
+        {
+          "espnId": 4362238,
+          "label": "Chase Brown (CIN)",
+          "position": "RB",
+          "injuryStatus": "ACTIVE",
+          "injuryLabel": null,
+          "seasonPpg": 13,
+          "tradeValue": 13,
+          "last3Avg": 11.666666666666666,
+          "sleeperProj": 14.8,
+          "byeThisWeek": false,
+          "opponent": "@BAL",
+          "formLine": "Last 3 games avg 11.7 vs season 13.0: holding steady",
+          "spark": [
+            {
+              "week": 1,
+              "points": 18.8
+            },
+            {
+              "week": 2,
+              "points": 11.2
+            },
+            {
+              "week": 3,
+              "points": 8.9
+            },
+            {
+              "week": 4,
+              "points": 19.1
+            },
+            {
+              "week": 5,
+              "points": 7
+            }
+          ]
+        }
+      ],
+      "freshness": {
+        "label": "Stats through Week 6 · updated just now",
+        "warning": null,
+        "statsThroughWeek": 6
+      },
+      "facts": [
+        "Trade value = season points per game (nflverse full PPR). Left 42.8 = Puka Nacua (LAR) 23.0 + Kyren Williams (LAR) 19.8.",
+        "Right 29.0 = Ja'Marr Chase (CIN) 16.0 + Chase Brown (CIN) 13.0.",
+        "% gap uses the lower side as the base: |Left − Right| / min(Left, Right) = 47.6%."
+      ]
+    },
+    "filledTemplate": {
+      "left": [
+        {
+          "name": "Puka Nacua",
+          "nflTeam": "LAR"
+        },
+        {
+          "name": "Kyren Williams",
+          "nflTeam": "LAR"
+        }
+      ],
+      "right": [
+        {
+          "name": "Ja'Marr Chase",
+          "nflTeam": "CIN"
+        },
+        {
+          "name": "Chase Brown",
+          "nflTeam": "CIN"
+        }
+      ]
+    }
+  },
+  "whoToStart": {
+    "userText": "Who to Start: Amon-Ra St. Brown (DET) vs DK Metcalf (PIT)",
+    "assistantOneLiner": "Start Amon-Ra St. Brown (DET) over DK Metcalf (PIT)",
+    "toolOutput": {
+      "ok": true,
+      "kind": "who-to-start",
+      "headline": "Start Amon-Ra St. Brown (DET) over DK Metcalf (PIT)",
+      "verdictLabel": "START A",
+      "edge": 7.1,
+      "players": [
+        {
+          "espnId": 4374302,
+          "label": "Amon-Ra St. Brown (DET)",
+          "position": "WR",
+          "injuryStatus": "ACTIVE",
+          "injuryLabel": null,
+          "seasonPpg": 20.84,
+          "tradeValue": 20.84,
+          "last3Avg": 13.433333333333332,
+          "sleeperProj": 19.5,
+          "byeThisWeek": false,
+          "opponent": "vs GB",
+          "formLine": "Last 3 games avg 13.4 vs season 20.8: trending down",
+          "spark": [
+            {
+              "week": 1,
+              "points": 28.7
+            },
+            {
+              "week": 2,
+              "points": 35.2
+            },
+            {
+              "week": 3,
+              "points": 11.9
+            },
+            {
+              "week": 4,
+              "points": 15.5
+            },
+            {
+              "week": 5,
+              "points": 12.9
+            }
+          ]
+        },
+        {
+          "espnId": 4047650,
+          "label": "DK Metcalf (PIT)",
+          "position": "WR",
+          "injuryStatus": "ACTIVE",
+          "injuryLabel": null,
+          "seasonPpg": 11.483333333333334,
+          "tradeValue": 11.483333333333334,
+          "last3Avg": 14.033333333333333,
+          "sleeperProj": 12.4,
+          "byeThisWeek": false,
+          "opponent": "@NO",
+          "formLine": "Last 3 games avg 14.0 vs season 11.5: trending up",
+          "spark": [
+            {
+              "week": 1,
+              "points": 8
+            },
+            {
+              "week": 2,
+              "points": 6.7
+            },
+            {
+              "week": 3,
+              "points": 12.1
+            },
+            {
+              "week": 4,
+              "points": 16.5
+            },
+            {
+              "week": 5,
+              "points": 5.3
+            },
+            {
+              "week": 6,
+              "points": 20.3
+            }
+          ]
+        }
+      ],
+      "reasons": [
+        "Amon-Ra St. Brown (DET) is the clearer start — projects 7.1 more points this week (Sleeper / full PPR).",
+        "Projected this week: Amon-Ra St. Brown (DET) 19.5 vs DK Metcalf (PIT) 12.4 (+7.1 for Amon-Ra St. Brown (DET)).",
+        "Recent form: DK Metcalf (PIT) has averaged 0.6 more points per game over the last 3 games (14.0 vs 13.4).",
+        "Matchup for Amon-Ra St. Brown (DET): vs GB: matchup rank unknown"
+      ],
+      "freshness": {
+        "label": "Stats through Week 6 · updated just now",
+        "warning": null,
+        "statsThroughWeek": 6
+      }
+    }
+  },
+  "sources": {
+    "projections": "https://api.sleeper.app/projections/nfl/2026/7?season_type=regular",
+    "weekStats": "https://github.com/nflverse/nflverse-data/releases/download/stats_player/stats_player_week_2026.csv.gz",
+    "scoreboard": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=2026&seasontype=2&week=7",
+    "players": [
+      {
+        "player": "Puka Nacua (LAR)",
+        "espnId": 4426515,
+        "opponent": {
+          "value": "@LV",
+          "source": "ESPN NFL scoreboard season 2026 week 7 → formatOpponentLabel"
+        },
+        "seasonPpg": {
+          "value": 22.950000000000003,
+          "computedFrom": 22.950000000000003,
+          "weeks": [
+            {
+              "week": 1,
+              "points": 12.4,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 1"
+            },
+            {
+              "week": 4,
+              "points": 27.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 5,
+              "points": 37.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 6,
+              "points": 14,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 6"
+            }
+          ]
+        },
+        "last3Avg": {
+          "value": 26.46666666666667,
+          "computedFrom": 26.46666666666667,
+          "weeks": [
+            {
+              "week": 6,
+              "points": 14,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 6"
+            },
+            {
+              "week": 5,
+              "points": 37.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 4,
+              "points": 27.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            }
+          ]
+        },
+        "sleeperProj": {
+          "value": 22.3,
+          "source": "Sleeper GET /projections/nfl/2026/7?season_type=regular · stats.pts_ppr · name|team puka nacua|LAR"
+        },
+        "formLine": {
+          "value": "Last 3 games avg 26.5 vs season 23.0: trending up",
+          "source": "formImpactLine(player) from this player's recentWeeks only"
+        },
+        "byeThisWeek": false
+      },
+      {
+        "player": "Kyren Williams (LAR)",
+        "espnId": 4430737,
+        "opponent": {
+          "value": "@LV",
+          "source": "ESPN NFL scoreboard season 2026 week 7 → formatOpponentLabel"
+        },
+        "seasonPpg": {
+          "value": 19.833333333333332,
+          "computedFrom": 19.833333333333336,
+          "weeks": [
+            {
+              "week": 1,
+              "points": 15.5,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 1"
+            },
+            {
+              "week": 2,
+              "points": 15.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 2"
+            },
+            {
+              "week": 3,
+              "points": 21.8,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            },
+            {
+              "week": 4,
+              "points": 36.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 5,
+              "points": 19.6,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 6,
+              "points": 9.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 6"
+            }
+          ]
+        },
+        "last3Avg": {
+          "value": 22,
+          "computedFrom": 22,
+          "weeks": [
+            {
+              "week": 6,
+              "points": 9.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 6"
+            },
+            {
+              "week": 5,
+              "points": 19.6,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 4,
+              "points": 36.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            }
+          ]
+        },
+        "sleeperProj": {
+          "value": 19.8,
+          "source": "Sleeper GET /projections/nfl/2026/7?season_type=regular · stats.pts_ppr · name|team kyren williams|LAR"
+        },
+        "formLine": {
+          "value": "Last 3 games avg 22.0 vs season 19.8: holding steady",
+          "source": "formImpactLine(player) from this player's recentWeeks only"
+        },
+        "byeThisWeek": false
+      },
+      {
+        "player": "Ja'Marr Chase (CIN)",
+        "espnId": 4362628,
+        "opponent": {
+          "value": "@BAL",
+          "source": "ESPN NFL scoreboard season 2026 week 7 → formatOpponentLabel"
+        },
+        "seasonPpg": {
+          "value": 15.98,
+          "computedFrom": 15.98,
+          "weeks": [
+            {
+              "week": 1,
+              "points": 3.2,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 1"
+            },
+            {
+              "week": 2,
+              "points": 26.5,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 2"
+            },
+            {
+              "week": 3,
+              "points": 24.8,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            },
+            {
+              "week": 4,
+              "points": 5.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 5,
+              "points": 19.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            }
+          ]
+        },
+        "last3Avg": {
+          "value": 16.733333333333334,
+          "computedFrom": 16.733333333333334,
+          "weeks": [
+            {
+              "week": 5,
+              "points": 19.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 4,
+              "points": 5.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 3,
+              "points": 24.8,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            }
+          ]
+        },
+        "sleeperProj": {
+          "value": 18.8,
+          "source": "Sleeper GET /projections/nfl/2026/7?season_type=regular · stats.pts_ppr · name|team ja'marr chase|CIN"
+        },
+        "formLine": {
+          "value": "Last 3 games avg 16.7 vs season 16.0: holding steady",
+          "source": "formImpactLine(player) from this player's recentWeeks only"
+        },
+        "byeThisWeek": false
+      },
+      {
+        "player": "Chase Brown (CIN)",
+        "espnId": 4362238,
+        "opponent": {
+          "value": "@BAL",
+          "source": "ESPN NFL scoreboard season 2026 week 7 → formatOpponentLabel"
+        },
+        "seasonPpg": {
+          "value": 13,
+          "computedFrom": 13,
+          "weeks": [
+            {
+              "week": 1,
+              "points": 18.8,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 1"
+            },
+            {
+              "week": 2,
+              "points": 11.2,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 2"
+            },
+            {
+              "week": 3,
+              "points": 8.9,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            },
+            {
+              "week": 4,
+              "points": 19.1,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 5,
+              "points": 7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            }
+          ]
+        },
+        "last3Avg": {
+          "value": 11.666666666666666,
+          "computedFrom": 11.666666666666666,
+          "weeks": [
+            {
+              "week": 5,
+              "points": 7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 4,
+              "points": 19.1,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 3,
+              "points": 8.9,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            }
+          ]
+        },
+        "sleeperProj": {
+          "value": 14.8,
+          "source": "Sleeper GET /projections/nfl/2026/7?season_type=regular · stats.pts_ppr · name|team chase brown|CIN"
+        },
+        "formLine": {
+          "value": "Last 3 games avg 11.7 vs season 13.0: holding steady",
+          "source": "formImpactLine(player) from this player's recentWeeks only"
+        },
+        "byeThisWeek": false
+      },
+      {
+        "player": "Amon-Ra St. Brown (DET)",
+        "espnId": 4374302,
+        "opponent": {
+          "value": "vs GB",
+          "source": "ESPN NFL scoreboard season 2026 week 7 → formatOpponentLabel"
+        },
+        "seasonPpg": {
+          "value": 20.84,
+          "computedFrom": 20.840000000000003,
+          "weeks": [
+            {
+              "week": 1,
+              "points": 28.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 1"
+            },
+            {
+              "week": 2,
+              "points": 35.2,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 2"
+            },
+            {
+              "week": 3,
+              "points": 11.9,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            },
+            {
+              "week": 4,
+              "points": 15.5,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 5,
+              "points": 12.9,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            }
+          ]
+        },
+        "last3Avg": {
+          "value": 13.433333333333332,
+          "computedFrom": 13.433333333333332,
+          "weeks": [
+            {
+              "week": 5,
+              "points": 12.9,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 4,
+              "points": 15.5,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 3,
+              "points": 11.9,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            }
+          ]
+        },
+        "sleeperProj": {
+          "value": 19.5,
+          "source": "Sleeper GET /projections/nfl/2026/7?season_type=regular · stats.pts_ppr · name|team amon-ra st. brown|DET"
+        },
+        "formLine": {
+          "value": "Last 3 games avg 13.4 vs season 20.8: trending down",
+          "source": "formImpactLine(player) from this player's recentWeeks only"
+        },
+        "byeThisWeek": false
+      },
+      {
+        "player": "DK Metcalf (PIT)",
+        "espnId": 4047650,
+        "opponent": {
+          "value": "@NO",
+          "source": "ESPN NFL scoreboard season 2026 week 7 → formatOpponentLabel"
+        },
+        "seasonPpg": {
+          "value": 11.483333333333334,
+          "computedFrom": 11.483333333333333,
+          "weeks": [
+            {
+              "week": 1,
+              "points": 8,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 1"
+            },
+            {
+              "week": 2,
+              "points": 6.7,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 2"
+            },
+            {
+              "week": 3,
+              "points": 12.1,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 3"
+            },
+            {
+              "week": 4,
+              "points": 16.5,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            },
+            {
+              "week": 5,
+              "points": 5.3,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 6,
+              "points": 20.3,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 6"
+            }
+          ]
+        },
+        "last3Avg": {
+          "value": 14.033333333333333,
+          "computedFrom": 14.033333333333333,
+          "weeks": [
+            {
+              "week": 6,
+              "points": 20.3,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 6"
+            },
+            {
+              "week": 5,
+              "points": 5.3,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 5"
+            },
+            {
+              "week": 4,
+              "points": 16.5,
+              "source": "nflverse stats_player_week_2026.csv.gz · fantasy_points_ppr · week 4"
+            }
+          ]
+        },
+        "sleeperProj": {
+          "value": 12.4,
+          "source": "Sleeper GET /projections/nfl/2026/7?season_type=regular · stats.pts_ppr · name|team dk metcalf|PIT"
+        },
+        "formLine": {
+          "value": "Last 3 games avg 14.0 vs season 11.5: trending up",
+          "source": "formImpactLine(player) from this player's recentWeeks only"
+        },
+        "byeThisWeek": false
+      }
+    ],
+    "tradeValues": {
+      "giveValue": 42.78333333333333,
+      "receiveValue": 28.98,
+      "valueGap": -13.803333333333331,
+      "pctGap": 0.4763054980446284,
+      "tier": "lopsided",
+      "tone": "caution",
+      "headline": "Lopsided: Left gets 13.8 more points of value (48%); Right shouldn't accept.",
+      "valueBasis": "season_ppg",
+      "pctGapBasisLabel": "% gap vs lower side (season points per game package totals)",
+      "source": "sideSeasonPpgTradeValue (sum of season PPG) → whoBenefitsCopy; % gap = |Left−Right|/min(Left,Right). Not Insights chipValue blend.",
+      "perPlayerTradeValues": [
+        {
+          "label": "Puka Nacua (LAR)",
+          "tradeValue": 22.950000000000003,
+          "seasonPpg": 22.950000000000003
+        },
+        {
+          "label": "Kyren Williams (LAR)",
+          "tradeValue": 19.833333333333332,
+          "seasonPpg": 19.833333333333332
+        },
+        {
+          "label": "Ja'Marr Chase (CIN)",
+          "tradeValue": 15.98,
+          "seasonPpg": 15.98
+        },
+        {
+          "label": "Chase Brown (CIN)",
+          "tradeValue": 13,
+          "seasonPpg": 13
+        }
+      ]
+    }
+  }
+}

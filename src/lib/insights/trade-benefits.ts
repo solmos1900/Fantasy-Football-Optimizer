@@ -1,61 +1,103 @@
 /**
  * Plain-language trade verdict + difference display.
  *
- * valueGap = receiveValue − giveValue (Side B − Side A in free mode;
+ * valueGap = receiveValue − giveValue (Right − Left in free mode;
  * you-get − you-give in team mode).
  *
- * Winner is always the higher chip-value side. Difference is always shown
- * from the winner's view as a positive (“+11.5 for Side A”) — never negative.
+ * Verdict tiers use the **percentage** gap vs the **lower** side's value
+ * (`abs(a−b) / min(a,b)`) — never a raw point threshold alone:
+ *   < 5%  → even
+ *   5–15% → slight edge
+ *   > 15% → lopsided
  *
- * Verdict tiers (gap as a share of the larger side):
- * - Even: ≤ 5%
- * - Slight edge: more than 5% through 15%
- * - Lopsided: more than 15%
- *
- * One plain verdict replaces stamp labels like HARD REJECT + “Side A wins”
- * (those read as contradictory).
+ * For chat free trades, a/b are season-points-per-game package totals.
+ * Winner is always the higher-value side. Difference is always shown
+ * from the winner's view as a positive (“+11.5 for Left”) — never negative.
  */
 
 export type TradeBenefitsMode = "team" | "free";
+
+/** Even / slight edge / lopsided — driven by percentage gap. */
+export type TradeVerdictTier = "even" | "slight_edge" | "lopsided";
+
+/**
+ * UI tone for the headline:
+ * - neutral: even deal
+ * - positive: slight edge / lopsided favoring the reader (team: you get more)
+ * - caution: slight edge / lopsided where someone shouldn't accept
+ */
+export type TradeVerdictTone = "neutral" | "positive" | "caution";
 
 export type TradeBenefitsCopy = {
   /** Single plain verdict for the results card (no separate stamp needed). */
   headline: string;
   detail: string;
-  /** "a" | "b" | "even" — which side has the higher chip total. */
+  /** "a" | "b" | "even" — which side has the higher value (a = Left / you-give). */
   winner: "a" | "b" | "even";
-  /** Absolute chip gap (always ≥ 0). */
+  /** Absolute value gap (always ≥ 0). */
   absGap: number;
-  /** e.g. "+11.5 for Side A" — never a bare negative. */
+  /** Percentage gap vs the **lower** side (0–1). Even when winner is even. */
+  pctGap: number;
+  /** even | slight_edge | lopsided */
+  tier: TradeVerdictTier;
+  /** Color cue for UI — never green on "shouldn't accept". */
+  tone: TradeVerdictTone;
+  /** e.g. "+11.5 for Left" — never a bare negative. */
   differenceLabel: string;
 };
 
-/** Gap ≤ this share of the larger side → Even. */
-export const EVEN_GAP_RATIO = 0.05;
-/** Gap ≤ this share (and above Even) → Slight edge; above → Lopsided. */
-export const SLIGHT_EDGE_GAP_RATIO = 0.15;
-
-export type VerdictTier = "even" | "slight_edge" | "lopsided";
+/** Even when the relative gap is below this (5%). */
+export const TRADE_EVEN_PCT = 0.05;
+/** Lopsided only when the relative gap is above this (15%). */
+export const TRADE_LOPSIDED_PCT = 0.15;
 
 /**
- * Classify the absolute gap against the larger side's value.
- * maxSide ≤ 0 → Even (no meaningful scale).
+ * Relative gap as a fraction of the **lower** side:
+ * abs(a − b) / min(a, b).
+ * That matches plain “X% more value” vs the weaker package.
+ * When one side is ~0 and the other is positive → 100% (fully lopsided).
+ */
+export function tradeRelativeGapPct(giveValue: number, receiveValue: number): number {
+  const a = giveValue;
+  const b = receiveValue;
+  const absGap = Math.abs(a - b);
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  if (lo > 0 && Number.isFinite(lo)) return absGap / lo;
+  if (hi > 0 && Number.isFinite(hi)) return 1;
+  return 0;
+}
+
+export function tradeVerdictTierFromPct(pctGap: number): TradeVerdictTier {
+  if (pctGap < TRADE_EVEN_PCT) return "even";
+  if (pctGap <= TRADE_LOPSIDED_PCT) return "slight_edge";
+  return "lopsided";
+}
+
+/** @deprecated Prefer TRADE_EVEN_PCT — alias kept for #130 call sites. */
+export const EVEN_GAP_RATIO = TRADE_EVEN_PCT;
+/** @deprecated Prefer TRADE_LOPSIDED_PCT — alias kept for #130 call sites. */
+export const SLIGHT_EDGE_GAP_RATIO = TRADE_LOPSIDED_PCT;
+/** @deprecated Prefer TradeVerdictTier. */
+export type VerdictTier = TradeVerdictTier;
+
+/**
+ * Classify absGap / sideScale with the shared even / slight / lopsided bands.
+ * Callers should pass the **lower** side as `sideScale` (same as
+ * {@link tradeRelativeGapPct}). sideScale ≤ 0 → even.
  */
 export function verdictTierFromGap(
   absGap: number,
-  maxSide: number,
-): VerdictTier {
-  if (!(maxSide > 0) || !(absGap > 0)) return "even";
-  const ratio = absGap / maxSide;
-  if (ratio > SLIGHT_EDGE_GAP_RATIO) return "lopsided";
-  if (ratio > EVEN_GAP_RATIO) return "slight_edge";
-  return "even";
+  sideScale: number,
+): TradeVerdictTier {
+  if (!(sideScale > 0) || !(absGap > 0)) return "even";
+  return tradeVerdictTierFromPct(absGap / sideScale);
 }
 
 /**
  * @param valueGap receiveValue − giveValue
- * @param giveValue Side A / you-give chip total
- * @param receiveValue Side B / you-get chip total
+ * @param giveValue Left / you-give total
+ * @param receiveValue Right / you-get total
  */
 export function whoBenefitsCopy(
   valueGap: number,
@@ -70,87 +112,75 @@ export function whoBenefitsCopy(
       ? receiveValue - giveValue
       : valueGap;
   const absGap = Math.abs(gap);
-  const maxSide = Math.max(a, b);
-  const tier = verdictTierFromGap(absGap, maxSide);
+  const pctGap = tradeRelativeGapPct(a, b);
+  const tier = tradeVerdictTierFromPct(pctGap);
 
   if (tier === "even") {
     return {
       headline:
         mode === "team"
-          ? "Even: you and your partner swap about the same value."
-          : "Even: both sides swap about the same value.",
-      detail: "No clear winner on chip value.",
+          ? "Roughly even: you and your partner swap about the same value."
+          : "Roughly even: both sides swap about the same value.",
+      detail: "No clear winner on trade value.",
       winner: "even",
       absGap: 0,
+      pctGap,
+      tier,
+      tone: "neutral",
       differenceLabel: "Even",
     };
   }
 
-  // Higher chip total wins. gap = b − a, so gap > 0 ⇒ B higher, gap < 0 ⇒ A higher.
+  // Higher value wins. gap = b − a, so gap > 0 ⇒ Right/you-get higher.
   const winner: "a" | "b" = gap > 0 ? "b" : "a";
-  const loser: "a" | "b" = winner === "a" ? "b" : "a";
-  const gapText = absGap.toFixed(1);
+  const pctLabel = `${(pctGap * 100).toFixed(0)}%`;
+  const gapPts = absGap.toFixed(1);
+  const tierWord = tier === "lopsided" ? "Lopsided" : "Slight edge";
 
   if (mode === "team") {
-    // give = you, receive = partner package you get
     if (winner === "b") {
-      if (tier === "slight_edge") {
-        return {
-          headline: `Slight edge: You get ${gapText} more points of value.`,
-          detail: `+${gapText} for You`,
-          winner,
-          absGap,
-          differenceLabel: `+${gapText} for You`,
-        };
-      }
+      // You get more than you give
       return {
-        headline: `Lopsided: You get ${gapText} more points of value; they shouldn't accept.`,
-        detail: `+${gapText} for You`,
+        headline: `${tierWord}: You get ${gapPts} more points of value (${pctLabel}); they shouldn't accept.`,
+        detail: `+${gapPts} for You`,
         winner,
         absGap,
-        differenceLabel: `+${gapText} for You`,
+        pctGap,
+        tier,
+        // Favorable to you, but still "they shouldn't accept" → caution (not green celebration of a bad deal for them)
+        tone: "caution",
+        differenceLabel: `+${gapPts} for You`,
       };
     }
-    if (tier === "slight_edge") {
-      return {
-        headline: `Slight edge: You give ${gapText} more points of value than you get.`,
-        detail: `+${gapText} for Them`,
-        winner,
-        absGap,
-        differenceLabel: `+${gapText} for Them`,
-      };
-    }
+    // You give more than you get
     return {
-      headline: `Lopsided: You give ${gapText} more points of value than you get; you shouldn't accept.`,
-      detail: `+${gapText} for Them`,
+      headline: `${tierWord}: You give ${gapPts} more points of value than you get (${pctLabel}); you shouldn't accept.`,
+      detail: `+${gapPts} for Them`,
       winner,
       absGap,
-      differenceLabel: `+${gapText} for Them`,
+      pctGap,
+      tier,
+      tone: "caution",
+      differenceLabel: `+${gapPts} for Them`,
     };
   }
 
-  // Free mode: Side A = give package, Side B = receive package
-  const winLabel = winner === "a" ? "Side A" : "Side B";
-  const loseLabel = loser === "a" ? "Side A" : "Side B";
-  if (tier === "slight_edge") {
-    return {
-      headline: `Slight edge: ${winLabel} gets ${gapText} more points of value.`,
-      detail: `+${gapText} for ${winLabel}`,
-      winner,
-      absGap,
-      differenceLabel: `+${gapText} for ${winLabel}`,
-    };
-  }
+  // Free mode: Left = give, Right = receive
+  const winLabel = winner === "a" ? "Left" : "Right";
+  const loseLabel = winner === "a" ? "Right" : "Left";
   return {
-    headline: `Lopsided: ${winLabel} gets ${gapText} more points of value; ${loseLabel} shouldn't accept.`,
-    detail: `+${gapText} for ${winLabel}`,
+    headline: `${tierWord}: ${winLabel} gets ${gapPts} more points of value (${pctLabel}); ${loseLabel} shouldn't accept.`,
+    detail: `+${gapPts} for ${winLabel}`,
     winner,
     absGap,
-    differenceLabel: `+${gapText} for ${winLabel}`,
+    pctGap,
+    tier,
+    tone: "caution",
+    differenceLabel: `+${gapPts} for ${winLabel}`,
   };
 }
 
-/** True when both sides have real positive chip value (no 0.0-side verdict). */
+/** True when both sides have real positive value (no 0.0-side verdict). */
 export function bothSidesHaveValue(
   giveValue: number,
   receiveValue: number,
