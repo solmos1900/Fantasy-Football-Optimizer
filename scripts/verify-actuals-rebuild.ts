@@ -192,6 +192,16 @@ const cronSrc = fs.readFileSync(
 assert.match(cronSrc, /runNflverseActualsRebuild/);
 assert.match(cronSrc, /backfillMissingNflverseWeeks/);
 assert.match(cronSrc, /actualsRebuild/);
+assert.match(
+  cronSrc,
+  /runEspnCategoryActualsCleanup/,
+  "cron must wire #147 espn_category cleanup",
+);
+assert.doesNotMatch(
+  cronSrc,
+  /fillEspnGamelogGaps|fill-espn-gaps/,
+  "cron must not ESPN gap-fill actuals (#147)",
+);
 
 const poolSrc = fs.readFileSync(
   path.join(process.cwd(), "src/lib/players/pool.ts"),

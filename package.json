@@ -34,6 +34,7 @@
     "verify:espn-gamelog": "tsx scripts/verify-espn-gamelog.ts",
     "verify:scoring-actuals": "tsx scripts/verify-scoring-actuals.ts",
     "verify:espn-public-no-actuals": "tsx scripts/verify-espn-public-no-actuals.ts",
+    "verify:espn-no-gapfill-actuals": "tsx scripts/verify-espn-no-gapfill-actuals.ts",
     "verify:nflverse-backfill": "tsx scripts/verify-nflverse-backfill.ts",
     "verify:pool-injury-merge": "tsx scripts/verify-pool-injury-merge.ts",
     "verify:injury-more-serious": "tsx scripts/verify-injury-more-serious.ts",
@@ -65,7 +66,7 @@
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
