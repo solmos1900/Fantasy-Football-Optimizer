@@ -167,9 +167,31 @@ export function enrichLeagueOpponents(
 }
 
 /**
+ * Resolve the club to use for a past-week scoreboard lookup.
+ * Prefers the week row's own nflTeam (from ESPN stats[].proTeamId / DB);
+ * falls back to the player's current FantasyPlayer.nflTeam only when the
+ * per-week club is missing — otherwise non-traded players stay blank.
+ */
+export function historicalTeamForRecentWeek(
+  week: { nflTeam?: string },
+  currentNflTeam?: string,
+): string | undefined {
+  const fromWeek = normalizeNflAbbrev(week.nflTeam);
+  if (fromWeek && fromWeek !== "FA") return fromWeek;
+  const fromCurrent = normalizeNflAbbrev(currentNflTeam);
+  if (fromCurrent && fromCurrent !== "FA") return fromCurrent;
+  return undefined;
+}
+
+/**
  * Attach real NFL opponents onto prior-week scores using per-week scoreboard
  * schedules. Never invents opponents; leaves opponent unset when unknown.
  * Drops any week >= current scoring period (incomplete / future).
+ *
+ * Past-week lookups prefer that week's historical NFL team (week.nflTeam from
+ * mapPlayer / PlayerWeekStat). Falls back to FantasyPlayer.nflTeam only when
+ * per-week data is missing so stable players still get opponents. Mid-season
+ * trades must carry week.nflTeam so they keep the old club's matchup.
  */
 export function enrichRecentWeekOpponents(
   league: LeagueData,
@@ -187,7 +209,9 @@ export function enrichRecentWeekOpponents(
         if (w.opponent) return w;
         const schedule = weekSchedules.get(w.week);
         if (!schedule) return w;
-        const label = formatOpponentLabel(player.nflTeam, schedule);
+        const teamForWeek = historicalTeamForRecentWeek(w, player.nflTeam);
+        if (!teamForWeek) return w;
+        const label = formatOpponentLabel(teamForWeek, schedule);
         return label ? { ...w, opponent: label } : w;
       });
 
@@ -198,7 +222,8 @@ export function enrichRecentWeekOpponents(
           w.week === weeks[i].week &&
           w.points === weeks[i].points &&
           w.opponent === weeks[i].opponent &&
-          w.projectedPoints === weeks[i].projectedPoints,
+          w.projectedPoints === weeks[i].projectedPoints &&
+          w.nflTeam === weeks[i].nflTeam,
       );
     if (unchanged) return player;
     return { ...player, recentWeeks: next.length ? next : undefined };

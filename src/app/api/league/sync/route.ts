@@ -20,10 +20,12 @@ export async function POST(request: Request) {
 
   try {
     const league = await refreshUserLeague(session.user.id);
+    const warning = league.syncWarnings?.[0] ?? undefined;
     return NextResponse.json({
       ok: true,
       lastSyncedAt: league.lastSyncedAt,
       league,
+      ...(warning ? { warning } : {}),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed";

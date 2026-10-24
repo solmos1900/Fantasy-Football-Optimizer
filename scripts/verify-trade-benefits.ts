@@ -85,12 +85,20 @@ function player(
   );
 }
 
-// Even
+// Even (≤ 5% of larger side)
 {
   const even = whoBenefitsCopy(0.2, "free", 10, 10.1);
   assert.equal(even.winner, "even");
-  assert.match(even.headline, /even/i);
+  assert.match(even.headline, /^Even:/i);
   assert.equal(even.differenceLabel, "Even");
+}
+
+// Slight edge (5–15% of larger side): 18.6 vs 19.9
+{
+  const slight = whoBenefitsCopy(1.3, "free", 18.6, 19.9);
+  assert.equal(slight.winner, "b");
+  assert.match(slight.headline, /^Slight edge:/i);
+  assert.ok(!/Lopsided/i.test(slight.headline));
 }
 
 // Sign must match: winner "a" iff gap < 0 (beyond even band); label never bare-negative
@@ -102,7 +110,9 @@ for (const [a, b] of [
 ] as const) {
   const gap = b - a;
   const copy = whoBenefitsCopy(gap, "free", a, b);
-  if (Math.abs(gap) < 0.5) {
+  const maxSide = Math.max(a, b);
+  const ratio = maxSide > 0 ? Math.abs(gap) / maxSide : 0;
+  if (ratio <= 0.05) {
     assert.equal(copy.winner, "even");
   } else if (gap > 0) {
     assert.equal(copy.winner, "b", `gap=${gap}`);

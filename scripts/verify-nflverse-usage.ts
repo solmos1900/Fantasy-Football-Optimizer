@@ -137,7 +137,7 @@ assert.ok(wedCron, "Wednesday nflverse cron required");
 assert.equal(
   tueCron.schedule,
   "0 17 * * 2",
-  "Tuesday cron must be noon CDT (0 17 * * 2 UTC)",
+  "Tuesday cron must be 10 AM MST / noon CDT (0 17 * * 2 UTC)",
 );
 assert.equal(
   wedCron.schedule,
@@ -152,8 +152,16 @@ const cronRoute = fs.readFileSync(
 assert.match(cronRoute, /CRON_SECRET/);
 assert.match(cronRoute, /Bearer/);
 assert.match(cronRoute, /ingestNflverseUsage/);
+assert.match(cronRoute, /runNflverseActualsRebuild/);
+assert.match(cronRoute, /backfillMissingNflverseWeeks/);
+assert.match(cronRoute, /runEspnCategoryActualsCleanup/);
 assert.match(cronRoute, /persistNflverseSyncRun/);
 assert.match(cronRoute, /syncNflverseFreshnessIssues/);
+assert.doesNotMatch(
+  cronRoute,
+  /fillEspnGamelogGaps/,
+  "ESPN gamelog gap-fill must stay removed (#147)",
+);
 
 const freshnessRoute = path.join(
   process.cwd(),
