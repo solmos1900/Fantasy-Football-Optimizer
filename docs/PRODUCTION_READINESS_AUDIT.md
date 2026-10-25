@@ -166,14 +166,14 @@ It is **not ready for mass-market traffic yet**. The blockers fall into five the
 
 ## 8. Prioritised fix list
 
-**P0: before inviting the public or charging**
-1. Close the AI cost hole: guest creation throttle + CAPTCHA, IP/device chat buckets, server-side history, message size caps, token metering, global spend kill-switch (§6).
-2. Move pool refresh and DB writes out of page requests into crons. Pages read only (§4).
-3. Add a timeout and retry to `espnFetch` (reuse `secureFetch`).
-4. Distributed rate limiting (Redis/KV) and a login throttle.
-5. CI gate: lint, typecheck, build, offline verify suite.
-6. Error monitoring and cron-failure alerting.
-7. Terms, Privacy, account deletion.
+**P0: before inviting the public or charging** (status as of 2026-10-25, branch `claude/gallant-knuth-s276p8`)
+1. ✅ Close the AI cost hole. Done: guest creation throttled per IP (5/h, 15/day) plus optional Turnstile; chat cap per guest **and** per IP (40/day); client history sanitised (text only, last 12 turns, 2 K chars per message); `maxOutputTokens`; per-turn token metering (`ChatUsage`); daily token budgets per caller and globally; `CHAT_DISABLED` kill-switch.
+2. ✅ (mostly) Pool refresh is off the request path. Pages and chat read a stored `PlayerPoolSnapshot`; when stale, one rebuild runs after the response (`after()` + DB lease); the nflverse cron rebuilds it after ingest; `/api/cron/pool-refresh` is available for sub-daily schedulers. **Open:** the trade-tool display helpers (`loadToolDisplayMeta`, teammate-injury index) still fetch Sleeper projections and the scoreboard per request. Read them from the snapshot next.
+3. ✅ ESPN fantasy and scoreboard calls go through `secureFetch` (timeout + 1 retry). Every other ESPN fetch has an `AbortSignal` timeout.
+4. ✅ Rate limits are shared across instances (Postgres `ApiRateLimit`, atomic upsert; in-memory fallback if the DB is down). Password sign-in is throttled per email and per IP; verification routes are rate-limited.
+5. ✅ CI gate (`.github/workflows/ci.yml`): lint (0 errors), `tsc`, migrations, 37-script `verify:offline`, `next build`.
+6. ✅ (webhook) `OPS_ALERT_WEBHOOK_URL` alerts on unhandled server errors (`src/instrumentation.ts`), cron failures, golden-check failures and stale weeks, deduped. **Open:** a full error tracker (Sentry or similar) and product analytics need an account.
+7. ✅ (drafts) `/terms`, `/privacy` (written from what the code actually stores), `/account` with self-serve deletion (cascade + `ChatUsage` detached). **Open:** legal review, and set `NEXT_PUBLIC_SUPPORT_EMAIL`.
 
 **P1: mass-market fit**
 1. Sleeper league connect, then Yahoo OAuth. A friendlier ESPN private-league flow.

@@ -93,6 +93,16 @@ export default async function HomePage() {
           ))}
         </div>
       </div>
+
+      <p className="type-caption py-6 text-center text-emerald-950/50">
+        <PendingLink href="/terms" className="underline underline-offset-2">
+          Terms
+        </PendingLink>
+        {" · "}
+        <PendingLink href="/privacy" className="underline underline-offset-2">
+          Privacy
+        </PendingLink>
+      </p>
     </main>
   );
 }

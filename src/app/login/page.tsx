@@ -54,6 +54,18 @@ export default async function LoginPage({
           />
         </div>
 
+        <p className="type-caption mt-4 text-center text-emerald-950/50">
+          By continuing you agree to the{" "}
+          <PendingLink href="/terms" className="underline underline-offset-2">
+            Terms
+          </PendingLink>{" "}
+          and{" "}
+          <PendingLink href="/privacy" className="underline underline-offset-2">
+            Privacy Policy
+          </PendingLink>
+          .
+        </p>
+
         <div className="mt-6 flex justify-center">
           <InstallHowToLink
             className="inline-flex min-h-11 max-w-full flex-wrap items-center justify-center gap-x-1 rounded-lg px-3 py-2 text-center text-sm text-emerald-950/55 underline-offset-2 hover:bg-white/5 hover:text-emerald-950/80"
