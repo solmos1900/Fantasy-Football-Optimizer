@@ -145,23 +145,27 @@ async function loadSleeperPlayers(): Promise<{
   return { espnToSleeper, sleeperMeta };
 }
 
-function ptsPprFromRow(row: SleeperProjRow | null | undefined): number | null {
-  if (!row || typeof row !== "object") return null;
-  const pts =
-    row.stats?.pts_ppr ??
-    row.stats?.pts_half_ppr ??
-    row.stats?.pts ??
-    row.pts_ppr ??
-    row.pts_half_ppr ??
-    row.pts;
-  if (typeof pts === "number" && Number.isFinite(pts)) {
-    return Math.round(pts * 10) / 10;
+/** Full-PPR only — never fall back to half-PPR (`pts_half_ppr`) or standard (`pts`). */
+function normalizePtsPpr(value: number | string | null | undefined): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 10) / 10;
   }
-  if (typeof pts === "string" && pts.trim() !== "") {
-    const n = Number(pts);
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
     return Number.isFinite(n) ? Math.round(n * 10) / 10 : null;
   }
   return null;
+}
+
+/**
+ * Read only Sleeper full-PPR fields (`stats.pts_ppr`, then top-level `pts_ppr`).
+ * Missing / invalid → null (UI shows —). Exported for verify:sleeper-ppr.
+ */
+export function ptsPprFromRow(row: SleeperProjRow | null | undefined): number | null {
+  if (!row || typeof row !== "object") return null;
+  return (
+    normalizePtsPpr(row.stats?.pts_ppr) ?? normalizePtsPpr(row.pts_ppr)
+  );
 }
 
 function emptyMap(

@@ -653,8 +653,8 @@ export async function getNoLeaguePlayerPool(options?: {
         sleeperHits += 1;
         return { ...p, projectedPoints: proj };
       }
-      // Missing Sleeper proj → 0 internally; UI must show "—" via toolMeta (not ESPN).
-      return { ...p, projectedPoints: 0 };
+      // Missing Sleeper pts_ppr → null (UI shows —). Never coerce to 0 or use ESPN.
+      return { ...p, projectedPoints: null };
     });
     players = players.sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints));
     if (!sleeper.emptyFeed && sleeperHits > 0) {
@@ -675,7 +675,7 @@ export async function getNoLeaguePlayerPool(options?: {
     ]
       .filter(Boolean)
       .join(" ");
-    players = players.map((p) => ({ ...p, projectedPoints: 0 }));
+    players = players.map((p) => ({ ...p, projectedPoints: null }));
   }
 
   // Stamp real opponents / BYE for the upcoming (current) week.
