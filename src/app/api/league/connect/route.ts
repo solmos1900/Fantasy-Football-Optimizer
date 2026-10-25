@@ -15,7 +15,7 @@ const ConnectBodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, {
+  const limited = await enforceRateLimit(request, {
     bucket: "league-connect",
     limit: 20,
     windowMs: 60_000,

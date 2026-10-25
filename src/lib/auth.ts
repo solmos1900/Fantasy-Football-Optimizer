@@ -2,12 +2,28 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { CredentialsSignin } from "next-auth";
 import type { Provider } from "next-auth/providers";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 import { deleteGuestUserById } from "@/lib/cleanup/ephemeral";
 import { createSafePrismaAdapter } from "@/lib/auth/safe-adapter";
 import { clearUnverifiedCredentialsBlocker } from "@/lib/auth/email-verification";
+import {
+  allowGuestCreation,
+  allowLoginAttempt,
+  requestIp,
+} from "@/lib/auth/auth-throttle";
+import { verifyBotCheck } from "@/lib/auth/bot-check";
+
+/** Surfaced to the client as `result.code` from signIn(). */
+class RateLimitedSignin extends CredentialsSignin {
+  code = "rate_limited";
+}
+
+class BotCheckFailedSignin extends CredentialsSignin {
+  code = "bot_check_failed";
+}
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -85,7 +101,7 @@ providers.push(
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       if (!authSecret) {
         console.error("[auth] Credentials sign-in rejected: AUTH_SECRET is not configured.");
         return null;
@@ -97,6 +113,10 @@ providers.push(
         typeof credentials?.password === "string" ? credentials.password : "";
 
       if (!email || !password) return null;
+
+      if (!(await allowLoginAttempt(email, requestIp(request)))) {
+        throw new RateLimitedSignin();
+      }
 
       try {
         const user = await prisma.user.findUnique({ where: { email } });
@@ -134,11 +154,22 @@ providers.push(
     name: "Guest",
     credentials: {
       name: { label: "Name", type: "text" },
+      botToken: { label: "Bot check", type: "text" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       if (!authSecret) {
         console.error("[auth] Guest sign-in rejected: AUTH_SECRET is not configured.");
         return null;
+      }
+
+      // Every guest is a fresh user with its own chat quota — throttle
+      // creation per IP and (when configured) require a Turnstile pass.
+      const ip = requestIp(request);
+      if (!(await verifyBotCheck(credentials?.botToken, ip))) {
+        throw new BotCheckFailedSignin();
+      }
+      if (!(await allowGuestCreation(ip))) {
+        throw new RateLimitedSignin();
       }
 
       const displayName =

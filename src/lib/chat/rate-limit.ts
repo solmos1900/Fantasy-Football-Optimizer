@@ -6,11 +6,13 @@
 import { prisma } from "@/lib/db";
 import {
   CHAT_GUEST_DAILY_LIMIT,
+  CHAT_GUEST_IP_DAILY_LIMIT,
   CHAT_USER_DAILY_LIMIT,
+  chatTokenBudgets,
 } from "@/lib/chat/config";
 import { createHash } from "node:crypto";
 
-export type RateLimitKind = "guest" | "user";
+export type RateLimitKind = "guest" | "guest-ip" | "user";
 
 export type RateLimitDecision = {
   allowed: boolean;
@@ -35,8 +37,19 @@ export function userBucketKey(userId: string): string {
   return `user:${userId}`;
 }
 
+/** Shared by every guest session from one client IP. */
+export function guestIpBucketKey(ip: string | null): string {
+  const hash = createHash("sha256")
+    .update(`guest-ip|${ip ?? "unknown"}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `guest-ip:${hash}`;
+}
+
 export function limitForKind(kind: RateLimitKind): number {
-  return kind === "guest" ? CHAT_GUEST_DAILY_LIMIT : CHAT_USER_DAILY_LIMIT;
+  if (kind === "guest") return CHAT_GUEST_DAILY_LIMIT;
+  if (kind === "guest-ip") return CHAT_GUEST_IP_DAILY_LIMIT;
+  return CHAT_USER_DAILY_LIMIT;
 }
 
 export function evaluateRateLimitCount(
@@ -53,7 +66,7 @@ export function evaluateRateLimitCount(
       limit,
       dayKey,
       message:
-        kind === "guest"
+        kind === "guest" || kind === "guest-ip"
           ? `You've hit today's guest limit (${limit} questions). Come back tomorrow, or sign in for a higher daily cap.`
           : `You've hit today's chat limit (${limit} questions). Try again tomorrow — Trade Analyzer and Who to Start under Trades still work.`,
     };
@@ -107,4 +120,78 @@ export async function consumeChatRateLimit(options: {
     limit,
     dayKey,
   };
+}
+
+// ── Token budgets ─────────────────────────────────────────────────────────
+// Stored in the same ChatRateLimit table: bucketKey "tokens:<scope>", count =
+// tokens used that UTC day. Question caps bound request count; these bound cost.
+
+export const GLOBAL_TOKEN_BUCKET = "tokens:global";
+
+export function tokenBucketKey(bucketKey: string): string {
+  return `tokens:${bucketKey}`;
+}
+
+export type TokenBudgetDecision = {
+  allowed: boolean;
+  scope?: "global" | "caller";
+};
+
+/** Pure check: is either the caller's or the global token budget spent? */
+export function evaluateTokenBudget(input: {
+  callerUsed: number;
+  callerBudget: number;
+  globalUsed: number;
+  globalBudget: number;
+}): TokenBudgetDecision {
+  if (input.globalBudget > 0 && input.globalUsed >= input.globalBudget) {
+    return { allowed: false, scope: "global" };
+  }
+  if (input.callerBudget > 0 && input.callerUsed >= input.callerBudget) {
+    return { allowed: false, scope: "caller" };
+  }
+  return { allowed: true };
+}
+
+export async function checkTokenBudget(options: {
+  bucketKey: string;
+  kind: "guest" | "user";
+  now?: Date;
+}): Promise<TokenBudgetDecision> {
+  const dayKey = utcDayKey(options.now);
+  const budgets = chatTokenBudgets();
+  const rows = await prisma.chatRateLimit.findMany({
+    where: {
+      dayKey,
+      bucketKey: { in: [tokenBucketKey(options.bucketKey), GLOBAL_TOKEN_BUCKET] },
+    },
+    select: { bucketKey: true, count: true },
+  });
+  const used = (key: string) => rows.find((r) => r.bucketKey === key)?.count ?? 0;
+  return evaluateTokenBudget({
+    callerUsed: used(tokenBucketKey(options.bucketKey)),
+    callerBudget: options.kind === "guest" ? budgets.guest : budgets.user,
+    globalUsed: used(GLOBAL_TOKEN_BUCKET),
+    globalBudget: budgets.global,
+  });
+}
+
+/** Add a finished turn's tokens to the caller and global counters. */
+export async function recordTokenSpend(options: {
+  bucketKey: string;
+  tokens: number;
+  now?: Date;
+}): Promise<void> {
+  const tokens = Math.max(0, Math.round(options.tokens));
+  if (tokens === 0) return;
+  const dayKey = utcDayKey(options.now);
+  await Promise.all(
+    [tokenBucketKey(options.bucketKey), GLOBAL_TOKEN_BUCKET].map((bucketKey) =>
+      prisma.chatRateLimit.upsert({
+        where: { bucketKey_dayKey: { bucketKey, dayKey } },
+        create: { bucketKey, dayKey, count: tokens },
+        update: { count: { increment: tokens } },
+      }),
+    ),
+  );
 }

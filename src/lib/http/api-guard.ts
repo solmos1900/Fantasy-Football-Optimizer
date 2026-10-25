@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
-import { clientIpFromRequest, rateLimit } from "@/lib/http/rate-limit";
+import {
+  clientIpFromRequest,
+  hashedKeyPart,
+  rateLimit,
+  type RateLimitResult,
+} from "@/lib/http/rate-limit";
 
-/** Apply a per-IP rate limit; returns a 429 Response when exceeded. */
-export function enforceRateLimit(
-  request: Request,
-  options: { bucket: string; limit: number; windowMs: number },
-): NextResponse | null {
-  const ip = clientIpFromRequest(request);
-  const result = rateLimit({
-    key: `${options.bucket}:${ip}`,
-    limit: options.limit,
-    windowMs: options.windowMs,
-  });
-  if (result.ok) return null;
+export function tooManyRequests(
+  result: RateLimitResult,
+  message = "Too many requests. Try again shortly.",
+): NextResponse {
   return NextResponse.json(
-    { error: "Too many requests. Try again shortly." },
+    { error: message },
     {
       status: 429,
       headers: {
@@ -24,4 +21,19 @@ export function enforceRateLimit(
       },
     },
   );
+}
+
+/** Apply a per-IP rate limit; returns a 429 Response when exceeded. */
+export async function enforceRateLimit(
+  request: Request,
+  options: { bucket: string; limit: number; windowMs: number },
+): Promise<NextResponse | null> {
+  const ip = clientIpFromRequest(request);
+  const result = await rateLimit({
+    key: `${options.bucket}:ip:${hashedKeyPart(ip)}`,
+    limit: options.limit,
+    windowMs: options.windowMs,
+  });
+  if (result.ok) return null;
+  return tooManyRequests(result);
 }

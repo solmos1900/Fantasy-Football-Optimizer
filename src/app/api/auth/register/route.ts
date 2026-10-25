@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { startEmailVerificationChallenge } from "@/lib/auth/email-verification";
 import { enforceRateLimit } from "@/lib/http/api-guard";
+import { verifyBotCheck } from "@/lib/auth/bot-check";
+import { clientIpFromRequest } from "@/lib/http/rate-limit";
 
 const RegisterSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   email: z.string().trim().email().max(160),
   password: z.string().min(8).max(128),
+  botToken: z.string().max(4096).optional(),
 });
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, {
+  const limited = await enforceRateLimit(request, {
     bucket: "register",
     limit: 10,
     windowMs: 60_000,
@@ -28,6 +31,13 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Provide a valid email and a password of at least 8 characters." },
+      { status: 400 },
+    );
+  }
+
+  if (!(await verifyBotCheck(parsed.data.botToken, clientIpFromRequest(request)))) {
+    return NextResponse.json(
+      { error: "Please complete the human check and try again." },
       { status: 400 },
     );
   }

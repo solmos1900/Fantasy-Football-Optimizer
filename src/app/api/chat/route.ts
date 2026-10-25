@@ -8,16 +8,24 @@ import {
 } from "ai";
 import { auth } from "@/lib/auth";
 import {
+  CHAT_BUDGET_EXHAUSTED_NOTICE,
+  CHAT_DISABLED_NOTICE,
   CHAT_GATEWAY_UNAVAILABLE_NOTICE,
+  CHAT_MAX_OUTPUT_TOKENS,
   CHAT_MAX_TOOL_STEPS,
   CHAT_MODEL_ID,
+  chatDisabled,
 } from "@/lib/chat/config";
 import { loadChatDataContext } from "@/lib/chat/player-resolve";
 import {
+  checkTokenBudget,
   consumeChatRateLimit,
   guestBucketKey,
+  guestIpBucketKey,
   userBucketKey,
 } from "@/lib/chat/rate-limit";
+import { sanitizeChatHistory } from "@/lib/chat/history";
+import { recordChatUsage } from "@/lib/chat/usage";
 import { clientIpFromHeaders, chatRequestSchema } from "@/lib/chat/request";
 import { buildChatSystemPrompt } from "@/lib/chat/system-prompt";
 import { buildChatTools } from "@/lib/chat/tools";
@@ -54,6 +62,10 @@ export async function POST(req: Request) {
     return jsonError(401, { error: "Unauthorized" });
   }
 
+  if (chatDisabled()) {
+    return jsonError(503, { error: "chat_disabled", notice: CHAT_DISABLED_NOTICE });
+  }
+
   if (!gatewayConfigured()) {
     return jsonError(503, {
       error: "gateway_unavailable",
@@ -73,13 +85,62 @@ export async function POST(req: Request) {
     return jsonError(400, { error: "Invalid request", details: parsed.error.flatten() });
   }
 
+  const { messages: rawMessages, conversationId, templatePayload } = parsed.data;
+
+  // Enrich last user message if template was attached
+  let clientMessages: unknown[] = rawMessages;
+  if (templatePayload) {
+    const tp = chatTemplatePayloadSchema.safeParse(templatePayload);
+    if (tp.success) {
+      const text = templateUserText(tp.data);
+      clientMessages = [
+        ...rawMessages.slice(0, -1),
+        { id: "template", role: "user", parts: [{ type: "text", text }] },
+      ];
+    }
+  }
+
+  // Never forward client-supplied tool/assistant payloads verbatim (#P0-3).
+  const history = sanitizeChatHistory(clientMessages);
+  if (!history.ok) {
+    return jsonError(400, { error: "invalid_messages", notice: history.error });
+  }
+  const workingMessages: UIMessage[] = history.messages;
+
   const isGuest = Boolean(session.user.isGuest);
+  const ip = clientIpFromHeaders(req.headers);
   const bucketKey = isGuest
-    ? guestBucketKey(
-        clientIpFromHeaders(req.headers),
-        session.user.id,
-      )
+    ? guestBucketKey(ip, session.user.id)
     : userBucketKey(session.user.id);
+
+  const budget = await checkTokenBudget({
+    bucketKey,
+    kind: isGuest ? "guest" : "user",
+  });
+  if (!budget.allowed) {
+    return jsonError(429, {
+      error: "budget_exhausted",
+      notice: CHAT_BUDGET_EXHAUSTED_NOTICE,
+      remaining: 0,
+    });
+  }
+
+  // Guests: one cap per guest session plus a shared cap per IP, because
+  // signing in as a new guest used to mint a fresh quota every time.
+  if (isGuest) {
+    const ipRate = await consumeChatRateLimit({
+      bucketKey: guestIpBucketKey(ip),
+      kind: "guest-ip",
+    });
+    if (!ipRate.allowed) {
+      return jsonError(429, {
+        error: "rate_limited",
+        notice: ipRate.message,
+        limit: ipRate.limit,
+        remaining: 0,
+      });
+    }
+  }
 
   const rate = await consumeChatRateLimit({
     bucketKey,
@@ -94,9 +155,6 @@ export async function POST(req: Request) {
     });
   }
 
-  const { messages: rawMessages, conversationId, templatePayload } = parsed.data;
-  const messages = rawMessages as UIMessage[];
-
   // Ensure conversation for signed-in users
   let activeConversationId = conversationId ?? null;
   if (!isGuest) {
@@ -109,23 +167,6 @@ export async function POST(req: Request) {
   const ctx = await loadChatDataContext({ userId: session.user.id });
   const tools = buildChatTools(ctx);
   const freshnessLabel = formatPoolFreshnessLabel(ctx.freshness);
-
-  // Enrich last user message if template was attached
-  let workingMessages = messages;
-  if (templatePayload) {
-    const tp = chatTemplatePayloadSchema.safeParse(templatePayload);
-    if (tp.success) {
-      const text = templateUserText(tp.data);
-      workingMessages = [
-        ...messages.slice(0, -1),
-        {
-          ...(messages[messages.length - 1] as UIMessage),
-          role: "user",
-          parts: [{ type: "text", text }],
-        } as UIMessage,
-      ];
-    }
-  }
 
   const lastUserText = extractLastUserText(workingMessages);
   const mentionIds = [
@@ -152,7 +193,23 @@ export async function POST(req: Request) {
       messages: await convertToModelMessages(workingMessages),
       tools,
       stopWhen: isStepCount(CHAT_MAX_TOOL_STEPS),
+      maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
       temperature: 0.2,
+      onEnd: async ({ totalUsage, steps }) => {
+        try {
+          await recordChatUsage({
+            userId: session.user.id,
+            isGuest,
+            conversationId: activeConversationId,
+            bucketKey,
+            model: CHAT_MODEL_ID,
+            steps: steps.length,
+            usage: totalUsage,
+          });
+        } catch (err) {
+          console.error("[chat] usage metering failed", err);
+        }
+      },
     });
 
     // Persist user turn for signed-in users (assistant saved on finish best-effort)

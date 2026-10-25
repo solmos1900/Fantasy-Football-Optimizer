@@ -6,7 +6,7 @@ import { enforceRateLimit } from "@/lib/http/api-guard";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, {
+  const limited = await enforceRateLimit(request, {
     bucket: "league-sync",
     limit: 30,
     windowMs: 60_000,
