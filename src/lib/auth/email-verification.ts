@@ -17,7 +17,13 @@ export type ChallengeStartResult =
       /** Only present in local/dev when AUTH_EMAIL_DEV_EXPOSE_CODE=true (or console provider). */
       devCode?: string;
     }
-  | { ok: false; error: string; status: number };
+  | {
+      ok: false;
+      error: string;
+      status: number;
+      /** True when the verification email could not be delivered. */
+      deliveryFailed?: true;
+    };
 
 export type ChallengeVerifyResult =
   | { ok: true; userId: string }
@@ -160,10 +166,18 @@ export async function startEmailVerificationChallenge(input: {
 
   const sendResult = await sendVerificationCodeEmail(email, code);
   if (!sendResult.ok) {
+    // Allow immediate retry — the code was never delivered.
+    await prisma.emailVerificationChallenge.update({
+      where: { email },
+      data: { lastSentAt: new Date(0) },
+    });
     return {
       ok: false,
-      error: "Could not send verification email. Try again shortly.",
+      error:
+        sendResult.error ||
+        "We couldn't send the verification email. Please try again in a minute.",
       status: 502,
+      deliveryFailed: true,
     };
   }
 
@@ -214,10 +228,17 @@ export async function resendEmailVerification(input: {
     });
     const sendResult = await sendVerificationCodeEmail(email, code);
     if (!sendResult.ok) {
+      await prisma.emailVerificationChallenge.update({
+        where: { email },
+        data: { lastSentAt: new Date(0) },
+      });
       return {
         ok: false,
-        error: "Could not send verification email. Try again shortly.",
+        error:
+          sendResult.error ||
+          "We couldn't send the verification email. Please try again in a minute.",
         status: 502,
+        deliveryFailed: true,
       };
     }
     const result: ChallengeStartResult = { ok: true, email };

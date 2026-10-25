@@ -40,7 +40,13 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
+      return NextResponse.json(
+        {
+          error: result.error,
+          ...(result.deliveryFailed ? { deliveryFailed: true } : {}),
+        },
+        { status: result.status },
+      );
     }
 
     return NextResponse.json({

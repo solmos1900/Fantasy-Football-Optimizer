@@ -223,6 +223,48 @@ async function main() {
   // Attempt limit constant is enforced in source
   assert.ok(VERIFICATION_MAX_ATTEMPTS >= 3);
 
+  // ── Email env + fail-closed delivery ───────────────────────────────────
+  const sendSrc = fs.readFileSync(
+    path.join(process.cwd(), "src/lib/email/send.ts"),
+    "utf8",
+  );
+  assert.match(sendSrc, /process\.env\.RESEND_API_KEY/);
+  assert.match(sendSrc, /process\.env\.EMAIL_FROM/);
+  assert.match(sendSrc, /resolveEmailFrom/);
+  assert.match(sendSrc, /RESEND_API_KEY is missing/);
+
+  const { sendEmail, resolveEmailFrom } = await import("../src/lib/email/send");
+  process.env.EMAIL_FROM = "Gridiron IQ <onboarding@resend.dev>";
+  assert.equal(resolveEmailFrom(), "Gridiron IQ <onboarding@resend.dev>");
+
+  // Deployed without key must fail clearly (not console-ok).
+  const prevVercel = process.env.VERCEL;
+  const prevVercelEnv = process.env.VERCEL_ENV;
+  delete process.env.RESEND_API_KEY;
+  process.env.VERCEL = "1";
+  process.env.VERCEL_ENV = "production";
+  const missingKey = await sendEmail({
+    to: "anyone@example.com",
+    subject: "t",
+    text: "t",
+  });
+  assert.equal(missingKey.ok, false);
+  if (!missingKey.ok) {
+    assert.match(missingKey.error, /couldn'?t send|not configured/i);
+  }
+  if (prevVercel === undefined) delete process.env.VERCEL;
+  else process.env.VERCEL = prevVercel;
+  if (prevVercelEnv === undefined) delete process.env.VERCEL_ENV;
+  else process.env.VERCEL_ENV = prevVercelEnv;
+
+  // Login UI must surface a plain note when deliveryFailed is set.
+  const loginSrc = fs.readFileSync(
+    path.join(process.cwd(), "src/components/login-actions.tsx"),
+    "utf8",
+  );
+  assert.match(loginSrc, /deliveryFailed/);
+  assert.match(loginSrc, /couldn'?t email your verification code/i);
+
   await cleanup();
   console.log("verify-email-auth: ok");
 }

@@ -106,10 +106,16 @@ export function LoginActions({
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
+        deliveryFailed?: boolean;
         devCode?: string;
       };
       if (!res.ok) {
-        setError(data.error ?? "Could not resend code.");
+        setError(
+          data.deliveryFailed
+            ? data.error ??
+                "We couldn't email your verification code. Please try again in a minute."
+            : (data.error ?? "Could not resend code."),
+        );
         return;
       }
       setInfo(
@@ -138,11 +144,24 @@ export function LoginActions({
         });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
+          deliveryFailed?: boolean;
           needsVerification?: boolean;
           devCode?: string;
         };
         if (!res.ok) {
-          setError(data.error ?? "Registration failed.");
+          // Stay on signup and show a plain note — never pretend the code was emailed.
+          setFormMode("register");
+          setError(
+            data.deliveryFailed
+              ? data.error ??
+                  "We couldn't email your verification code. Please try again in a minute. If this keeps happening, email delivery may need a setup fix."
+              : (data.error ?? "Registration failed."),
+          );
+          if (data.deliveryFailed) {
+            setInfo(
+              "No account was finished yet. Fix the email issue (or try again), then create the account again to get a new code.",
+            );
+          }
           return;
         }
 
