@@ -36,4 +36,4 @@ npm run verify:golden
 ```
 
 CI: `.github/workflows/verify-golden.yml`.  
-Weekly: Tuesday `/api/cron/nflverse-usage` re-runs the check and surfaces a visible Insights notice on failure.
+Weekly: Tuesday 10 AM MST / noon CDT (`0 17 * * 2` UTC) `/api/cron/nflverse-usage` re-runs the check (and #141 rebuild when enabled) and surfaces a visible Insights notice on failure. Status: `GET /api/health/data-freshness`.

@@ -7,6 +7,11 @@
  * Winner is always the higher chip-value side. Difference is always shown
  * from the winner's view as a positive (“+11.5 for Side A”) — never negative.
  *
+ * Verdict tiers (gap as a share of the larger side):
+ * - Even: ≤ 5%
+ * - Slight edge: more than 5% through 15%
+ * - Lopsided: more than 15%
+ *
  * One plain verdict replaces stamp labels like HARD REJECT + “Side A wins”
  * (those read as contradictory).
  */
@@ -25,7 +30,27 @@ export type TradeBenefitsCopy = {
   differenceLabel: string;
 };
 
-const EVEN_EPS = 0.5;
+/** Gap ≤ this share of the larger side → Even. */
+export const EVEN_GAP_RATIO = 0.05;
+/** Gap ≤ this share (and above Even) → Slight edge; above → Lopsided. */
+export const SLIGHT_EDGE_GAP_RATIO = 0.15;
+
+export type VerdictTier = "even" | "slight_edge" | "lopsided";
+
+/**
+ * Classify the absolute gap against the larger side's value.
+ * maxSide ≤ 0 → Even (no meaningful scale).
+ */
+export function verdictTierFromGap(
+  absGap: number,
+  maxSide: number,
+): VerdictTier {
+  if (!(maxSide > 0) || !(absGap > 0)) return "even";
+  const ratio = absGap / maxSide;
+  if (ratio > SLIGHT_EDGE_GAP_RATIO) return "lopsided";
+  if (ratio > EVEN_GAP_RATIO) return "slight_edge";
+  return "even";
+}
 
 /**
  * @param valueGap receiveValue − giveValue
@@ -45,13 +70,15 @@ export function whoBenefitsCopy(
       ? receiveValue - giveValue
       : valueGap;
   const absGap = Math.abs(gap);
+  const maxSide = Math.max(a, b);
+  const tier = verdictTierFromGap(absGap, maxSide);
 
-  if (Math.abs(gap) < EVEN_EPS || Math.abs(a - b) < EVEN_EPS) {
+  if (tier === "even") {
     return {
       headline:
         mode === "team"
-          ? "Roughly even: you and your partner swap about the same value."
-          : "Roughly even: both sides swap about the same value.",
+          ? "Even: you and your partner swap about the same value."
+          : "Even: both sides swap about the same value.",
       detail: "No clear winner on chip value.",
       winner: "even",
       absGap: 0,
@@ -62,38 +89,64 @@ export function whoBenefitsCopy(
   // Higher chip total wins. gap = b − a, so gap > 0 ⇒ B higher, gap < 0 ⇒ A higher.
   const winner: "a" | "b" = gap > 0 ? "b" : "a";
   const loser: "a" | "b" = winner === "a" ? "b" : "a";
+  const gapText = absGap.toFixed(1);
 
   if (mode === "team") {
     // give = you, receive = partner package you get
     if (winner === "b") {
-      // You get more than you give
+      if (tier === "slight_edge") {
+        return {
+          headline: `Slight edge: You get ${gapText} more points of value.`,
+          detail: `+${gapText} for You`,
+          winner,
+          absGap,
+          differenceLabel: `+${gapText} for You`,
+        };
+      }
       return {
-        headline: `Lopsided: You get ${absGap.toFixed(1)} more points of value; they shouldn't accept.`,
-        detail: `+${absGap.toFixed(1)} for You`,
+        headline: `Lopsided: You get ${gapText} more points of value; they shouldn't accept.`,
+        detail: `+${gapText} for You`,
         winner,
         absGap,
-        differenceLabel: `+${absGap.toFixed(1)} for You`,
+        differenceLabel: `+${gapText} for You`,
       };
     }
-    // You give more than you get
+    if (tier === "slight_edge") {
+      return {
+        headline: `Slight edge: You give ${gapText} more points of value than you get.`,
+        detail: `+${gapText} for Them`,
+        winner,
+        absGap,
+        differenceLabel: `+${gapText} for Them`,
+      };
+    }
     return {
-      headline: `Lopsided: You give ${absGap.toFixed(1)} more points of value than you get; you shouldn't accept.`,
-      detail: `+${absGap.toFixed(1)} for Them`,
+      headline: `Lopsided: You give ${gapText} more points of value than you get; you shouldn't accept.`,
+      detail: `+${gapText} for Them`,
       winner,
       absGap,
-      differenceLabel: `+${absGap.toFixed(1)} for Them`,
+      differenceLabel: `+${gapText} for Them`,
     };
   }
 
   // Free mode: Side A = give package, Side B = receive package
   const winLabel = winner === "a" ? "Side A" : "Side B";
   const loseLabel = loser === "a" ? "Side A" : "Side B";
+  if (tier === "slight_edge") {
+    return {
+      headline: `Slight edge: ${winLabel} gets ${gapText} more points of value.`,
+      detail: `+${gapText} for ${winLabel}`,
+      winner,
+      absGap,
+      differenceLabel: `+${gapText} for ${winLabel}`,
+    };
+  }
   return {
-    headline: `Lopsided: ${winLabel} gets ${absGap.toFixed(1)} more points of value; ${loseLabel} shouldn't accept.`,
-    detail: `+${absGap.toFixed(1)} for ${winLabel}`,
+    headline: `Lopsided: ${winLabel} gets ${gapText} more points of value; ${loseLabel} shouldn't accept.`,
+    detail: `+${gapText} for ${winLabel}`,
     winner,
     absGap,
-    differenceLabel: `+${absGap.toFixed(1)} for ${winLabel}`,
+    differenceLabel: `+${gapText} for ${winLabel}`,
   };
 }
 

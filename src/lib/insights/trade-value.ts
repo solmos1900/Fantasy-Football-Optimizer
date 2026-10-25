@@ -2,8 +2,9 @@
  * Shared 1QB full-PPR trade chip math and roster-need helpers.
  * Used by Insights auto-suggestions and the interactive Trade Analyzer.
  *
- * Aligned to PPR Fantasy Intelligence (#7): ~70% ROS/form + ~30% this-week,
- * scarcity TE/RB1 > WR1 > QB, optional Neon trend nudges.
+ * Trade value = season fantasy points per game from played weeks (not this
+ * week's projection). Bye / missing projection never zeroes a player out.
+ * Scarcity: TE/RB1 > WR1 > QB (1QB ×0.45), optional Neon trend nudges.
  */
 
 import type {
@@ -69,8 +70,42 @@ export function depthAtPosition(
   return playersAtPosition(team, pos).length;
 }
 
+function isOnBye(p: FantasyPlayer): boolean {
+  return (p.opponent ?? "").toUpperCase() === "BYE";
+}
+
+/** Season fantasy PPG from weeks with a real actual (nulls ignored). */
+export function seasonPointsPerGame(p: FantasyPlayer): number | null {
+  const scoredWeeks = (p.recentWeeks ?? []).filter(
+    (w): w is { week: number; points: number; projectedPoints?: number; opponent?: string } =>
+      typeof w.points === "number" && Number.isFinite(w.points),
+  );
+  if (!scoredWeeks.length) return null;
+  return scoredWeeks.reduce((a, w) => a + w.points, 0) / scoredWeeks.length;
+}
+
+/**
+ * This-week projection usable for trade fallback only.
+ * Bye and missing projection are ignored — never treated as 0 value.
+ */
+export function usableTradeProjection(p: FantasyPlayer): number | null {
+  if (isOnBye(p)) return null;
+  if (
+    typeof p.projectedPoints !== "number" ||
+    !Number.isFinite(p.projectedPoints)
+  ) {
+    return null;
+  }
+  return p.projectedPoints;
+}
+
+/** Basis for tier + scarcity: season PPG, else usable this-week proj. */
+export function tradeValueBasis(p: FantasyPlayer): number {
+  return seasonPointsPerGame(p) ?? usableTradeProjection(p) ?? 0;
+}
+
 export function tierOf(p: FantasyPlayer): TradeTier {
-  const pts = pointsOrZero(p.projectedPoints);
+  const pts = tradeValueBasis(p);
   if (p.position === "QB") {
     if (pts >= 22) return "elite";
     if (pts >= 18) return "high";
@@ -91,7 +126,7 @@ export function tierOf(p: FantasyPlayer): TradeTier {
 }
 
 /**
- * Trade-chip value; full-PPR. ROS/form ~70%, this-week proj ~30%.
+ * Trade-chip value; full-PPR. Season PPG from played weeks (not this-week blend).
  * Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB).
  */
 function trendFor(
@@ -127,15 +162,8 @@ export function chipValue(
     ? { trends: trendsOrOpts }
     : (trendsOrOpts ?? {});
   const trends = opts.trends;
-  const proj = pointsOrZero(p.projectedPoints);
-  const scoredWeeks = (p.recentWeeks ?? []).filter(
-    (w): w is { week: number; points: number; projectedPoints?: number; opponent?: string } =>
-      typeof w.points === "number" && Number.isFinite(w.points),
-  );
-  const recent = scoredWeeks.length
-    ? scoredWeeks.reduce((a, w) => a + w.points, 0) / scoredWeeks.length
-    : proj;
-  let blended = proj * 0.3 + recent * 0.7;
+  const basis = tradeValueBasis(p);
+  let blended = basis;
   const trend = trendFor(trends, p.espnId);
   // Injury/role outranks hot/cold — InjuryRisk adj is already large negative
   if (trend) blended += trend.restOfSeasonAdj;
@@ -145,12 +173,12 @@ export function chipValue(
 
   if (p.position === "QB") return blended * 0.45;
   if (p.position === "TE") {
-    const elite = proj >= 12 || tierOf(p) === "elite";
+    const elite = basis >= 12 || tierOf(p) === "elite";
     return blended * (elite ? 1.2 : 1.05);
   }
   if (p.position === "RB") {
     const locked =
-      proj >= 14 ||
+      basis >= 14 ||
       tierOf(p) === "elite" ||
       tierOf(p) === "high";
     return blended * (locked ? 1.15 : 1.05);
@@ -171,16 +199,19 @@ export function chipValueOrNull(
   knownProj?: number | null,
 ): number | null {
   if (p.reserveLeftSquad) return null;
-  const hasProj =
-    (knownProj != null && Number.isFinite(knownProj)) ||
-    (knownProj === undefined &&
-      typeof p.projectedPoints === "number" &&
-      Number.isFinite(p.projectedPoints) &&
-      p.projectedPoints > 0);
   const hasRecent = (p.recentWeeks ?? []).some(
     (w) => typeof w.points === "number" && Number.isFinite(w.points),
   );
-  if (!hasProj && !hasRecent) return null;
+  // Season PPG is enough; bye / missing projection must not force a null chip.
+  if (hasRecent) return chipValue(p, trendsOrOpts);
+  const hasUsableProj =
+    !isOnBye(p) &&
+    ((knownProj != null && Number.isFinite(knownProj) && knownProj > 0) ||
+      (knownProj === undefined &&
+        typeof p.projectedPoints === "number" &&
+        Number.isFinite(p.projectedPoints) &&
+        p.projectedPoints > 0));
+  if (!hasUsableProj) return null;
   return chipValue(p, trendsOrOpts);
 }
 
@@ -259,15 +290,23 @@ export function isForbiddenOneForOne(
   return (give[0].position === "QB") !== (receive[0].position === "QB");
 }
 
-export function isOutrageousValue(
+/** Chip-value ratio used by fairness / hard-reject (same math as displayed totals). */
+export function sideValueRatio(gv: number, rv: number): number {
+  return Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
+}
+
+/** Higher is fairer. Aligns with outrage cap (~1.55). Prefer when side values are already known. */
+export function fairnessFromSideValues(gv: number, rv: number): number {
+  return Math.max(0, OUTRAGEOUS_VALUE_RATIO - sideValueRatio(gv, rv));
+}
+
+export function isOutrageousFromSideValues(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
-  trends?: TrendLookup,
+  gv: number,
+  rv: number,
 ): boolean {
-  const gv = sideValue(give, trends);
-  const rv = sideValue(receive, trends);
-  const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  if (ratio > OUTRAGEOUS_VALUE_RATIO) return true;
+  if (sideValueRatio(gv, rv) > OUTRAGEOUS_VALUE_RATIO) return true;
 
   if (give.length === 1 && receive.length === 1) {
     const gap = Math.abs(
@@ -278,16 +317,28 @@ export function isOutrageousValue(
   return false;
 }
 
+export function isOutrageousValue(
+  give: FantasyPlayer[],
+  receive: FantasyPlayer[],
+  trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
+): boolean {
+  const gv = sideValue(give, trends, teammateDeltaByEspnId);
+  const rv = sideValue(receive, trends, teammateDeltaByEspnId);
+  return isOutrageousFromSideValues(give, receive, gv, rv);
+}
+
 /** Higher is fairer. Aligns with outrage cap (~1.55). */
 export function fairnessScore(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
 ): number {
-  const gv = sideValue(give, trends);
-  const rv = sideValue(receive, trends);
-  const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
-  return Math.max(0, 1.55 - ratio);
+  return fairnessFromSideValues(
+    sideValue(give, trends, teammateDeltaByEspnId),
+    sideValue(receive, trends, teammateDeltaByEspnId),
+  );
 }
 
 export function trendFitBonus(
@@ -357,6 +408,8 @@ export function acceptanceReason(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
+  sideValues?: { give: number; receive: number },
 ): string {
   const parts: string[] = [];
 
@@ -381,8 +434,12 @@ export function acceptanceReason(
     );
   }
 
+  const gv =
+    sideValues?.give ?? sideValue(give, trends, teammateDeltaByEspnId);
+  const rv =
+    sideValues?.receive ?? sideValue(receive, trends, teammateDeltaByEspnId);
   parts.push(
-    `Chip values close on a full-PPR 1QB scale with QBs discounted (${sideValue(give, trends).toFixed(1)} vs ${sideValue(receive, trends).toFixed(1)}).`,
+    `Chip values close on a full-PPR 1QB scale with QBs discounted (${gv.toFixed(1)} vs ${rv.toFixed(1)}).`,
   );
 
   const theirNeed = give.filter((p) => needsPosition(them, p.position));
@@ -418,6 +475,8 @@ export function hardRejectReasons(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  teammateDeltaByEspnId?: Map<number, number>,
+  sideValues?: { give: number; receive: number },
 ): string[] {
   const reasons: string[] = [];
 
@@ -429,10 +488,13 @@ export function hardRejectReasons(
     );
   }
 
-  if (isOutrageousValue(give, receive, trends)) {
-    const gv = sideValue(give, trends);
-    const rv = sideValue(receive, trends);
-    const ratio = Math.max(gv, rv) / Math.max(0.1, Math.min(gv, rv));
+  const gv =
+    sideValues?.give ?? sideValue(give, trends, teammateDeltaByEspnId);
+  const rv =
+    sideValues?.receive ?? sideValue(receive, trends, teammateDeltaByEspnId);
+
+  if (isOutrageousFromSideValues(give, receive, gv, rv)) {
+    const ratio = sideValueRatio(gv, rv);
     if (ratio > OUTRAGEOUS_VALUE_RATIO) {
       reasons.push(
         `The values are too far apart (${gv.toFixed(1)} vs ${rv.toFixed(1)}). One side is giving up way more than they're getting.`,

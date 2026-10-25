@@ -17,6 +17,7 @@ import type {
   LeagueData,
   Matchup,
   PlayerPosition,
+  WeeklyScore,
 } from "@/lib/types";
 import { nflTeamFromEspn } from "@/lib/espn/pro-teams";
 import {
@@ -27,6 +28,7 @@ import {
   type ScoreboardEvent,
 } from "@/lib/espn/scoreboard";
 import { finiteEspnAppliedTotal } from "@/lib/espn/stats";
+import type { EspnPlayerStatBlock, EspnRawPlayer } from "@/lib/espn/types";
 import { defaultEspnSeason } from "@/lib/season";
 
 const ESPN_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
@@ -83,7 +85,26 @@ export type EspnFetchOptions = {
    * ESPN and rewrite lastSyncedAt. Background/live polls may keep revalidate.
    */
   bypassCache?: boolean;
+  /**
+   * Prior free-agent list from the cached league payload. Used only when the
+   * kona_player_info refresh fails so Sync does not silently write [].
+   */
+  fallbackFreeAgents?: FantasyPlayer[];
 };
+
+/** Surfaced on LeagueData.syncWarnings when FA refresh fails (issue #109). */
+export const FREE_AGENT_REFRESH_WARNING =
+  "Could not refresh free agents from ESPN. Showing the last saved waiver pool.";
+
+/**
+ * Choose free agents after a failed kona_player_info refresh.
+ * Prefer the previously cached list over writing an empty pool.
+ */
+export function freeAgentsAfterRefreshFailure(
+  previous: FantasyPlayer[] | undefined,
+): FantasyPlayer[] {
+  return previous ?? [];
+}
 
 async function espnFetch(
   path: string,
@@ -138,8 +159,17 @@ function injuryFromPlayer(player: Record<string, unknown>): InjuryStatus {
   if (upper.includes("DOUBTFUL")) return "DOUBTFUL";
   if (upper.includes("OUT")) return "OUT";
   if (upper.includes("INJURY") || upper === "IR") return "IR";
+  if (upper === "PUP" || upper.includes("PHYSICALLY UNABLE")) return "PUP";
   if (upper.includes("SUSPENSION")) return "SUSPENSION";
   return "ACTIVE";
+}
+
+/** NFL abbrev from a weekly ESPN stats row's proTeamId (0 / missing → undefined). */
+function nflTeamFromWeekStat(stat: EspnPlayerStatBlock): string | undefined {
+  const weekProTeamId = Number(stat.proTeamId ?? 0);
+  if (!weekProTeamId) return undefined;
+  const abbrev = nflTeamFromEspn(weekProTeamId);
+  return abbrev === "FA" ? undefined : abbrev;
 }
 
 /** Map an ESPN roster / player-pool entry. Exported for regression tests. */
@@ -148,8 +178,8 @@ export function mapPlayer(
   scoringPeriodId: number,
 ): FantasyPlayer {
   const playerPoolEntry = (entry.playerPoolEntry ?? entry) as Record<string, unknown>;
-  const player = (playerPoolEntry.player ?? playerPoolEntry) as Record<string, unknown>;
-  const stats = (player.stats as Record<string, unknown>[] | undefined) ?? [];
+  const player = (playerPoolEntry.player ?? playerPoolEntry) as EspnRawPlayer;
+  const stats: EspnPlayerStatBlock[] = player.stats ?? [];
   const projected = stats.find(
     (s) =>
       s.scoringPeriodId === scoringPeriodId &&
@@ -167,7 +197,7 @@ export function mapPlayer(
   const position = POS_MAP[defaultPositionId] ?? "WR";
   const lineupSlotId = Number(entry.lineupSlotId ?? 20);
   const slot = SLOT_MAP[lineupSlotId] ?? "BN";
-  const ownership = (player.ownership as Record<string, number> | undefined) ?? {};
+  const ownership = player.ownership ?? {};
   const proTeamId = Number(player.proTeamId ?? 0);
   // Prefer an abbreviation ESPN already returned; fall back to the proTeamId table.
   const preferredAbbrev =
@@ -175,15 +205,10 @@ export function mapPlayer(
       ? player.proTeamAbbreviation
       : undefined) ??
     (typeof player.proTeamAbbrev === "string" ? player.proTeamAbbrev : undefined) ??
-    (typeof (player.proTeam as { abbrev?: string } | undefined)?.abbrev === "string"
-      ? (player.proTeam as { abbrev: string }).abbrev
-      : undefined);
+    (typeof player.proTeam?.abbrev === "string" ? player.proTeam.abbrev : undefined);
 
   const recentWeeks = (() => {
-    const byWeek = new Map<
-      number,
-      { week: number; points: number | null; projectedPoints?: number }
-    >();
+    const byWeek = new Map<number, WeeklyScore>();
 
     for (const s of stats) {
       const week = Number(s.scoringPeriodId);
@@ -193,10 +218,15 @@ export function mapPlayer(
       if (total == null) continue;
 
       const existing = byWeek.get(week) ?? { week, points: null };
+      const weekTeam = nflTeamFromWeekStat(s);
       if (Number(s.statSourceId) === 0) {
         existing.points = total;
+        // Actual week's proTeamId is the club the player played for that week.
+        if (weekTeam) existing.nflTeam = weekTeam;
       } else if (Number(s.statSourceId) === 1) {
         existing.projectedPoints = total;
+        // Projection only fills historical team when actual hasn't set it.
+        if (weekTeam && !existing.nflTeam) existing.nflTeam = weekTeam;
       }
       byWeek.set(week, existing);
     }
@@ -213,7 +243,7 @@ export function mapPlayer(
     name: String(player.fullName ?? "Unknown"),
     position,
     nflTeam: nflTeamFromEspn(proTeamId, preferredAbbrev),
-    injuryStatus: injuryFromPlayer(player),
+    injuryStatus: injuryFromPlayer(player as Record<string, unknown>),
     // Missing ESPN stat blocks → null (unknown). Real published 0.0 stays 0.
     projectedPoints: finiteEspnAppliedTotal(projected?.appliedTotal),
     actualPoints: finiteEspnAppliedTotal(actual?.appliedTotal),
@@ -299,6 +329,7 @@ export async function fetchEspnLeague(
     });
 
   let freeAgents: FantasyPlayer[] = [];
+  const syncWarnings: string[] = [];
   try {
     freeAgents = await fetchEspnFreeAgents(
       creds,
@@ -306,8 +337,11 @@ export async function fetchEspnLeague(
       50,
       options,
     );
-  } catch {
-    freeAgents = [];
+  } catch (err) {
+    // Do not wipe the waiver pool on auth/rate-limit/upstream failures (#109).
+    console.error("[espn] free agent fetch failed", err);
+    freeAgents = freeAgentsAfterRefreshFailure(options.fallbackFreeAgents);
+    syncWarnings.push(FREE_AGENT_REFRESH_WARNING);
   }
 
   let league: LeagueData = {
@@ -322,6 +356,7 @@ export async function fetchEspnLeague(
     freeAgents,
     lastSyncedAt: new Date().toISOString(),
     userTeamId: creds.teamId,
+    ...(syncWarnings.length > 0 ? { syncWarnings } : {}),
   };
 
   // Bake opponent / venue from the public NFL scoreboard so My Team, Insights,

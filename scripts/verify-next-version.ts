@@ -1,6 +1,7 @@
 /**
- * Guard: package.json + lockfile must resolve next ≥ 16.3.8
- * (clears GHSA-vcvr-r3jv-pc5j and related Next 16.x advisories).
+ * Guard: package.json + lockfile must resolve next ≥ 16.4.3
+ * (clears GHSA-2464-fhr4-w9xw / GHSA-p3m5-59mp-jv5r / GHSA-673q-mjm6-r5xr
+ * and related Next 16.x advisories).
  *
  * Run: npm run verify:next-version
  */
@@ -10,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const MIN = "16.3.8";
+const MIN = "16.4.3";
 
 function parseSemver(v: string): [number, number, number] {
   const cleaned = v.replace(/^[=^~v]/, "").split("-")[0]!;

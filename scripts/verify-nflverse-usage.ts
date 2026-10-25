@@ -126,9 +126,24 @@ assert.match(
 const vercelJson = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), "vercel.json"), "utf8"),
 ) as { crons?: { path: string; schedule: string }[] };
-const nflCron = vercelJson.crons?.find((c) => c.path === "/api/cron/nflverse-usage");
-assert.ok(nflCron, "vercel.json must schedule /api/cron/nflverse-usage");
-assert.match(nflCron.schedule, /^\S+ \S+ \S+ \S+ \S+$/);
+const nflCrons = (vercelJson.crons ?? []).filter(
+  (c) => c.path === "/api/cron/nflverse-usage",
+);
+assert.ok(nflCrons.length >= 2, "vercel.json must schedule Tue + Wed nflverse crons");
+const tueCron = nflCrons.find((c) => c.schedule.endsWith(" * 2"));
+const wedCron = nflCrons.find((c) => c.schedule.endsWith(" * 3"));
+assert.ok(tueCron, "Tuesday nflverse cron required");
+assert.ok(wedCron, "Wednesday nflverse cron required");
+assert.equal(
+  tueCron.schedule,
+  "0 17 * * 2",
+  "Tuesday cron must be 10 AM MST / noon CDT (0 17 * * 2 UTC)",
+);
+assert.equal(
+  wedCron.schedule,
+  "0 14 * * 3",
+  "Wednesday late-publish cron stays 0 14 * * 3 UTC",
+);
 
 const cronRoute = fs.readFileSync(
   path.join(process.cwd(), "src/app/api/cron/nflverse-usage/route.ts"),
@@ -137,6 +152,37 @@ const cronRoute = fs.readFileSync(
 assert.match(cronRoute, /CRON_SECRET/);
 assert.match(cronRoute, /Bearer/);
 assert.match(cronRoute, /ingestNflverseUsage/);
+assert.match(cronRoute, /runNflverseActualsRebuild/);
+assert.match(cronRoute, /backfillMissingNflverseWeeks/);
+assert.match(cronRoute, /runEspnCategoryActualsCleanup/);
+assert.match(cronRoute, /persistNflverseSyncRun/);
+assert.match(cronRoute, /syncNflverseFreshnessIssues/);
+assert.doesNotMatch(
+  cronRoute,
+  /fillEspnGamelogGaps/,
+  "ESPN gamelog gap-fill must stay removed (#147)",
+);
+
+const freshnessRoute = path.join(
+  process.cwd(),
+  "src/app/api/health/data-freshness/route.ts",
+);
+assert.ok(
+  fs.existsSync(freshnessRoute),
+  "GET /api/health/data-freshness route must exist",
+);
+const freshnessSrc = fs.readFileSync(freshnessRoute, "utf8");
+assert.match(freshnessSrc, /buildDataFreshnessReport/);
+assert.match(
+  freshnessSrc,
+  /Auth:\s*public/i,
+  "data-freshness must document public auth for non-sensitive freshness info",
+);
+assert.doesNotMatch(
+  freshnessSrc,
+  /authHeader|Unauthorized/,
+  "data-freshness must not require Bearer auth on GET",
+);
 
 const schema = fs.readFileSync(
   path.join(process.cwd(), "prisma/schema.prisma"),
@@ -155,5 +201,5 @@ assert.match(dataSources, /nflverse/);
 
 console.log("verify-nflverse-usage: ok");
 console.log(
-  `  mapped Keenan Allen W1 targets=${keenan!.targets} share=${keenan!.targetShare?.toFixed(3)} cron=${nflCron.schedule}`,
+  `  mapped Keenan Allen W1 targets=${keenan!.targets} share=${keenan!.targetShare?.toFixed(3)} tue=${tueCron.schedule} wed=${wedCron.schedule}`,
 );

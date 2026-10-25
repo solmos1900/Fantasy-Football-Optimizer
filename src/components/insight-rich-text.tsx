@@ -47,7 +47,7 @@ export function StatCallout({
   );
 }
 
-const INJURY_WORDS = ["QUESTIONABLE", "DOUBTFUL", "SUSPENSION", "OUT", "IR"] as const;
+const INJURY_WORDS = ["QUESTIONABLE", "DOUBTFUL", "SUSPENSION", "OUT", "IR", "PUP"] as const;
 
 type Token =
   | { kind: "text"; value: string }

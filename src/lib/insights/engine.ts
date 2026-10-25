@@ -88,7 +88,12 @@ function buildStartSit(
   const matchupCtx = matchupContextFromLeague(league);
 
   for (const b of bench) {
-    if (b.injuryStatus === "OUT" || b.injuryStatus === "IR") continue;
+    if (
+      b.injuryStatus === "OUT" ||
+      b.injuryStatus === "IR" ||
+      b.injuryStatus === "PUP"
+    )
+      continue;
 
     const comparable = starters.filter(
       (s) =>
@@ -313,6 +318,7 @@ function buildOther(
     )
     .sort((a, b) => pointsOrZero(a.projectedPoints) - pointsOrZero(b.projectedPoints));
 
+  // Best FAs first; each drop pairs with the best unused FA at the same position.
   const adds = league.freeAgents
     .filter((fa) => !owned.has(fa.espnId))
     .filter(
@@ -321,15 +327,20 @@ function buildOther(
     )
     .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints));
 
-  for (let i = 0; i < Math.min(2, drops.length, adds.length); i++) {
-    const drop = drops[i];
-    const add = adds[i];
-    if (!drop || !add) continue;
-    if (
-      pointsOrZero(add.projectedPoints) <
-      pointsOrZero(drop.projectedPoints) + 1
-    )
-      continue;
+  const usedAddIds = new Set<string>();
+  let dropAddCount = 0;
+  for (const drop of drops) {
+    if (dropAddCount >= 2) break;
+    const add = adds.find(
+      (fa) =>
+        !usedAddIds.has(fa.id) &&
+        fa.position === drop.position &&
+        pointsOrZero(fa.projectedPoints) >=
+          pointsOrZero(drop.projectedPoints) + 1,
+    );
+    if (!add) continue;
+    usedAddIds.add(add.id);
+    dropAddCount += 1;
 
     out.push({
       id: `drop-add-${drop.id}-${add.id}`,
@@ -346,6 +357,7 @@ function buildOther(
         `Projection uplift: +${(pointsOrZero(add.projectedPoints) - pointsOrZero(drop.projectedPoints)).toFixed(1)} if the add earns a role.`,
       ],
       relatedPlayerIds: [drop.id, add.id],
+      relatedPositions: [drop.position],
     });
   }
 

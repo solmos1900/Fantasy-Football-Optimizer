@@ -6,6 +6,7 @@ export type InjuryStatus =
   | "DOUBTFUL"
   | "OUT"
   | "IR"
+  | "PUP"
   | "SUSPENSION"
   | "UNKNOWN";
 
@@ -32,6 +33,12 @@ export interface WeeklyScore {
   projectedPoints?: number;
   /** Opponent abbreviation when known, e.g. CLE or @CLE */
   opponent?: string;
+  /**
+   * NFL team the player was on for this scoring week when known
+   * (e.g. ESPN stats[].proTeamId). Distinct from FantasyPlayer.nflTeam
+   * (current club) so mid-season trades keep correct past-week opponents.
+   */
+  nflTeam?: string;
 }
 
 /** Persisted / computed trend analyst labels (research brief). */
@@ -157,6 +164,11 @@ export interface LeagueData {
   freeAgents: FantasyPlayer[];
   lastSyncedAt: string;
   userTeamId?: number;
+  /**
+   * Non-fatal Sync/Connect problems (e.g. free-agent refresh failed).
+   * Cleared on the next successful refresh of that data.
+   */
+  syncWarnings?: string[];
 }
 
 export type InsightType =

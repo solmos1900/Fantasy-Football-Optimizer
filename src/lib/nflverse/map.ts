@@ -1,7 +1,7 @@
 /**
  * Map nflverse weekly player-stat rows → PlayerWeekStat usage columns.
  * Only real fields — never invent shares, RZ, or fantasy points.
- * Full-PPR actuals are derived from real box-score columns via the published formula.
+ * Full-PPR actuals prefer nflverse fantasy_points_ppr (component formula is a cross-check).
  */
 
 import { parseOptionalFloat } from "./csv";
@@ -31,7 +31,7 @@ export type NflverseUsageMapped = {
   /** Filled later from snap_counts when join succeeds; otherwise null. */
   snapShare: number | null;
   /**
-   * Full-PPR total computed from real nflverse box-score columns (not ESPN).
+   * Full-PPR total from nflverse fantasy_points_ppr (not ESPN).
    * Only written on leagueId="" rows — never invents missing yards/TDs.
    */
   actualPpr: number | null;

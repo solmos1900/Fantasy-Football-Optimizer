@@ -6,7 +6,7 @@
  * - Reject naked QB↔skill 1:1 (esp QB↔WR1); QB = package sweetener only.
  * - 2-for-1 ≈ star + 0–10% premium only if both pieces start.
  * - Scarcity: elite TE ≈ locked RB1 > volume WR1 > QB (1QB).
- * - Chip blend ~70% ROS/form + ~30% this-week proj; half-PPR only when lean flips.
+ * - Chip value = season PPG from played weeks (bye/missing proj ignored); half-PPR only when lean flips.
  * - Mutually beneficial For you / For them / Why accepted; optional sendables.
  *
  * Shared chip / need / hard-reject math lives in trade-value.ts (also used by

@@ -1,7 +1,11 @@
 /**
- * League-agnostic ESPN fantasy player pool (projections + injuries).
+ * League-agnostic ESPN fantasy player pool (projections + injuries + ownership).
  * Uses the season `/players?view=kona_player_info` endpoint — no league cookies.
- * Full-PPR totals are computed from ESPN category stats (honest formula).
+ *
+ * Product rule (guest / no-league pool): nflverse is the ONLY source of actual
+ * fantasy points. ESPN public data supplies injury status, ownership, and
+ * current-week projected category totals for persistence — never recentWeeks
+ * or completed-week actuals (mixed 2025/2026 season blocks caused #125).
  */
 
 import { EspnApiError } from "@/lib/espn/client";
@@ -11,7 +15,6 @@ import type {
   FantasyPlayer,
   InjuryStatus,
   PlayerPosition,
-  WeeklyScore,
 } from "@/lib/types";
 import { defaultEspnSeason } from "@/lib/season";
 
@@ -35,6 +38,7 @@ function injuryFromPlayer(player: Record<string, unknown>): InjuryStatus {
   if (upper.includes("DOUBTFUL")) return "DOUBTFUL";
   if (upper.includes("OUT")) return "OUT";
   if (upper.includes("INJURY") || upper === "IR") return "IR";
+  if (upper === "PUP" || upper.includes("PHYSICALLY UNABLE")) return "PUP";
   if (upper.includes("SUSPENSION")) return "SUSPENSION";
   return "ACTIVE";
 }
@@ -48,6 +52,7 @@ type EspnPlayerRow = {
   ownership?: { percentOwned?: number; percentStarted?: number };
   stats?: Array<{
     scoringPeriodId?: number;
+    seasonId?: number;
     statSourceId?: number;
     statSplitTypeId?: number;
     appliedTotal?: number | null;
@@ -90,36 +95,6 @@ export function mapEspnPublicPlayer(
       s.statSourceId === 1 &&
       s.statSplitTypeId === 1,
   );
-  const actualBlock = stats.find(
-    (s) =>
-      s.scoringPeriodId === scoringPeriodId &&
-      s.statSourceId === 0 &&
-      s.statSplitTypeId === 1,
-  );
-
-  const recentWeeks: WeeklyScore[] = [];
-  const byWeek = new Map<number, WeeklyScore>();
-  for (const s of stats) {
-    const week = Number(s.scoringPeriodId);
-    if (!week || week <= 0 || week >= scoringPeriodId) continue;
-    if (Number(s.statSplitTypeId) !== 1) continue;
-    const ppr = pprForStatBlock(s);
-    if (ppr == null) continue;
-    // points stays null until an actual (statSourceId 0) lands — never default to 0.
-    const existing = byWeek.get(week) ?? { week, points: null };
-    if (Number(s.statSourceId) === 0) {
-      existing.points = ppr;
-    } else if (Number(s.statSourceId) === 1) {
-      existing.projectedPoints = ppr;
-    }
-    byWeek.set(week, existing);
-  }
-  recentWeeks.push(
-    ...[...byWeek.values()]
-      .filter((w) => w.points != null || w.projectedPoints != null)
-      .sort((a, b) => b.week - a.week)
-      .slice(0, 6),
-  );
 
   const ownership = row.ownership ?? {};
 
@@ -130,13 +105,47 @@ export function mapEspnPublicPlayer(
     position,
     nflTeam: nflTeamFromEspn(Number(row.proTeamId ?? 0)),
     injuryStatus: injuryFromPlayer(row as Record<string, unknown>),
-    // Missing ESPN blocks → null; published 0.0 (including ducks) stays 0.
+    // Current-week projection only — used for short-TTL persist; display uses Sleeper.
     projectedPoints: pprForStatBlock(projectedBlock),
-    actualPoints: pprForStatBlock(actualBlock),
+    // Never emit ESPN actuals — nflverse owns completed-week points (#125).
+    actualPoints: null,
     percentOwned: Number(ownership.percentOwned ?? 0),
     percentStarted: Number(ownership.percentStarted ?? 0),
-    recentWeeks,
+    // Never emit ESPN recentWeeks — seasonId-unaware stats mixed 2025 into 2026.
+    recentWeeks: [],
   };
+}
+
+/**
+ * Overlay live ESPN public injury + ownership onto a DB-backed pool.
+ * Never replaces recentWeeks or actualPoints (nflverse / DB wins).
+ */
+export function overlayEspnInjuryOwnership(
+  existing: FantasyPlayer[],
+  fresh: FantasyPlayer[],
+): FantasyPlayer[] {
+  const byId = new Map(existing.map((p) => [p.espnId, p]));
+  for (const p of fresh) {
+    const prev = byId.get(p.espnId);
+    if (!prev) {
+      byId.set(p.espnId, {
+        ...p,
+        actualPoints: null,
+        recentWeeks: [],
+        // Projections come from Sleeper overlay later.
+        projectedPoints: 0,
+      });
+      continue;
+    }
+    byId.set(p.espnId, {
+      ...prev,
+      injuryStatus: p.injuryStatus,
+      percentOwned: p.percentOwned,
+      percentStarted: p.percentStarted,
+      name: p.name || prev.name,
+    });
+  }
+  return [...byId.values()];
 }
 
 /**

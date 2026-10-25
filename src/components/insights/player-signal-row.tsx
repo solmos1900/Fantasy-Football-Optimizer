@@ -53,9 +53,11 @@ function statusChip(status: PlayerSignal["status"]): {
           ? "O"
           : code === "IR"
             ? "IR"
-            : code === "SUSPENSION"
-              ? "SUS"
-              : code;
+            : code === "PUP"
+              ? "PUP"
+              : code === "SUSPENSION"
+                ? "SUS"
+                : code;
   return { show: true, code: short, className: statusColor(status) };
 }
 

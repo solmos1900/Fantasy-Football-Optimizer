@@ -97,13 +97,17 @@ assert.equal(mapped.position, "QB");
 assert.ok(
   mapped.projectedPoints != null && mapped.projectedPoints > 0,
 );
-assert.ok((mapped.recentWeeks?.length ?? 0) >= 1);
+// ESPN public must not emit completed-week actuals / recentWeeks (#125).
+assert.equal(mapped.actualPoints, null);
+assert.deepEqual(mapped.recentWeeks ?? [], []);
 
 const poolSrc = fs.readFileSync(
   path.join(process.cwd(), "src/lib/players/pool.ts"),
   "utf8",
 );
-assert.match(poolSrc, /ensureCompletedWeekIngest/);
+// Coverage notice for any week in 1..N; heavy ingest is cron-only (#136).
+assert.match(poolSrc, /findMissingNflverseWeeks/);
+assert.doesNotMatch(poolSrc, /backfillMissingNflverseWeeks/);
 assert.match(poolSrc, /POOL_PROJECTION_TTL_MS/);
 assert.doesNotMatch(poolSrc, /DEMO_LEAGUE/);
 
