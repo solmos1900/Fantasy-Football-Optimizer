@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { PendingLink } from "@/components/pending-link";
 import { cn } from "@/lib/utils";
 import { scrollToTopNow } from "@/components/scroll-to-top";
+import { BOT_CHECK_SITE_KEY, BotCheck } from "@/components/bot-check";
+
+const RATE_LIMITED_MESSAGE =
+  "Too many attempts from this network. Wait a few minutes and try again.";
+const BOT_CHECK_MESSAGE = "Please complete the human check and try again.";
 
 type FormMode = "signin" | "register" | "verify";
 export type LoginFlow = "account" | "guest";
@@ -30,6 +35,8 @@ export function LoginActions({
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [botToken, setBotToken] = useState<string | null>(null);
+  const botCheckPending = Boolean(BOT_CHECK_SITE_KEY) && !botToken;
 
   function goDashboard() {
     // Avoid Auth.js client redirect races that briefly hit a broken route / 404.
@@ -45,10 +52,17 @@ export function LoginActions({
     startTransition(async () => {
       const result = await signIn("guest", {
         name: guestName.trim() || "Guest",
+        botToken: botToken ?? "",
         redirect: false,
       });
       if (result?.error) {
-        setError("Guest sign-in failed. Check AUTH_SECRET and DATABASE_URL.");
+        setError(
+          result.code === "rate_limited"
+            ? RATE_LIMITED_MESSAGE
+            : result.code === "bot_check_failed"
+              ? BOT_CHECK_MESSAGE
+              : "Guest sign-in failed. Please try again in a moment.",
+        );
         return;
       }
       goDashboard();
@@ -140,6 +154,7 @@ export function LoginActions({
             name: name.trim() || undefined,
             email: email.trim(),
             password,
+            botToken: botToken ?? undefined,
           }),
         });
         const data = (await res.json().catch(() => ({}))) as {
@@ -182,6 +197,10 @@ export function LoginActions({
       });
 
       if (result?.error) {
+        if (result.code === "rate_limited") {
+          setError(RATE_LIMITED_MESSAGE);
+          return;
+        }
         setError(
           "Invalid email or password — or your email is not verified yet. Create an account / enter your verification code if you just signed up.",
         );
@@ -213,12 +232,13 @@ export function LoginActions({
               className="field-input"
             />
           </label>
+          <BotCheck onToken={setBotToken} />
           <Button
             type="button"
             variant="primary"
             size="lg"
             className="w-full"
-            disabled={pending}
+            disabled={pending || botCheckPending}
             loading={pending}
             onClick={handleGuest}
           >
@@ -457,12 +477,13 @@ export function LoginActions({
             </span>
           )}
         </label>
+        {formMode === "register" && <BotCheck onToken={setBotToken} />}
         <Button
           type="submit"
           variant="secondary"
           size="lg"
           className="w-full"
-          disabled={pending}
+          disabled={pending || (formMode === "register" && botCheckPending)}
           loading={pending}
         >
           {pending

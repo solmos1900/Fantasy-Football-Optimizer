@@ -112,13 +112,26 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
             {/* Guest + Sign out: auto column — always fully visible */}
             <div className="flex shrink-0 items-center justify-end gap-2.5 sm:gap-3">
               {data?.user?.isGuest ? (
-                <span className="stamp stamp-start shrink-0 text-[10px]">
+                <PendingLink
+                  href="/account"
+                  aria-label="Guest account"
+                  className="stamp stamp-start shrink-0 text-[10px]"
+                  contentClassName="gap-0"
+                >
                   Guest
-                </span>
+                </PendingLink>
               ) : (
-                <span className="hidden max-w-[10rem] truncate text-sm text-emerald-950/60 md:inline">
-                  {data?.user?.name ?? data?.user?.email}
-                </span>
+                <PendingLink
+                  href="/account"
+                  aria-label="Account"
+                  className="max-w-[10rem] truncate px-1 py-1 text-xs font-medium text-emerald-950/60 hover:text-orange-700 sm:text-sm"
+                  contentClassName="gap-0"
+                >
+                  <span className="hidden md:inline">
+                    {data?.user?.name ?? data?.user?.email ?? "Account"}
+                  </span>
+                  <span className="md:hidden">Account</span>
+                </PendingLink>
               )}
               <Button
                 type="button"

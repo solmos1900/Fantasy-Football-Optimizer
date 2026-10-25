@@ -1,6 +1,6 @@
 import { prisma } from "../src/lib/db";
 import { buildAuthoritativeRosterMap } from "../src/lib/players/roster-authority";
-import { getNoLeaguePlayerPool } from "../src/lib/players/pool";
+import { getNoLeaguePlayerPool } from "../src/lib/players/pool-snapshot";
 import {
   fetchSleeperProjections,
   sleeperProjForPlayer,

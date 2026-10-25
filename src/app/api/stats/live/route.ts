@@ -5,7 +5,7 @@ import { getLiveStats } from "@/lib/stats/provider";
 import { enforceRateLimit } from "@/lib/http/api-guard";
 
 export async function GET(request: Request) {
-  const limited = enforceRateLimit(request, {
+  const limited = await enforceRateLimit(request, {
     bucket: "stats-live",
     limit: 60,
     windowMs: 60_000,

@@ -11,7 +11,7 @@
  */
 
 import assert from "node:assert/strict";
-import { getNoLeaguePlayerPool } from "../src/lib/players/pool";
+import { getNoLeaguePlayerPool } from "../src/lib/players/pool-snapshot";
 import { buildAuthoritativeRosterMap } from "../src/lib/players/roster-authority";
 import { loadSleeperRosterDirectory } from "../src/lib/sleeper/players";
 import {

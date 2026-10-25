@@ -16,7 +16,9 @@ import {
   syncNflverseFreshnessIssues,
 } from "@/lib/accuracy/data-issues";
 import { persistNflverseSyncRun } from "@/lib/nflverse/sync-log";
+import { errorMessage, sendOpsAlert } from "@/lib/ops/alert";
 import { assessWeekCompleteness } from "@/lib/nflverse/week-completeness";
+import { refreshPlayerPoolSnapshot } from "@/lib/players/pool-snapshot";
 
 export const runtime = "nodejs";
 /** Weekly CSV fetch + batch upserts can exceed the default hobby limit. */
@@ -125,6 +127,10 @@ export async function GET(request: Request) {
       await persistGoldenCheckResult(goldenResult);
       golden = goldenResult;
       if (!goldenResult.ok) {
+        await sendOpsAlert({
+          title: "Golden accuracy check failed",
+          detail: `${goldenResult.failureCount} mismatch(es):\n${goldenResult.failures.slice(0, 5).join("\n")}`,
+        });
         console.error(
           "[cron/nflverse-usage] golden accuracy failed",
           goldenResult.failureCount,
@@ -150,7 +156,25 @@ export async function GET(request: Request) {
       };
     }
 
+    // New completed-week actuals → rebuild the served pool snapshot now
+    // rather than waiting for the next stale read.
+    let poolSnapshotStored: boolean | null = null;
+    try {
+      poolSnapshotStored = (await refreshPlayerPoolSnapshot()).stored;
+    } catch (pErr) {
+      console.error("[cron/nflverse-usage] pool snapshot refresh failed", pErr);
+    }
+
     const completeness = await assessWeekCompleteness({ season, week });
+    if (completeness.stale) {
+      await sendOpsAlert({
+        severity: "warning",
+        title: `nflverse data stale for ${season} week ${week}`,
+        detail: `weekComplete=${completeness.weekComplete} missingTeams=${(completeness.missingTeams ?? []).join(",") || "—"}`,
+        dedupeKey: `nflverse-stale:${season}:${week}`,
+      });
+    }
+
     const freshnessIssues = await syncNflverseFreshnessIssues({
       season,
       week,
@@ -211,12 +235,17 @@ export async function GET(request: Request) {
       },
       golden,
       poolValidation,
+      poolSnapshotStored,
       completeness,
       freshnessIssues,
     });
   } catch (err) {
     console.error("[cron/nflverse-usage] failed", err);
     const message = err instanceof Error ? err.message : "nflverse ingest failed";
+    await sendOpsAlert({
+      title: `nflverse cron failed (${season} week ${week ?? "?"})`,
+      detail: errorMessage(err),
+    });
 
     try {
       await persistNflverseSyncRun({

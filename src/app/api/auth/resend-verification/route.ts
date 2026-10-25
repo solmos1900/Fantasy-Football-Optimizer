@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { enforceRateLimit } from "@/lib/http/api-guard";
 import { resendEmailVerification } from "@/lib/auth/email-verification";
 
 const ResendSchema = z.object({
@@ -8,6 +9,13 @@ const ResendSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit(request, {
+    bucket: "resend-verification",
+    limit: 5,
+    windowMs: 10 * 60_000,
+  });
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();

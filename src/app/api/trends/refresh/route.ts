@@ -15,7 +15,7 @@ import {
  */
 export async function POST(request: Request) {
   const { enforceRateLimit } = await import("@/lib/http/api-guard");
-  const limited = enforceRateLimit(request, {
+  const limited = await enforceRateLimit(request, {
     bucket: "trends-refresh",
     limit: 20,
     windowMs: 60_000,

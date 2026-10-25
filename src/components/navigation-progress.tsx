@@ -12,10 +12,13 @@ export function NavigationProgress() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
+  // Hide the strip once the URL commits (reset-on-change during render).
+  const routeKey = `${pathname}?${searchParams?.toString() ?? ""}`;
+  const [shownForRoute, setShownForRoute] = useState(routeKey);
+  if (shownForRoute !== routeKey) {
+    setShownForRoute(routeKey);
     setVisible(false);
-  }, [pathname, searchParams]);
+  }
 
   useEffect(() => {
     function onClick(e: MouseEvent) {

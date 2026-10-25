@@ -14,6 +14,7 @@ import { formatUpdatedHm } from "@/lib/insights/format-null";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import type { FantasyTeam } from "@/lib/types";
+import { useIsClient } from "@/lib/use-client-state";
 
 function PulseStrip({ pulse }: { pulse: InsightsSignalsBundle["pulse"] }) {
   const bits: { label: string; names: string; tone: string }[] = [];
@@ -80,8 +81,7 @@ function RosterDialog({
   onClose: () => void;
   sleeperByEspn: Map<number, number | null>;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsClient();
 
   useEffect(() => {
     if (!open) return;

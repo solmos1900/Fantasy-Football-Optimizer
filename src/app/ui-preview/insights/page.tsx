@@ -1,6 +1,6 @@
 import { InsightsBoard } from "@/components/insights/insights-board";
 import { buildRosterInsightsSignals } from "@/lib/insights/roster-signals";
-import { getNoLeaguePlayerPool } from "@/lib/players/pool";
+import { getNoLeaguePlayerPool } from "@/lib/players/pool-snapshot";
 import type { FantasyTeam } from "@/lib/types";
 
 /**

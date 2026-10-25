@@ -423,19 +423,26 @@ async function loadPlayersFromDb(options: {
 }
 
 /**
- * Build / refresh the no-league player pool. Safe for guests and signed-in users.
+ * Build the no-league player pool from the DB plus upstream feeds (ESPN,
+ * Sleeper, nflverse authority). Slow and write-heavy — never call this on a
+ * page request; use getNoLeaguePlayerPool(), which serves the stored snapshot.
+ *
+ * `degraded` is true when the NFL scoreboard could not be read, so the week
+ * context is a fallback and the result must not replace a good snapshot.
  */
-export async function getNoLeaguePlayerPool(options?: {
+export async function buildNoLeaguePlayerPool(options?: {
   forceRefresh?: boolean;
-}): Promise<PlayerPoolBundle> {
+}): Promise<PlayerPoolBundle & { degraded: boolean }> {
   const force = Boolean(options?.forceRefresh);
   let warning: string | null = null;
+  let degraded = false;
   const season = defaultEspnSeason();
 
   let weekSnap;
   try {
     weekSnap = await fetchNflWeekSnapshot(season);
   } catch (err) {
+    degraded = true;
     const message = err instanceof Error ? err.message : String(err);
     warning = `Could not read the NFL scoreboard (${message}). Showing whatever is already in the database.`;
     weekSnap = {
@@ -590,18 +597,25 @@ export async function getNoLeaguePlayerPool(options?: {
       take: 2000,
     });
     const nowFa = new Date();
-    for (const stub of faStubs) {
+    const stubFixes = faStubs.flatMap((stub) => {
       const auth = roster.byEspnId.get(stub.espnId);
-      if (!auth?.pickerEligible || auth.nflTeam === "FA") continue;
-      await prisma.player.update({
-        where: { espnId: stub.espnId },
-        data: {
-          nflTeam: auth.nflTeam,
-          ...(auth.sleeperId ? { sleeperId: auth.sleeperId } : {}),
-          ...(auth.gsisId ? { gsisId: auth.gsisId } : {}),
-          updatedAt: nowFa,
-        },
-      });
+      if (!auth?.pickerEligible || auth.nflTeam === "FA") return [];
+      return [{ espnId: stub.espnId, auth }];
+    });
+    for (let i = 0; i < stubFixes.length; i += 100) {
+      await Promise.all(
+        stubFixes.slice(i, i + 100).map(({ espnId, auth }) =>
+          prisma.player.update({
+            where: { espnId },
+            data: {
+              nflTeam: auth.nflTeam,
+              ...(auth.sleeperId ? { sleeperId: auth.sleeperId } : {}),
+              ...(auth.gsisId ? { gsisId: auth.gsisId } : {}),
+              updatedAt: nowFa,
+            },
+          }),
+        ),
+      );
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -745,5 +759,6 @@ export async function getNoLeaguePlayerPool(options?: {
     trends: {},
     freshness,
     contextLeague,
+    degraded,
   };
 }

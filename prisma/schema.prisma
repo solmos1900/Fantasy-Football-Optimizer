@@ -614,3 +614,48 @@ model ChatRateLimit {
   @@unique([bucketKey, dayKey])
   @@index([dayKey])
 }
+
+/// Fixed-window request counters shared across serverless instances
+/// (replaces the per-instance in-memory Map). Purged by the cleanup cron.
+model ApiRateLimit {
+  id          String   @id @default(cuid())
+  /// e.g. "register:ip:<hash>" or "login:email:<hash>"
+  bucketKey   String
+  /// Start of the fixed window this counter belongs to
+  windowStart DateTime
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([bucketKey, windowStart])
+  @@index([windowStart])
+}
+
+/// One row per chat turn: model token usage for cost metering / billing.
+model ChatUsage {
+  id             String   @id @default(cuid())
+  /// Signed-in or guest user id. No FK so usage history survives guest wipes.
+  userId         String?
+  isGuest        Boolean  @default(false)
+  conversationId String?
+  model          String
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  totalTokens    Int      @default(0)
+  steps          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+/// Assembled no-league player pool, served to every page/chat request.
+/// Rebuilt in the background (after the response, or by cron) instead of on
+/// the request path. `refreshStartedAt` is a lease so only one rebuild runs.
+model PlayerPoolSnapshot {
+  /// e.g. "nfl-pool:2026"
+  key              String    @id
+  payload          Json
+  builtAt          DateTime
+  refreshStartedAt DateTime?
+  updatedAt        DateTime  @updatedAt
+}

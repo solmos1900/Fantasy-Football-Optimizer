@@ -2,7 +2,7 @@
  * Resolve ESPN ids → FantasyPlayer from the no-league pool (or league roster union).
  */
 
-import { getNoLeaguePlayerPool } from "@/lib/players/pool";
+import { getNoLeaguePlayerPool } from "@/lib/players/pool-snapshot";
 import { getLeagueDataForUser } from "@/lib/league/service";
 import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";

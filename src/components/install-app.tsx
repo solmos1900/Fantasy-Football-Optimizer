@@ -14,6 +14,7 @@ import {
 } from "@/lib/pwa";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useClientValue, useIsClient } from "@/lib/use-client-state";
 
 const APP_TAB_BAR_ROUTES = [
   "/dashboard",
@@ -147,11 +148,7 @@ export function InstallHowToLink({
  * Hidden when already running as a Home Screen / standalone app.
  */
 export function InstallHeroCta() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    setShow(!isStandaloneDisplay());
-  }, []);
+  const show = !useClientValue(isStandaloneDisplay, true);
 
   if (!show) return null;
 
@@ -177,20 +174,15 @@ export function InstallAppExperience() {
   const titleId = useId();
   const pathname = usePathname();
   const aboveTabBar = hasAppTabBar(pathname);
-  const [ready, setReady] = useState(false);
-  const [standalone, setStandalone] = useState(true);
-  const [bannerVisible, setBannerVisible] = useState(false);
+  const ready = useIsClient();
+  const standalone = useClientValue(isStandaloneDisplay, true);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState<GuideMode>("generic");
   const [copied, setCopied] = useState(false);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
-    const standaloneNow = isStandaloneDisplay();
-    setStandalone(standaloneNow);
-    setMode(detectGuideMode());
-    setReady(true);
-
     function onOpen() {
       setMode(detectGuideMode());
       setSheetOpen(true);
@@ -206,19 +198,17 @@ export function InstallAppExperience() {
   // Soft banner for in-app iPhone/iPad browser sessions only.
   // Landing/login use hero / How to install — keep the banner off so it cannot
   // cover those CTAs (fixed bottom overlay previously blocked login taps).
+  const bannerVisible =
+    ready &&
+    !standalone &&
+    !bannerDismissed &&
+    isIosDevice() &&
+    !wasInstallDismissed() &&
+    !isMarketingInstallRoute(pathname);
+
   useEffect(() => {
-    if (!ready || standalone) {
-      setBannerVisible(false);
-      setInstallBannerOffset(false);
-      return;
-    }
-    const showBanner =
-      isIosDevice() &&
-      !wasInstallDismissed() &&
-      !isMarketingInstallRoute(pathname);
-    setBannerVisible(showBanner);
-    setInstallBannerOffset(showBanner);
-  }, [ready, standalone, pathname]);
+    setInstallBannerOffset(bannerVisible);
+  }, [bannerVisible]);
 
   function closeSheet() {
     setSheetOpen(false);
@@ -226,7 +216,7 @@ export function InstallAppExperience() {
 
   function dismissBanner() {
     dismissInstallPrompt();
-    setBannerVisible(false);
+    setBannerDismissed(true);
     setSheetOpen(false);
   }
 

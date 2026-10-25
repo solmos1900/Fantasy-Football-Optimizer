@@ -5,7 +5,7 @@ import {
   enrichPlayersWithSnapshots,
   loadTrendMap,
 } from "@/lib/insights/trends";
-import { getNoLeaguePlayerPool } from "@/lib/players/pool";
+import { getNoLeaguePlayerPool } from "@/lib/players/pool-snapshot";
 import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
 import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import { TradesHub } from "@/components/trades-hub";
