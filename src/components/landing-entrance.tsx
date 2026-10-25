@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/use-client-state";
 
 /**
  * Landing first-paint entrance — short staged fade/rise after mount.
@@ -19,16 +20,12 @@ export function LandingEntrance({
   children: ReactNode;
   className?: string;
 }) {
-  const [phase, setPhase] = useState<"boot" | "animate" | "done" | "static">(
-    "boot",
-  );
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const [animPhase, setPhase] = useState<"boot" | "animate" | "done">("boot");
+  const phase = reducedMotion ? "static" : animPhase;
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (mq.matches) {
-      setPhase("static");
-      return;
-    }
+    if (reducedMotion) return;
     let raf2 = 0;
     let doneTimer = 0;
     const raf1 = requestAnimationFrame(() => {
@@ -43,7 +40,7 @@ export function LandingEntrance({
       cancelAnimationFrame(raf2);
       window.clearTimeout(doneTimer);
     };
-  }, []);
+  }, [reducedMotion]);
 
   return (
     <div

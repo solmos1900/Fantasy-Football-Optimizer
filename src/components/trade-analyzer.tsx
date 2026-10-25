@@ -44,6 +44,7 @@ import {
   isTradeSelectablePlayer,
   tradeIneligibleReason,
 } from "@/lib/insights/trade-eligibility";
+import { useIsClient } from "@/lib/use-client-state";
 
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
@@ -492,10 +493,7 @@ function SelectedSummary({
  * Offset matches the install-banner tab clearance.
  */
 function StickyStepActions({ children }: { children: ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsClient();
 
   // Extra spacer when the iOS install soft-banner is lifting the CTA.
   const spacerClass =

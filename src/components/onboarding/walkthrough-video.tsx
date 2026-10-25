@@ -20,28 +20,30 @@ export function WalkthroughVideo({
   title = "Walkthrough video",
   className,
 }: Props) {
-  const [status, setStatus] = useState<"loading" | "ready" | "missing">(
-    src?.trim() ? "loading" : "missing",
-  );
+  const url = src?.trim() ?? "";
+  const isRemote = /^https?:\/\//i.test(url);
+  // Result of the probe / <video> error, keyed by the URL it applies to so a
+  // new src starts from "loading" without a synchronous reset in an effect.
+  const [probe, setProbe] = useState<{
+    url: string;
+    status: "ready" | "missing";
+  } | null>(null);
+  const probed = probe?.url === url ? probe.status : null;
+  const status: "loading" | "ready" | "missing" = !url
+    ? "missing"
+    : (probed ?? (isRemote ? "ready" : "loading"));
+  const setStatus = (next: "ready" | "missing") => setProbe({ url, status: next });
 
   useEffect(() => {
-    const url = src?.trim();
-    if (!url) {
-      setStatus("missing");
-      return;
-    }
+    // Remote URLs go straight to <video> and rely on onError.
+    if (!url || isRemote) return;
 
     let cancelled = false;
-    setStatus("loading");
+    const report = (next: "ready" | "missing") => {
+      if (!cancelled) setProbe({ url, status: next });
+    };
 
     // Prefer a 1-byte Range GET — Next.dev HEAD on missing public files can hang.
-    // Remote URLs fall through to <video> and use onError.
-    const isRemote = /^https?:\/\//i.test(url);
-    if (isRemote) {
-      setStatus("ready");
-      return;
-    }
-
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 3000);
 
@@ -52,19 +54,15 @@ export function WalkthroughVideo({
       signal: controller.signal,
     })
       .then(async (res) => {
-        if (cancelled) return;
         if (!(res.ok || res.status === 206)) {
-          setStatus("missing");
+          report("missing");
           return;
         }
         const buf = await res.arrayBuffer();
-        if (cancelled) return;
         // Zero-byte stubs must show the honest placeholder.
-        setStatus(buf.byteLength > 0 ? "ready" : "missing");
+        report(buf.byteLength > 0 ? "ready" : "missing");
       })
-      .catch(() => {
-        if (!cancelled) setStatus("missing");
-      })
+      .catch(() => report("missing"))
       .finally(() => {
         window.clearTimeout(timer);
       });
@@ -74,7 +72,7 @@ export function WalkthroughVideo({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [src]);
+  }, [url, isRemote]);
 
   if (status === "missing" || !src?.trim()) {
     return (

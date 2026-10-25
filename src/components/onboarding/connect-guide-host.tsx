@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { ConnectGuide } from "@/components/onboarding/connect-guide";
 import {
   hasSeenConnectGuide,
   markConnectGuideSeen,
 } from "@/lib/onboarding/storage";
+import { useIsClient } from "@/lib/use-client-state";
 
 /**
  * Mounts the connect guide once after account creation or guest entry.
@@ -14,21 +15,20 @@ import {
  */
 export function ConnectGuideHost() {
   const { data: session, status } = useSession();
-  const [open, setOpen] = useState(false);
+  const isClient = useIsClient();
+  const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    if (status !== "authenticated" || !session?.user?.id) return;
-    const isGuest = Boolean(session.user.isGuest);
-    if (
-      hasSeenConnectGuide({
-        userId: session.user.id,
-        isGuest,
-      })
-    ) {
-      return;
-    }
-    setOpen(true);
-  }, [status, session?.user?.id, session?.user?.isGuest]);
+  // Storage is read during render only after hydration (isClient), so SSR and
+  // the first client render agree.
+  const open =
+    isClient &&
+    !dismissed &&
+    status === "authenticated" &&
+    Boolean(session?.user?.id) &&
+    !hasSeenConnectGuide({
+      userId: session!.user!.id!,
+      isGuest: Boolean(session?.user?.isGuest),
+    });
 
   function dismiss() {
     if (session?.user?.id) {
@@ -37,7 +37,7 @@ export function ConnectGuideHost() {
         isGuest: Boolean(session.user.isGuest),
       });
     }
-    setOpen(false);
+    setDismissed(true);
   }
 
   return <ConnectGuide open={open} onDismiss={dismiss} />;

@@ -22,6 +22,7 @@ import {
 import { PositionChip } from "@/components/position-chip";
 import { Button } from "@/components/ui/button";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
+import { useIsClient } from "@/lib/use-client-state";
 
 type SlotFilter = "QB" | "RB" | "WR" | "TE" | "FLEX" | "DEF";
 
@@ -553,10 +554,7 @@ function RosterModal({
   flexPick: FantasyPlayer | null;
   onPickFlex?: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsClient();
 
   useEffect(() => {
     if (!open) return;

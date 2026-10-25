@@ -128,8 +128,9 @@ const selectPrompt = fs.readFileSync(
 assert.match(selectPrompt, /Choose your team/);
 assert.match(selectPrompt, /\/connect#espn/);
 
+// Home (/dashboard) is the chat landing and does not need a picked team;
+// roster-dependent pages still gate on SelectTeamPrompt.
 for (const rel of [
-  "src/app/(app)/dashboard/page.tsx",
   "src/app/(app)/team/page.tsx",
   "src/app/(app)/trades/page.tsx",
   "src/app/(app)/insights/page.tsx",

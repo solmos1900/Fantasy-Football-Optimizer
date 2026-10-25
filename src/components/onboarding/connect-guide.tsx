@@ -90,11 +90,15 @@ export function ConnectGuide({ open, onDismiss }: Props) {
   const isLastPlatform =
     platformId === ONBOARDING_PLATFORMS[ONBOARDING_PLATFORMS.length - 1]?.id;
 
-  useEffect(() => {
-    if (!open) return;
-    setPlatformId("espn");
-    setStepIndex(0);
-  }, [open]);
+  // Restart at ESPN step 1 each time the guide opens (reset during render).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) {
+      setPlatformId("espn");
+      setStepIndex(0);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
