@@ -1,6 +1,6 @@
 import { StartSitBoard } from "@/components/start-sit-board";
 import { PositionChip } from "@/components/position-chip";
-import { getNoLeaguePlayerPool } from "@/lib/players/pool";
+import { getNoLeaguePlayerPool } from "@/lib/players/pool-snapshot";
 import {
   computeTrendsFromLeague,
   enrichPlayersWithSnapshots,

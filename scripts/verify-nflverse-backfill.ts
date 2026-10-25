@@ -84,7 +84,7 @@ async function liveChecks() {
     return;
   }
 
-  const { getNoLeaguePlayerPool } = await import("../src/lib/players/pool");
+  const { getNoLeaguePlayerPool } = await import("../src/lib/players/pool-snapshot");
   const { isTradeSelectablePlayer } = await import(
     "../src/lib/insights/trade-eligibility"
   );

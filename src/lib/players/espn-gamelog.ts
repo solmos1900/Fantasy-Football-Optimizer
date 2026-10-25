@@ -16,6 +16,7 @@
  */
 
 import { fullPprFromCategories } from "@/lib/players/scoring";
+import { ESPN_TIMEOUT_MS } from "@/lib/espn/timeouts";
 
 export type EspnGamelogWeek = {
   week: number;
@@ -169,6 +170,7 @@ export async function fetchEspnGamelogPpr(options: {
     const res = await fetch(url, {
       headers: { Accept: "application/json" },
       cache: "no-store",
+      signal: AbortSignal.timeout(ESPN_TIMEOUT_MS),
     });
     if (!res.ok) return [];
     const g = (await res.json()) as EspnGamelogJson;

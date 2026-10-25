@@ -1,5 +1,6 @@
 import type { FantasyPlayer, PlayerNewsItem } from "@/lib/types";
 import { formatStatusCode } from "@/lib/utils";
+import { ESPN_TIMEOUT_MS } from "@/lib/espn/timeouts";
 
 // Re-export name used by call sites that expect PlayerNewsItem
 export type { PlayerNewsItem };
@@ -32,6 +33,7 @@ export async function fetchEspnPlayerNews(
     const res = await fetch(`${ESPN_NEWS}?limit=50`, {
       headers: { Accept: "application/json" },
       next: { revalidate: 300 },
+      signal: AbortSignal.timeout(ESPN_TIMEOUT_MS),
     });
     if (res.ok) {
       const raw = (await res.json()) as {
@@ -78,6 +80,7 @@ export async function fetchEspnPlayerNews(
     const res = await fetch(ESPN_INJURIES, {
       headers: { Accept: "application/json" },
       next: { revalidate: 300 },
+      signal: AbortSignal.timeout(ESPN_TIMEOUT_MS),
     });
     if (res.ok) {
       const raw = (await res.json()) as {

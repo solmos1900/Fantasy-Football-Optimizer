@@ -30,6 +30,11 @@ import {
 import { finiteEspnAppliedTotal } from "@/lib/espn/stats";
 import type { EspnPlayerStatBlock, EspnRawPlayer } from "@/lib/espn/types";
 import { defaultEspnSeason } from "@/lib/season";
+import { secureFetch } from "@/lib/http/secure-fetch";
+import {
+  ESPN_SCOREBOARD_TIMEOUT_MS,
+  ESPN_TIMEOUT_MS,
+} from "@/lib/espn/timeouts";
 
 const ESPN_BASE = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
 
@@ -123,15 +128,26 @@ async function espnFetch(
   }
 
   const cookie = cookieHeader(creds.swid, creds.espnS2);
-  const res = await fetch(url.toString(), {
+  // Bounded time + one retry on network errors / 5xx (GET is idempotent).
+  const res = await secureFetch(url.toString(), {
     headers: {
       Accept: "application/json",
       ...(cookie ? { Cookie: cookie } : {}),
       ...headers,
     },
+    timeoutMs: ESPN_TIMEOUT_MS,
+    retries: 1,
     ...(options.bypassCache
       ? { cache: "no-store" as const }
       : { next: { revalidate: 60 } }),
+  }).catch((err: unknown) => {
+    const timedOut = err instanceof Error && err.name === "AbortError";
+    throw new EspnApiError(
+      timedOut
+        ? "ESPN did not respond in time. Try Sync again in a minute."
+        : "Could not reach ESPN. Try Sync again in a minute.",
+      504,
+    );
   });
 
   if (!res.ok) {
@@ -475,9 +491,11 @@ export async function fetchEspnScoreboard(week?: number, season?: number): Promi
     url.searchParams.set("week", String(week));
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await secureFetch(url.toString(), {
     headers: { Accept: "application/json" },
     next: { revalidate: 30 },
+    timeoutMs: ESPN_SCOREBOARD_TIMEOUT_MS,
+    retries: 1,
   });
   if (!res.ok) {
     throw new EspnApiError(`Scoreboard error ${res.status}`, res.status);

@@ -17,6 +17,7 @@ import type {
   PlayerPosition,
 } from "@/lib/types";
 import { defaultEspnSeason } from "@/lib/season";
+import { ESPN_TIMEOUT_MS } from "@/lib/espn/timeouts";
 
 const ESPN_PLAYERS_BASE =
   "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons";
@@ -177,6 +178,7 @@ export async function fetchEspnPublicSkillPlayers(options: {
       "x-fantasy-filter": JSON.stringify(filter),
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(ESPN_TIMEOUT_MS),
   });
 
   if (!res.ok) {

@@ -647,3 +647,15 @@ model ChatUsage {
   @@index([userId, createdAt])
   @@index([createdAt])
 }
+
+/// Assembled no-league player pool, served to every page/chat request.
+/// Rebuilt in the background (after the response, or by cron) instead of on
+/// the request path. `refreshStartedAt` is a lease so only one rebuild runs.
+model PlayerPoolSnapshot {
+  /// e.g. "nfl-pool:2026"
+  key              String    @id
+  payload          Json
+  builtAt          DateTime
+  refreshStartedAt DateTime?
+  updatedAt        DateTime  @updatedAt
+}

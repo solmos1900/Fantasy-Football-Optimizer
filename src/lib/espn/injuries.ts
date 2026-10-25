@@ -12,6 +12,7 @@
 
 import type { InjuryStatus, PlayerPosition } from "@/lib/types";
 import { normalizePlayerNameKey } from "@/lib/nflverse/weekly-roster";
+import { ESPN_TIMEOUT_MS } from "@/lib/espn/timeouts";
 
 export type EspnInjuryRow = {
   name: string;
@@ -123,7 +124,7 @@ export async function fetchEspnInjuryReport(): Promise<EspnInjuryRow[]> {
   try {
     const res = await fetch(
       "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",
-      { next: { revalidate: 600 } },
+      { next: { revalidate: 600 }, signal: AbortSignal.timeout(ESPN_TIMEOUT_MS) },
     );
     if (!res.ok) return [];
     const data = (await res.json()) as {
