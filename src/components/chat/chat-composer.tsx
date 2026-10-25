@@ -10,10 +10,9 @@ import {
 import { ArrowUp } from "lucide-react";
 import { MentionTypeahead } from "@/components/chat/mention-typeahead";
 import {
+  encodeReadableMentions,
   extractMentionQuery,
-  insertMentionChip,
-  mentionChipsToDisplay,
-  parseMentionChips,
+  insertReadableMention,
   type MentionHit,
 } from "@/lib/chat/mention-search";
 import { cn } from "@/lib/utils";
@@ -31,16 +30,32 @@ export function ChatComposer({
 }: Props) {
   const [text, setText] = useState("");
   const [cursor, setCursor] = useState(0);
+  // Players picked from the typeahead. The textarea shows "@Name (TEAM)";
+  // ids ride alongside and are encoded into chip tokens only on send.
+  const [picked, setPicked] = useState<{ espnId: number; label: string }[]>([]);
+  // Start index of an @-query the user dismissed with Escape.
+  const [dismissedAt, setDismissedAt] = useState<number | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const mention = extractMentionQuery(text, cursor);
+  const rawMention = extractMentionQuery(
+    text,
+    cursor,
+    picked.map((p) => p.label),
+  );
+  const mention =
+    rawMention && rawMention.start !== dismissedAt ? rawMention : null;
 
   const selectMention = useCallback(
     (hit: MentionHit) => {
       if (!mention) return;
-      const next = insertMentionChip(text, mention.start, mention.end, hit);
+      const next = insertReadableMention(text, mention.start, mention.end, hit);
       setText(next.text);
       setCursor(next.cursor);
+      setPicked((prev) =>
+        prev.some((p) => p.espnId === hit.espnId)
+          ? prev
+          : [...prev, { espnId: hit.espnId, label: next.label }],
+      );
       requestAnimationFrame(() => {
         const el = taRef.current;
         if (!el) return;
@@ -54,10 +69,12 @@ export function ChatComposer({
   function submit() {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
-    const ids = parseMentionChips(trimmed).map((m) => m.espnId);
-    onSend(trimmed, ids);
+    const encoded = encodeReadableMentions(trimmed, picked);
+    onSend(encoded.text, encoded.espnIds);
     setText("");
     setCursor(0);
+    setPicked([]);
+    setDismissedAt(null);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -78,11 +95,6 @@ export function ChatComposer({
     submit();
   }
 
-  const displayPreview =
-    parseMentionChips(text).length > 0
-      ? mentionChipsToDisplay(text)
-      : null;
-
   return (
     <form
       data-testid="chat-composer"
@@ -93,9 +105,7 @@ export function ChatComposer({
         open={Boolean(mention)}
         query={mention?.query ?? ""}
         onSelect={selectMention}
-        onClose={() => {
-          /* leave text; user can Esc via typeahead */
-        }}
+        onClose={() => setDismissedAt(mention?.start ?? null)}
       />
       <div
         className={cn(
@@ -143,9 +153,6 @@ export function ChatComposer({
           <ArrowUp className="h-5 w-5" />
         </button>
       </div>
-      {displayPreview ? (
-        <p className="sr-only">{displayPreview}</p>
-      ) : null}
     </form>
   );
 }
