@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { refreshPlayerPoolSnapshot } from "@/lib/players/pool-snapshot";
+import { errorMessage, sendOpsAlert } from "@/lib/ops/alert";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
     });
   } catch (err) {
     console.error("[cron/pool-refresh] failed", err);
+    await sendOpsAlert({ title: "Player pool refresh cron failed", detail: errorMessage(err) });
     const message = err instanceof Error ? err.message : "pool refresh failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -18,6 +18,8 @@ export type CleanupResult = {
   orphanWeekStatsDeleted: number;
   orphanTrendsDeleted: number;
   demoStatsDeleted: number;
+  /** Expired ApiRateLimit windows + ChatRateLimit days older than a week. */
+  rateLimitRowsDeleted: number;
   guestTtlHours: number;
   cutoffIso: string;
 };
@@ -119,6 +121,19 @@ export async function runEphemeralCleanup(options?: {
   });
   const demoStatsDeleted = demoWeeks.count + demoTrends.count;
 
+  // Counters are only read for the current window/day; keep a short tail for
+  // debugging. ChatUsage (billing record) is intentionally not purged here.
+  const apiLimits = await prisma.apiRateLimit.deleteMany({
+    where: { windowStart: { lt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) } },
+  });
+  const chatLimitCutoffDay = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const chatLimits = await prisma.chatRateLimit.deleteMany({
+    where: { dayKey: { lt: chatLimitCutoffDay } },
+  });
+  const rateLimitRowsDeleted = apiLimits.count + chatLimits.count;
+
   return {
     guestsDeleted: guestDelete.count,
     sessionsDeleted: sessionsDeleted.count,
@@ -127,6 +142,7 @@ export async function runEphemeralCleanup(options?: {
     orphanWeekStatsDeleted,
     orphanTrendsDeleted,
     demoStatsDeleted,
+    rateLimitRowsDeleted,
     guestTtlHours,
     cutoffIso: cutoff.toISOString(),
   };
