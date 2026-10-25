@@ -29,3 +29,18 @@ Model id: `CHAT_MODEL_ID` in `src/lib/chat/config.ts` (default `google/gemini-2.
 - **Guests:** conversations in `localStorage`; rate limit by IP + guest user id.
 - **Signed-in:** conversations in Neon; higher daily cap.
 - **Screenshot QA:** `/ui-preview/chat` loads `live-sample.json` from `npm run build:chat-live-sample` (Sleeper + nflverse + ESPN → same tool runners). Sources: `docs/screenshots/CHAT_SCREENSHOT_SOURCES.md`.
+
+## Layout regression (composer vs bottom nav)
+
+The chat composer must stay fully above the fixed primary tab bar.
+
+```bash
+# Requires a running app (local or preview) and Chromium for Playwright:
+BASE_URL=http://localhost:3000 npm run verify:chat-composer-nav
+```
+
+Checks viewports `1280x430`, `1280x800`, and `390x844`. Screenshots (optional):
+
+```bash
+BASE_URL=http://localhost:3000 SCREENSHOT_DIR=docs/screenshots/chat-composer-nav SCREENSHOT_PREFIX=after npm run verify:chat-composer-nav
+```

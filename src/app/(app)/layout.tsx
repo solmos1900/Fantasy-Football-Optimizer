@@ -24,9 +24,14 @@ export default async function AppLayout({
     : null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-transparent">
+    <div className="flex min-h-dvh flex-col bg-transparent">
       <AppNav league={league} />
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 pb-[calc(5.5rem+max(0.75rem,env(safe-area-inset-bottom,0px)))] sm:py-6">
+      {/*
+        Bottom padding clears the fixed primary tab bar (incl. safe-area).
+        Chat home sizes itself to the remaining viewport so its composer
+        stays pinned above the nav; other pages scroll normally over this pad.
+      */}
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-[var(--app-bottom-nav-clearance)] sm:pt-6">
         {children}
       </div>
       <ConnectGuideHost />

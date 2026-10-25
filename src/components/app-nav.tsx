@@ -156,6 +156,7 @@ export function AppNav({ league = null }: { league?: AppNavLeague | null }) {
       {/* Primary destinations — fixed bottom tab bar (all breakpoints) */}
       <nav
         aria-label="Primary"
+        data-testid="primary-nav"
         className="fixed inset-x-0 bottom-0 z-40 border-t-[1.5px] border-emerald-950/12 bg-[color-mix(in_srgb,var(--surface)_90%,var(--kraft))]/95 shadow-[0_-8px_24px_-18px_rgba(27,48,34,0.35)] backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
       >
         <div className="mx-auto grid max-w-6xl grid-cols-6 px-1 pb-1.5 pt-1.5 sm:px-2 sm:pb-2">

@@ -85,6 +85,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  /* Shrink layout when the on-screen keyboard opens (iOS Safari / Chrome). */
+  interactiveWidget: "resizes-content",
   themeColor: "#0b0b0b",
 };
 
@@ -94,7 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${display.variable} ${body.variable} antialiased`}
     >
-      <body className="flex min-h-screen flex-col text-emerald-950">
+      <body className="flex min-h-dvh flex-col text-emerald-950">
         <Providers>{children}</Providers>
       </body>
     </html>
