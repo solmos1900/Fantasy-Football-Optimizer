@@ -97,5 +97,8 @@ const onboarding = fs.readFileSync(
 );
 assert.match(onboarding, /SWID \(private\)/);
 assert.match(onboarding, /Coming soon/);
+// Only ESPN gets steps; no placeholder video probe unless a URL is configured.
+assert.doesNotMatch(onboarding, /sleeper-safari\.mp4|other-safari\.mp4/);
+assert.doesNotMatch(onboarding, /Pick demo/);
 
 console.log("verify-guest-entry: ok");

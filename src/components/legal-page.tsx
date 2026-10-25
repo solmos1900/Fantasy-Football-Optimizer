@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandWordmark } from "@/components/brand";
 import { PendingLink } from "@/components/pending-link";
@@ -41,17 +42,11 @@ export function LegalPage({
         )}
       </div>
       <p className="type-caption mt-12 text-emerald-950/50">
-        <PendingLink href="/terms" className="underline underline-offset-2">
-          Terms
-        </PendingLink>
+        <Link href="/terms" className="underline underline-offset-2">Terms</Link>
         {" · "}
-        <PendingLink href="/privacy" className="underline underline-offset-2">
-          Privacy
-        </PendingLink>
+        <Link href="/privacy" className="underline underline-offset-2">Privacy</Link>
         {" · "}
-        <PendingLink href="/" className="underline underline-offset-2">
-          Home
-        </PendingLink>
+        <Link href="/" className="underline underline-offset-2">Home</Link>
       </p>
     </main>
   );

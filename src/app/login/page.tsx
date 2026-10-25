@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, githubOAuthConfigured, googleOAuthConfigured } from "@/lib/auth";
 import { BrandWordmark } from "@/components/brand";
@@ -56,13 +57,9 @@ export default async function LoginPage({
 
         <p className="type-caption mt-4 text-center text-emerald-950/50">
           By continuing you agree to the{" "}
-          <PendingLink href="/terms" className="underline underline-offset-2">
-            Terms
-          </PendingLink>{" "}
+          <Link href="/terms" className="underline underline-offset-2">Terms</Link>{" "}
           and{" "}
-          <PendingLink href="/privacy" className="underline underline-offset-2">
-            Privacy Policy
-          </PendingLink>
+          <Link href="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
           .
         </p>
 

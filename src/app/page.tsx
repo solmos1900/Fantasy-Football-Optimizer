@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/brand";
@@ -95,13 +96,9 @@ export default async function HomePage() {
       </div>
 
       <p className="type-caption py-6 text-center text-emerald-950/50">
-        <PendingLink href="/terms" className="underline underline-offset-2">
-          Terms
-        </PendingLink>
+        <Link href="/terms" className="underline underline-offset-2">Terms</Link>
         {" · "}
-        <PendingLink href="/privacy" className="underline underline-offset-2">
-          Privacy
-        </PendingLink>
+        <Link href="/privacy" className="underline underline-offset-2">Privacy</Link>
       </p>
     </main>
   );
