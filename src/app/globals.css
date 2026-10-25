@@ -32,6 +32,25 @@
   --faint: #797979;
   --radius-control: 0.7rem;
   --ring-focus: rgba(192, 38, 255, 0.4);
+  /*
+    Fixed bottom tab bar clearance (icon row + labels + home-indicator).
+    Shared by app shell padding and sticky CTAs so content never sits under nav.
+  */
+  --app-bottom-nav-clearance: calc(
+    5.5rem + max(0.75rem, env(safe-area-inset-bottom, 0px))
+  );
+  /*
+    Chat home fills the viewport above header + top pad + bottom nav.
+    8.5rem ≈ sticky header (incl. safe-area-top) + content top padding on narrow.
+  */
+  --app-chat-shell-offset: calc(8.5rem + var(--app-bottom-nav-clearance));
+}
+
+@media (min-width: 640px) {
+  :root {
+    /* Single-row header + sm:pt-6 */
+    --app-chat-shell-offset: calc(7.5rem + var(--app-bottom-nav-clearance));
+  }
 }
 
 @theme inline {

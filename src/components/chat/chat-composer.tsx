@@ -84,7 +84,11 @@ export function ChatComposer({
       : null;
 
   return (
-    <form onSubmit={onSubmit} className="relative w-full">
+    <form
+      data-testid="chat-composer"
+      onSubmit={onSubmit}
+      className="relative w-full"
+    >
       <MentionTypeahead
         open={Boolean(mention)}
         query={mention?.query ?? ""}
@@ -107,6 +111,7 @@ export function ChatComposer({
           enterKeyHint="send"
           autoComplete="off"
           spellCheck
+          data-testid="chat-composer-input"
           className="max-h-36 min-h-[44px] flex-1 resize-none bg-transparent px-2 py-2.5 text-base leading-snug text-emerald-950 outline-none placeholder:text-emerald-950/35 sm:text-sm"
           style={{ fontSize: "16px" }} /* iOS Safari zoom guard */
           onChange={(e) => {
@@ -132,6 +137,7 @@ export function ChatComposer({
           type="submit"
           disabled={disabled || !text.trim()}
           aria-label="Send"
+          data-testid="chat-composer-send"
           className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-white transition hover:bg-orange-500 disabled:opacity-40"
         >
           <ArrowUp className="h-5 w-5" />

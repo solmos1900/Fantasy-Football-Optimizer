@@ -319,7 +319,10 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
   const empty = messages.length === 0 && !activeTemplate;
 
   return (
-    <div className="flex min-h-[calc(100dvh-8.5rem)] flex-col gap-3 sm:min-h-[calc(100dvh-7.5rem)] sm:flex-row sm:gap-6">
+    <div
+      data-testid="chat-home"
+      className="flex h-[calc(100dvh-var(--app-chat-shell-offset))] max-h-[calc(100svh-var(--app-chat-shell-offset))] min-h-0 flex-col gap-3 sm:flex-row sm:gap-6"
+    >
       <ConversationRail
         items={railItems}
         activeId={conversationId}
@@ -330,8 +333,8 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
         onToggle={() => setRailOpen((v) => !v)}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
           <div>
             <p className="type-eyebrow text-orange-700">Fantasy chat</p>
             <h1 className="type-section text-emerald-950">
@@ -374,7 +377,7 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
         </div>
 
         {!hasLeague ? (
-          <div className="mb-3 rounded-lg border border-orange-500/25 bg-orange-50/30 px-3 py-2 text-sm text-emerald-950/80">
+          <div className="mb-3 shrink-0 rounded-lg border border-orange-500/25 bg-orange-50/30 px-3 py-2 text-sm text-emerald-950/80">
             General NFL questions work now.{" "}
             <PendingLink
               href="/connect#espn"
@@ -389,14 +392,14 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
         {notice || error ? (
           <div
             role="status"
-            className="mb-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-emerald-950"
+            className="mb-3 shrink-0 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-emerald-950"
           >
             {notice ?? error?.message}
           </div>
         ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-emerald-950/10 bg-[color-mix(in_srgb,var(--background)_55%,transparent)]">
-          <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
             {empty ? (
               <div className="mx-auto flex max-w-lg flex-col items-center gap-6 py-8 text-center sm:py-14">
                 <BrandWordmark
@@ -428,7 +431,14 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-emerald-950/10 bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
+          {/*
+            Composer stays in-flow at the panel bottom. Safe-area / nav clearance
+            lives on the app shell (--app-bottom-nav-clearance), not here.
+          */}
+          <div
+            data-testid="chat-composer-dock"
+            className="shrink-0 border-t border-emerald-950/10 bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-3 py-3 sm:px-4"
+          >
             {activeTemplate ? (
               <div className="mb-3">
                 <TemplateCard
