@@ -1,162 +1,22 @@
 import { auth } from "@/lib/auth";
-import { getLeagueDataForUser, resolveUserTeam } from "@/lib/league/service";
-import { getLiveStats } from "@/lib/stats/provider";
-import { generateInsights } from "@/lib/insights/engine";
-import { LiveStatsPanel } from "@/components/live-stats-panel";
-import { SyncButton } from "@/components/sync-button";
-import { InstallHowToLink } from "@/components/install-app";
-import { EmptyLeagueConnect } from "@/components/empty-league-connect";
-import { SelectTeamPrompt } from "@/components/select-team-prompt";
-import { PendingLink } from "@/components/pending-link";
-import { formatRecord } from "@/lib/utils";
+import { getUserLeagueConnection } from "@/lib/league/service";
+import { ChatHome } from "@/components/chat/chat-home";
 
+/**
+ * Landing screen after sign-in / guest entry — fantasy AI chat home.
+ * Existing tools remain reachable via bottom nav + in-chat links.
+ */
 export default async function DashboardPage() {
   const session = await auth();
-  const league = session?.user?.id
-    ? await getLeagueDataForUser(session.user.id)
+  const connection = session?.user?.id
+    ? await getUserLeagueConnection(session.user.id)
     : null;
 
-  if (!league) {
-    return (
-      <EmptyLeagueConnect
-        className="animate-fade-up"
-        title={`Welcome${session?.user?.name ? `, ${session.user.name.split(" ")[0]}` : ""}`}
-        message="Connect an ESPN league to unlock your dashboard, roster, and insights. Trade Analyzer and Who to Start still work without a league on the full NFL player pool (full PPR)."
-      >
-        <p className="type-caption mt-4 text-emerald-950/50">
-          On iPhone? <InstallHowToLink /> for a Home Screen shortcut.
-        </p>
-      </EmptyLeagueConnect>
-    );
-  }
-
-  const team = resolveUserTeam(league);
-  if (!team) {
-    return (
-      <SelectTeamPrompt
-        className="animate-fade-up"
-        title="Pick your team for the dashboard"
-      />
-    );
-  }
-
-  const live = await getLiveStats(league);
-  const allInsights = generateInsights(league);
-  const waiverCount = allInsights.filter((i) => i.type === "waiver").length;
-  const insights = allInsights.slice(0, 3);
-  const matchup = league.matchups.find(
-    (m) => m.homeTeamId === team.id || m.awayTeamId === team.id,
-  );
-
   return (
-    <div className="space-y-8 sm:space-y-10">
-      <div className="animate-fade-up flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="type-eyebrow text-orange-700">
-            {league.isDemo ? "Demo league" : "ESPN synced"} · Week{" "}
-            {league.currentWeek}
-          </p>
-          <h1 className="type-page mt-1 text-emerald-950">{league.name}</h1>
-          <p className="type-caption mt-1.5 text-emerald-950/55">
-            Last sync {new Date(league.lastSyncedAt).toLocaleString()}
-          </p>
-        </div>
-        <SyncButton />
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10">
-        <section className="animate-fade-up-delay space-y-8">
-          <div className="surface-card p-5">
-            <h2 className="type-section text-emerald-950">Your team</h2>
-            <div className="mt-3 space-y-2">
-              <p className="text-lg font-semibold tracking-tight text-emerald-950">
-                {team.name}{" "}
-                <span className="font-normal text-emerald-950/50">
-                  ({formatRecord(team.wins, team.losses, team.ties)}) · #
-                  {team.standing}
-                </span>
-              </p>
-              <p className="text-sm text-emerald-950/60">
-                <span className="type-stat text-base">
-                  {team.pointsFor.toFixed(1)}
-                </span>{" "}
-                PF ·{" "}
-                <span className="type-stat text-base">
-                  {team.pointsAgainst.toFixed(1)}
-                </span>{" "}
-                PA
-              </p>
-              {matchup && (
-                <p className="text-sm text-emerald-950">
-                  This week:{" "}
-                  <span className="type-stat text-2xl text-orange-600">
-                    {(
-                      (matchup.homeTeamId === team.id
-                        ? matchup.homeScore
-                        : matchup.awayScore) ?? 0
-                    ).toFixed(1)}
-                  </span>
-                  <span className="text-emerald-950/40"> / proj </span>
-                  <span className="type-stat">
-                    {(
-                      (matchup.homeTeamId === team.id
-                        ? matchup.homeProjected
-                        : matchup.awayProjected) ?? 0
-                    ).toFixed(1)}
-                  </span>
-                </p>
-              )}
-              <PendingLink
-                href="/team"
-                className="inline-block text-sm font-semibold text-orange-700 hover:text-orange-800"
-              >
-                View full roster →
-              </PendingLink>
-            </div>
-          </div>
-
-          <div className="surface-card p-5">
-            <h2 className="type-section text-emerald-950">
-              Top insights
-              {waiverCount > 0 && (
-                <span className="stamp stamp-start ml-2 align-middle text-[10px]">
-                  {waiverCount} waiver{waiverCount === 1 ? "" : "s"}
-                </span>
-              )}
-            </h2>
-            <ul className="mt-3 space-y-3">
-              {insights.map((insight) => (
-                <li
-                  key={insight.id}
-                  className="rounded-lg border-l-2 border-orange-500 bg-[color-mix(in_srgb,var(--kraft)_45%,var(--surface))] py-2 pl-3 pr-2"
-                >
-                  <p className="text-sm font-semibold text-emerald-950">
-                    {insight.title}
-                  </p>
-                  <p className="mt-0.5 text-sm leading-relaxed text-emerald-950/60">
-                    {insight.summary}
-                  </p>
-                </li>
-              ))}
-              {!insights.length && (
-                <li className="text-sm text-emerald-950/50">
-                  No urgent recommendations this week.
-                </li>
-              )}
-            </ul>
-            <PendingLink
-              href="/insights"
-              className="mt-3 inline-block text-sm font-semibold text-orange-700 hover:text-orange-800"
-            >
-              All insights →
-            </PendingLink>
-          </div>
-        </section>
-
-        <div className="animate-fade-up-delay-2">
-          <LiveStatsPanel initial={live} />
-        </div>
-      </div>
-    </div>
+    <ChatHome
+      isGuest={Boolean(session?.user?.isGuest)}
+      hasLeague={Boolean(connection)}
+      userName={session?.user?.name}
+    />
   );
 }

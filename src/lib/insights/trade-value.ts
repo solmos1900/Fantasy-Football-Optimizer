@@ -215,6 +215,24 @@ export function chipValueOrNull(
   return chipValue(p, trendsOrOpts);
 }
 
+/**
+ * Approved chat / free-trade display value: **season points per game**
+ * (same as {@link seasonPointsPerGame}). Insights {@link chipValue} still
+ * applies scarcity multipliers on top of season PPG — chat totals do not.
+ * Bye weeks: weekly projection is ignored here (season PPG only).
+ */
+export function seasonPpgTradeValue(p: FantasyPlayer): number | null {
+  return seasonPointsPerGame(p);
+}
+
+/** Sum of {@link seasonPpgTradeValue} for a package (0 when every player lacks weeks). */
+export function sideSeasonPpgTradeValue(players: FantasyPlayer[]): number {
+  return players.reduce((sum, p) => {
+    const v = seasonPpgTradeValue(p);
+    return sum + (v ?? 0);
+  }, 0);
+}
+
 export function sideValue(
   players: FantasyPlayer[],
   trends?: TrendLookup,
