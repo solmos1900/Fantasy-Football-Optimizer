@@ -58,6 +58,25 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// Pending email/password signup (or re-verify) until the user enters a one-time code.
+/// No credentials User is usable until verification succeeds — blocks OAuth takeover.
+model EmailVerificationChallenge {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  /// bcrypt hash of the password they chose at register / re-verify
+  passwordHash String
+  /// sha256(pepper + code) — never store the plaintext code
+  codeHash     String
+  expiresAt    DateTime
+  attemptCount Int      @default(0)
+  lastSentAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 model LeagueConnection {
   id            String      @id @default(cuid())
   userId        String

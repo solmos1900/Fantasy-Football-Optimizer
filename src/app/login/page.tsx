@@ -11,7 +11,7 @@ function resolveFlow(mode: string | undefined): LoginFlow {
 
 function authErrorMessage(error: string): string {
   if (error === "OAuthAccountNotLinked") {
-    return "This email already has a password account. Sign in with email/password instead — or try Google/GitHub again after account linking is enabled on this deployment.";
+    return "This email already has an account. Sign in with email/password (or Google if you used Google before). GitHub is not auto-linked for security — use the same method you signed up with.";
   }
   return `Sign-in error: ${error}. Try again, or use email/password or Guest.`;
 }

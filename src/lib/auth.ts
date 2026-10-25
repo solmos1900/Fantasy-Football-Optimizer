@@ -2,11 +2,12 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Provider } from "next-auth/providers";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 import { deleteGuestUserById } from "@/lib/cleanup/ephemeral";
+import { createSafePrismaAdapter } from "@/lib/auth/safe-adapter";
+import { clearUnverifiedCredentialsBlocker } from "@/lib/auth/email-verification";
 
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -52,8 +53,9 @@ if (googleOAuthConfigured) {
           prompt: "select_account",
         },
       },
-      // Personal single-owner app: allow Google to link to an existing
-      // email/password User with the same verified email.
+      // Safe only because createSafePrismaAdapter clears unverified
+      // credentials-only blockers, and email/password Users are not created
+      // until the verification code succeeds (emailVerified set).
       allowDangerousEmailAccountLinking: true,
     }),
   );
@@ -69,6 +71,7 @@ if (githubOAuthConfigured) {
       // is verified for the signing-in user, so silent email-based account
       // merge would enable takeover. Prefer Auth.js default (no auto-link)
       // so GitHub accounts are only linked via explicit signed-in linking.
+      // Also reject unverified GitHub emails in the signIn callback below.
     }),
   );
 }
@@ -98,6 +101,10 @@ providers.push(
       try {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user?.passwordHash || user.isGuest) return null;
+
+        // Unverified password accounts must not be usable (and must not sit
+        // around as OAuth link targets — see createSafePrismaAdapter).
+        if (!user.emailVerified) return null;
 
         const ok = await verifyPassword(password, user.passwordHash);
         if (!ok) return null;
@@ -173,7 +180,7 @@ providers.push(
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authSecret,
   trustHost: true,
-  adapter: PrismaAdapter(prisma),
+  adapter: createSafePrismaAdapter(prisma),
   session: { strategy: "jwt" },
   providers,
   pages: {
@@ -197,6 +204,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Credentials / guest: authorize() already enforced verification.
+      if (!account || account.provider === "credentials" || account.provider === "guest") {
+        return true;
+      }
+
+      const email =
+        (typeof user.email === "string" && user.email) ||
+        (profile && typeof (profile as { email?: string }).email === "string"
+          ? (profile as { email: string }).email
+          : null);
+
+      // Drop any leftover unverified password-only User so OAuth is not linked
+      // onto an attacker's pre-registered row (legacy rows + race safety).
+      await clearUnverifiedCredentialsBlocker(email);
+
+      // GitHub: require a verified email from the provider when present.
+      if (account.provider === "github" && profile) {
+        const gh = profile as { email?: string; email_verified?: boolean };
+        if (gh.email && gh.email_verified === false) {
+          return false;
+        }
+      }
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.sub = user.id;
