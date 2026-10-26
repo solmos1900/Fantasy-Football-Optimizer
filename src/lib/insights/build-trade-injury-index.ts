@@ -12,6 +12,7 @@ import {
   serializeTeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
+import { memoTtl } from "@/lib/cache/memo";
 import type { FantasyPlayer, PlayerPosition } from "@/lib/types";
 
 export async function buildTradeTeammateInjuryIndex(
@@ -20,7 +21,13 @@ export async function buildTradeTeammateInjuryIndex(
 ): Promise<ReturnType<typeof serializeTeammateInjuryIndex>> {
   const snap = await fetchNflWeekSnapshot(season).catch(() => null);
   const through = snap?.latestCompletedWeek ?? 0;
-  const report = await fetchEspnInjuryReport();
+  // Same league-wide report for every request — cache per instance.
+  // fetchEspnInjuryReport returns [] on upstream failure; only cache real data.
+  const report = await memoTtl("espn-injury-report", 10 * 60 * 1000, async () => {
+    const rows = await fetchEspnInjuryReport();
+    if (!rows.length) throw new Error("espn injury report empty");
+    return rows;
+  }).catch(() => []);
 
   const teams = [
     ...new Set(players.map((p) => p.nflTeam).filter((t) => t && t !== "FA")),

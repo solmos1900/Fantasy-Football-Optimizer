@@ -12,6 +12,8 @@ import {
   buildNoLeaguePlayerPool,
   type PlayerPoolBundle,
 } from "@/lib/players/pool";
+import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
+import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
 
 // ── Snapshot serving ──────────────────────────────────────────────────────
 // Pages and chat read one stored row. When it is older than the TTL the
@@ -76,10 +78,29 @@ async function storePoolSnapshot(
   if (degraded && existing) {
     return { stored: false, bundle };
   }
+  // Precompute the Trades / Who to Start display inputs once per rebuild so
+  // page and chat requests read them instead of refetching per request.
+  const [toolMeta, teammateInjury] = await Promise.all([
+    loadToolDisplayMeta({
+      season: bundle.freshness.season,
+      players: bundle.players,
+    }).catch((err) => {
+      console.error("[pool] tool meta precompute failed", err);
+      return undefined;
+    }),
+    buildTradeTeammateInjuryIndex(bundle.players, bundle.freshness.season).catch(
+      (err) => {
+        console.error("[pool] teammate injury precompute failed", err);
+        return undefined;
+      },
+    ),
+  ]);
   const stored: StoredPool = {
     players: bundle.players,
     freshness: bundle.freshness,
     contextLeague: bundle.contextLeague,
+    ...(toolMeta ? { toolMeta } : {}),
+    ...(teammateInjury ? { teammateInjury } : {}),
   };
   const payload = stored as unknown as Prisma.InputJsonValue;
   const builtAt = new Date();
@@ -88,7 +109,7 @@ async function storePoolSnapshot(
     create: { key, payload, builtAt },
     update: { payload, builtAt, refreshStartedAt: null },
   });
-  return { stored: true, bundle };
+  return { stored: true, bundle: { ...stored, trends: {} } };
 }
 
 function scheduleInBackground(task: () => Promise<unknown>): void {
