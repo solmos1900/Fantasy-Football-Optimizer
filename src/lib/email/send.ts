@@ -17,6 +17,8 @@ export type SendEmailResult =
   | { ok: true; provider: "resend" | "console" }
   | { ok: false; error: string; detail?: string };
 
+const RESEND_REQUEST_TIMEOUT_MS = 10_000;
+
 function resendApiKey(): string | undefined {
   const key = process.env.RESEND_API_KEY?.trim();
   return key || undefined;
@@ -81,6 +83,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(RESEND_REQUEST_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
