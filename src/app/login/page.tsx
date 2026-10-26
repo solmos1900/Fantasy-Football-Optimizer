@@ -38,7 +38,7 @@ export default async function LoginPage({
         <p className="type-body mt-3 text-emerald-950/60">
           {flow === "guest"
             ? "Continue as a guest to try the product — no account required."
-            : "Sign in with Google, GitHub, or email to sync your ESPN league."}
+            : "Sign in with Google, GitHub, or email to sync your ESPN or Sleeper league."}
         </p>
 
         {authError && (

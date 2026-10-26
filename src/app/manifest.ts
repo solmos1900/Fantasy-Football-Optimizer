@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Gridiron IQ",
     short_name: "Gridiron IQ",
     description:
-      "Fantasy football optimizer — ESPN league sync, live stats, and explainable start/sit insights.",
+      "Fantasy football optimizer — ESPN and Sleeper league sync, live stats, and explainable start/sit insights.",
     start_url: "/",
     scope: "/",
     display: "standalone",

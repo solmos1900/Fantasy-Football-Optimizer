@@ -7,8 +7,14 @@ import { Button } from "@/components/ui/button";
 import { scrollToTopNow } from "@/components/scroll-to-top";
 import { defaultEspnSeasonClient } from "@/lib/season";
 import { ESPN_COOKIE_HELP } from "@/lib/onboarding/content";
+import { SleeperConnectCard } from "@/components/sleeper-connect-card";
+import { cn } from "@/lib/utils";
+import { useClientValue } from "@/lib/use-client-state";
+
+type Platform = "espn" | "sleeper";
 
 export type ConnectedLeagueSummary = {
+  platform: Platform;
   leagueId: string;
   season: number;
   leagueName: string | null;
@@ -27,6 +33,15 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
   const [, startTransition] = useTransition();
   const espnCardRef = useRef<HTMLFormElement>(null);
   const [loading, setLoading] = useState(false);
+  // Explicit tab choice; until the user picks, a #sleeper deep link or the
+  // saved connection decides (hash read after hydration, no setState-in-effect).
+  const [chosenPlatform, setPlatform] = useState<Platform | null>(null);
+  const hash = useClientValue(() => window.location.hash, "");
+  const platform: Platform =
+    chosenPlatform ??
+    (hash === "#sleeper" || connection?.platform === "sleeper"
+      ? "sleeper"
+      : "espn");
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     leagueId: connection && !connection.isDemo ? connection.leagueId : "",
@@ -101,8 +116,8 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
             <div>
               <dt className="type-caption text-emerald-950/45">Source</dt>
               <dd className="mt-0.5 font-medium text-emerald-950">
-                ESPN · ID {liveConnection.leagueId} · Season{" "}
-                {liveConnection.season}
+                {liveConnection.platform === "sleeper" ? "Sleeper" : "ESPN"} · ID{" "}
+                {liveConnection.leagueId} · Season {liveConnection.season}
               </dd>
             </div>
             <div>
@@ -125,9 +140,36 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
         </section>
       )}
 
+      <div
+        role="tablist"
+        aria-label="Fantasy platform"
+        className="inline-flex rounded-xl border border-emerald-950/12 p-1"
+      >
+        {(["espn", "sleeper"] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="tab"
+            aria-selected={platform === p}
+            onClick={() => setPlatform(p)}
+            className={cn(
+              "rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors",
+              platform === p
+                ? "bg-orange-600 text-white"
+                : "text-emerald-950/60 hover:text-emerald-950",
+            )}
+          >
+            {p === "espn" ? "ESPN" : "Sleeper"}
+          </button>
+        ))}
+      </div>
+
+      {platform === "sleeper" ? <SleeperConnectCard /> : null}
+
       <form
         id="espn"
         ref={espnCardRef}
+        hidden={platform !== "espn"}
         onSubmit={connectEspn}
         className="animate-fade-up surface-card scroll-mt-24 space-y-4 p-5 sm:p-6"
       >

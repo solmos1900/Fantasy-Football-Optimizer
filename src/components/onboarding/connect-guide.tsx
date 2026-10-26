@@ -7,7 +7,7 @@ import { WalkthroughVideo } from "@/components/onboarding/walkthrough-video";
 import { buttonVariants } from "@/components/ui/button";
 import {
   COMING_SOON_PLATFORMS_NOTE,
-  ESPN_CONNECT_STEPS,
+  CONNECT_GUIDE_OPTIONS,
   espnWalkthroughVideoUrl,
 } from "@/lib/onboarding/content";
 import { cn } from "@/lib/utils";
@@ -18,9 +18,9 @@ type Props = {
 };
 
 /**
- * First-run "Connect your league" guide: one screen, three short steps, one
- * primary action. The detailed cookie how-to lives on /connect beside the
- * fields that need it.
+ * First-run "Connect your league" guide: one screen, one short line per
+ * platform, one button each. Detailed ESPN cookie help lives on /connect
+ * beside the fields that need it.
  */
 export function ConnectGuide({ open, onDismiss }: Props) {
   const titleId = useId();
@@ -65,11 +65,10 @@ export function ConnectGuide({ open, onDismiss }: Props) {
             id={titleId}
             className="mt-3 text-xl font-semibold tracking-tight text-white"
           >
-            Connect your ESPN league
+            Connect your league
           </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-white/60">
-            Unlock your roster, matchups and league-aware chat. Takes about a
-            minute.
+            Unlock your roster, matchups and league-aware chat.
           </p>
 
           {videoUrl ? (
@@ -80,34 +79,43 @@ export function ConnectGuide({ open, onDismiss }: Props) {
             />
           ) : null}
 
-          <ol className="mt-5 space-y-4">
-            {ESPN_CONNECT_STEPS.map((step, i) => (
-              <li key={step.id} className="flex gap-3">
-                <span
-                  aria-hidden
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#C026FF]/15 text-xs font-semibold text-[#ecc0ff]"
+          <ul className="mt-5 space-y-3">
+            {CONNECT_GUIDE_OPTIONS.map((option, i) => (
+              <li
+                key={option.id}
+                className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5"
+              >
+                <p className="text-sm font-semibold text-white">
+                  {option.label}
+                </p>
+                <p className="mt-0.5 text-sm leading-relaxed text-white/60">
+                  {option.body}
+                </p>
+                <Link
+                  href={option.href}
+                  onClick={onDismiss}
+                  data-testid={`connect-guide-${option.id}`}
+                  className={cn(
+                    buttonVariants({
+                      variant: i === 0 ? "primary" : "secondary",
+                      size: "sm",
+                    }),
+                    "mt-3",
+                  )}
                 >
-                  {i + 1}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">
-                    {step.title}
-                  </p>
-                  <p className="mt-0.5 text-sm leading-relaxed text-white/60">
-                    {step.body}
-                  </p>
-                </div>
+                  Connect {option.label}
+                </Link>
               </li>
             ))}
-          </ol>
+          </ul>
 
-          <p className="mt-5 text-xs leading-relaxed text-white/40">
+          <p className="mt-4 text-xs leading-relaxed text-white/40">
             {COMING_SOON_PLATFORMS_NOTE} No league? Trade Analyzer, Who to
             Start and chat already work on every NFL player.
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-white/8 px-4 py-3 sm:px-5">
+        <div className="flex items-center justify-end border-t border-white/8 px-4 py-3 sm:px-5">
           <button
             type="button"
             onClick={onDismiss}
@@ -115,14 +123,6 @@ export function ConnectGuide({ open, onDismiss }: Props) {
           >
             Not now
           </button>
-          <Link
-            href="/connect#espn"
-            onClick={onDismiss}
-            data-testid="connect-guide-cta"
-            className={buttonVariants({ variant: "primary", size: "sm" })}
-          >
-            Connect ESPN league
-          </Link>
         </div>
       </div>
     </div>

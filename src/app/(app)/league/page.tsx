@@ -4,6 +4,7 @@ import { SyncButton } from "@/components/sync-button";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { PendingLink } from "@/components/pending-link";
 import { LeagueStandings } from "@/components/league-standings";
+import { leaguePlatformLabel } from "@/lib/league/team";
 
 export default async function LeaguePage() {
   const session = await auth();
@@ -15,7 +16,7 @@ export default async function LeaguePage() {
     return (
       <EmptyLeagueConnect
         title="League"
-        message="Connect an ESPN league to unlock standings, matchups, and every roster."
+        message="Connect your ESPN or Sleeper league to unlock standings, matchups, and every roster."
       />
     );
   }
@@ -26,7 +27,7 @@ export default async function LeaguePage() {
         <div>
           <p className="type-eyebrow text-orange-700">
             Season {league.season}
-            {league.isDemo ? " · Demo" : " · ESPN"}
+            {` · ${leaguePlatformLabel(league)}`}
           </p>
           <h1 className="type-page text-emerald-950">{league.name}</h1>
           <p className="type-caption mt-1.5 text-emerald-950/55">

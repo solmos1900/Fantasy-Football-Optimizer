@@ -61,3 +61,17 @@ export function resolveUserTeam(
   }
   return undefined;
 }
+
+/**
+ * Whether the host publishes league-wide rostered / started percentages.
+ * Sleeper's public API does not, so those stay hidden instead of a fake 0%.
+ */
+export function leagueReportsOwnership(league: Pick<LeagueData, "platform">): boolean {
+  return league.platform !== "sleeper";
+}
+
+/** Short host name for headers, e.g. "ESPN" / "Sleeper". */
+export function leaguePlatformLabel(league: Pick<LeagueData, "platform" | "isDemo">): string {
+  if (league.isDemo) return "Demo";
+  return league.platform === "sleeper" ? "Sleeper" : "ESPN";
+}

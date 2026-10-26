@@ -8,7 +8,7 @@ export function buildChatSystemPrompt(options: {
   freshnessWarning: string | null;
 }): string {
   const leagueLine = options.hasConnectedLeague
-    ? "This user has a connected ESPN league — my_roster and league_teams tools are available."
+    ? "This user has a connected fantasy league (ESPN or Sleeper) — my_roster and league_teams tools are available."
     : "This user has NO connected league. If they ask about their roster or league teams, call the league gate tool (or reply with Connect a league to unlock) — never invent roster data.";
 
   return [

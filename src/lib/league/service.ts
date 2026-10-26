@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { fetchEspnLeague, type EspnCredentials } from "@/lib/espn/client";
 import {
@@ -11,6 +12,10 @@ import {
   resolvePersistedTeamId,
 } from "@/lib/league/team";
 import type { FantasyPlayer, LeagueData } from "@/lib/types";
+import {
+  fetchSleeperLeague,
+  fetchSleeperUser,
+} from "@/lib/sleeper/league";
 
 export {
   applyUserTeamId,
@@ -18,12 +23,25 @@ export {
   resolveUserTeam,
 } from "@/lib/league/team";
 
-async function persistTrendsSafe(league: LeagueData): Promise<void> {
+async function refreshTrendsSafe(league: LeagueData): Promise<void> {
   try {
     await refreshProjectionTrends(league);
   } catch (err) {
     // Trends are best-effort — never block sync if Neon is briefly unavailable
     console.error("[trends] refresh failed", err);
+  }
+}
+
+/**
+ * Persist proj-vs-actual trends for a freshly synced league. Writes ~2k rows,
+ * so inside a request it runs after the response (Connect / Sync return
+ * immediately); outside a request (scripts) it runs inline.
+ */
+async function persistTrendsSafe(league: LeagueData): Promise<void> {
+  try {
+    after(() => refreshTrendsSafe(league));
+  } catch {
+    await refreshTrendsSafe(league);
   }
 }
 
@@ -215,6 +233,8 @@ export async function connectEspnLeague(
       },
     },
     update: {
+      platform: "espn",
+      sleeperUserId: null,
       isDemo: false,
       teamId: resolvedTeamId,
       leagueName: league.name,
@@ -232,6 +252,7 @@ export async function connectEspnLeague(
     },
     create: {
       userId,
+      platform: "espn",
       leagueId: creds.leagueId,
       season: creds.season,
       teamId: resolvedTeamId,
@@ -248,10 +269,83 @@ export async function connectEspnLeague(
   return league;
 }
 
+/**
+ * Connect (or re-sync) a Sleeper league. Sleeper's API is public, so there
+ * are no cookies; the user's roster is found from their Sleeper user id.
+ */
+export async function connectSleeperLeague(
+  userId: string,
+  input: {
+    leagueId: string;
+    /** Sleeper username (Connect) — resolved to a user id. */
+    sleeperUsername?: string;
+    /** Already-resolved Sleeper user id (Sync). */
+    sleeperUserId?: string | null;
+  },
+): Promise<LeagueData> {
+  const leagueId = input.leagueId.trim();
+
+  let sleeperUserId = input.sleeperUserId ?? null;
+  if (!sleeperUserId && input.sleeperUsername) {
+    const user = await fetchSleeperUser(input.sleeperUsername);
+    if (!user) {
+      throw new Error("We couldn't find that Sleeper username.");
+    }
+    sleeperUserId = user.userId;
+  }
+
+  const league = await fetchSleeperLeague({ leagueId, sleeperUserId });
+  if (sleeperUserId && league.userTeamId == null) {
+    throw new Error(
+      "That Sleeper account doesn't own a team in this league. Check the username or pick another league.",
+    );
+  }
+
+  const season = league.season;
+  const teamId = league.userTeamId ?? null;
+  await prisma.leagueConnection.upsert({
+    where: { userId_leagueId_season: { userId, leagueId, season } },
+    update: {
+      platform: "sleeper",
+      isDemo: false,
+      teamId,
+      sleeperUserId,
+      leagueName: league.name,
+      // Never carry ESPN cookies onto a Sleeper connection.
+      espnSwid: null,
+      espnS2: null,
+      cachedPayload: JSON.stringify(league),
+      lastSyncedAt: new Date(),
+    },
+    create: {
+      userId,
+      platform: "sleeper",
+      leagueId,
+      season,
+      teamId,
+      sleeperUserId,
+      leagueName: league.name,
+      isDemo: false,
+      cachedPayload: JSON.stringify(league),
+      lastSyncedAt: new Date(),
+    },
+  });
+
+  await persistTrendsSafe(league);
+  return league;
+}
+
 export async function refreshUserLeague(userId: string): Promise<LeagueData> {
   const connection = await getUserLeagueConnection(userId);
   if (!connection) {
     throw new Error("No league connected");
+  }
+
+  if (connection.platform === "sleeper") {
+    return connectSleeperLeague(userId, {
+      leagueId: connection.leagueId,
+      sleeperUserId: connection.sleeperUserId,
+    });
   }
 
   if (connection.isDemo) {

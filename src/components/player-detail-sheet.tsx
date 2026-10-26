@@ -15,6 +15,7 @@ import type { PlayerDetailInsight } from "@/lib/insights/player-detail";
 import { inferPlayerRole } from "@/lib/insights/defense-matchups";
 import { PositionChip } from "@/components/position-chip";
 import { buttonVariants } from "@/components/ui/button";
+import { leagueReportsOwnership } from "@/lib/league/team";
 
 type Tab = "logs" | "insights";
 type YearTab = "current" | "prior" | "career";
@@ -347,6 +348,8 @@ export function PlayerDetailSheet({
   const [tab, setTab] = useState<Tab>("logs");
   const [year, setYear] = useState<YearTab>("current");
   const ranks = useMemo(() => deriveRanks(league, player), [league, player]);
+  // Sleeper has no league-wide ownership feed — show —, never a fake 0%.
+  const ownership = leagueReportsOwnership(league);
   const logRows = useMemo(
     () => buildLogRows(player, trend, league.currentWeek),
     [player, trend, league.currentWeek],
@@ -519,11 +522,11 @@ export function PlayerDetailSheet({
           <StatTile value={ranks.posRankLabel} label="Pos rank" />
           <StatTile value={ranks.overallLabel} label="Overall" />
           <StatTile
-            value={`${player.percentOwned.toFixed(0)}%`}
+            value={ownership ? `${player.percentOwned.toFixed(0)}%` : "—"}
             label="Rostered"
           />
           <StatTile
-            value={`${player.percentStarted.toFixed(0)}%`}
+            value={ownership ? `${player.percentStarted.toFixed(0)}%` : "—"}
             label="Started"
           />
         </div>
@@ -610,7 +613,7 @@ export function PlayerDetailSheet({
           <div className="flex shrink-0 items-start gap-1.5">
             <div className="hidden rounded-md border border-emerald-950/12 bg-emerald-950/[0.04] px-2 py-1 text-center md:block">
               <p className="text-sm font-semibold leading-none text-emerald-950">
-                {player.percentOwned.toFixed(0)}%
+                {ownership ? `${player.percentOwned.toFixed(0)}%` : "—"}
               </p>
               <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-emerald-950/45">
                 Rostered
@@ -618,7 +621,7 @@ export function PlayerDetailSheet({
             </div>
             <div className="hidden rounded-md border border-emerald-950/12 bg-emerald-950/[0.04] px-2 py-1 text-center md:block">
               <p className="text-sm font-semibold leading-none text-emerald-950">
-                {player.percentStarted.toFixed(0)}%
+                {ownership ? `${player.percentStarted.toFixed(0)}%` : "—"}
               </p>
               <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-wider text-emerald-950/45">
                 Started

@@ -169,6 +169,13 @@ export interface LeagueData {
    * Cleared on the next successful refresh of that data.
    */
   syncWarnings?: string[];
+  /** Fantasy host. Absent on payloads saved before Sleeper support = ESPN. */
+  platform?: "espn" | "sleeper";
+  /**
+   * League scoring in plain words, e.g. "Half PPR · Superflex". Absent =
+   * unknown (ESPN payloads), where tools fall back to their Full PPR label.
+   */
+  scoringLabel?: string;
 }
 
 export type InsightType =

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { connectEspnLeague } from "@/lib/league/service";
+import { connectEspnLeague, connectSleeperLeague } from "@/lib/league/service";
 import { defaultEspnSeason } from "@/lib/season";
 import { enforceRateLimit } from "@/lib/http/api-guard";
 
 const ConnectBodySchema = z.object({
   mode: z.string().optional(),
+  platform: z.enum(["espn", "sleeper"]).optional(),
+  sleeperUsername: z.string().max(40).optional(),
   leagueId: z.union([z.string(), z.number()]).optional(),
   season: z.coerce.number().optional(),
   teamId: z.coerce.number().optional(),
@@ -50,6 +52,20 @@ export async function POST(request: Request) {
     const season = Number(body.season ?? defaultEspnSeason());
     if (!leagueId) {
       return NextResponse.json({ error: "leagueId is required" }, { status: 400 });
+    }
+
+    if (body.platform === "sleeper") {
+      if (!body.sleeperUsername?.trim()) {
+        return NextResponse.json(
+          { error: "Enter your Sleeper username so we can find your team." },
+          { status: 400 },
+        );
+      }
+      const league = await connectSleeperLeague(session.user.id, {
+        leagueId,
+        sleeperUsername: body.sleeperUsername,
+      });
+      return NextResponse.json({ ok: true, league });
     }
 
     const league = await connectEspnLeague(session.user.id, {

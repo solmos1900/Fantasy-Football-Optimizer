@@ -13,7 +13,7 @@ export default async function PlayersPage() {
     return (
       <EmptyLeagueConnect
         title="Players"
-        message="Connect an ESPN league to search your league player pool with ownership and projections. Trade Analyzer still works without a league."
+        message="Connect your ESPN or Sleeper league to search your league player pool with ownership and projections. Trade Analyzer still works without a league."
       />
     );
   }
@@ -23,8 +23,9 @@ export default async function PlayersPage() {
       <div className="animate-fade-up">
         <h1 className="type-page text-emerald-950">Players</h1>
         <p className="type-body mt-2 text-emerald-950/60">
-          Owned players and free agents — projections, actuals, and ESPN
-          ownership when available.
+          Owned players and free agents — projections, actuals, and
+          league-wide ownership when your host publishes it (ESPN does,
+          Sleeper doesn&apos;t).
         </p>
       </div>
       <div className="animate-fade-up-delay surface-card px-2 py-3 sm:px-3 sm:py-4">
