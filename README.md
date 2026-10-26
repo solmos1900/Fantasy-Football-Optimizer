@@ -1,6 +1,6 @@
 # Gridiron IQ
 
-A fantasy football helper you can install like an app on your phone. Connect your ESPN fantasy league — or use Trade Analyzer / Who to Start on the full NFL player pool without a league. See projected vs actual points, and get start/sit, waiver, matchup, and trade advice with reasons you can read — not a black box.
+A fantasy football helper you can install like an app on your phone. Connect your ESPN or Sleeper fantasy league — or use Trade Analyzer / Who to Start on the full NFL player pool without a league. See projected vs actual points, and get start/sit, waiver, matchup, and trade advice with reasons you can read — not a black box.
 
 Add it to your Home Screen on iPhone (Safari → Share → Add to Home Screen) for a full-screen shortcut.
 
@@ -35,7 +35,7 @@ After you enter, **Home** opens fantasy AI chat (mentions, trade / who-to-start 
   - **Trade analyzer** — With a league: 3-step give/get grader vs a league mate. Without: free-pool side vs side on any NFL players (full PPR). See [How trade grades work](#how-trade-grades-work) below.
   - **Who to Start** — Pick two players at the same position (search by name). Get a START A / START B call (or a lean / toss-up) with short reasons from projection, recent form, injury, and defense matchup. Shows **Stats through Week N · updated X min ago**; projections/injuries refresh on a ≤15 min TTL.
 - **League / Players** — Standings, matchups, full rosters, and a searchable player pool.
-- **Sync vs Connect** — **Connect** saves your league ID (and private cookies if needed) once on this account. **Sync** refreshes from that saved connection without typing the ID again.
+- **Sync vs Connect** — **Connect** saves your ESPN league ID (and private cookies if needed) or your Sleeper username + league once on this account. **Sync** refreshes from that saved connection without typing the ID again.
 - **Live scoreboard** — NFL games from ESPN’s public scoreboard API (no API key).
 
 ---
@@ -44,7 +44,8 @@ After you enter, **Home** opens fantasy AI chat (mentions, trade / who-to-start 
 
 | What you see | Where it comes from |
 |--------------|---------------------|
-| Rosters, projections, actuals, matchups | ESPN Fantasy league APIs (the unofficial endpoints the fantasy.espn.com site uses), synced and cached for your account |
+| Rosters, projections, actuals, matchups (ESPN) | ESPN Fantasy league APIs (the unofficial endpoints the fantasy.espn.com site uses), synced and cached for your account |
+| Rosters, weekly points, matchups (Sleeper) | Sleeper's public read API (username → leagues → rosters/matchups; no login or cookies). Weekly points use the league's own scoring; projections use the Sleeper field matching the league's reception scoring. Players are matched to ESPN ids via Sleeper, our DB, and the DynastyProcess player-ID map |
 | Opponent labels for finished weeks | ESPN’s public NFL scoreboard |
 | No-league pool (Trades) | ESPN public player projections/injuries (≤12 min TTL) + nflverse completed-week usage (`PlayerWeekStat` leagueId=""); labeled with week + refresh time |
 | News / injuries | ESPN public news feeds + roster injury flags — never invented |

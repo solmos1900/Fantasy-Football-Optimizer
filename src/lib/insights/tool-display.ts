@@ -16,6 +16,7 @@ import {
   type SleeperProjectionMap,
 } from "@/lib/sleeper/projections";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
+import { memoTtl } from "@/lib/cache/memo";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
 import type {
@@ -241,6 +242,9 @@ export function dvpMapFromRecord(
  * Load DVP + Sleeper meta shared by Trade / Who to Start (server).
  * Week strips still come from each player's recentWeeks (nflverse full PPR).
  */
+/** How long per-instance tool inputs (DVP map, Sleeper projections) live. */
+const TOOL_INPUT_TTL_MS = 10 * 60 * 1000;
+
 export async function loadToolDisplayMeta(options: {
   season: number;
   players: FantasyPlayer[];
@@ -258,16 +262,30 @@ export async function loadToolDisplayMeta(options: {
   const statsThroughWeek =
     weekSnap?.latestCompletedWeek ?? Math.max(0, currentWeek - 1);
 
+  // Both inputs are the same for every request in a given week: cache them
+  // per instance instead of re-reading Neon / re-downloading Sleeper.
+  const throughWeek = Math.max(statsThroughWeek, 0);
   const [dvpMap, sleeper] = await Promise.all([
-    buildDefenseVsPositionMap({
-      season: options.season,
-      throughWeek: Math.max(statsThroughWeek, 0),
-      lookback: 4,
-    }),
-    fetchSleeperProjections({
-      season: options.season,
-      week: currentWeek,
-    }).catch(
+    memoTtl(`dvp:${options.season}:${throughWeek}:4`, TOOL_INPUT_TTL_MS, () =>
+      buildDefenseVsPositionMap({
+        season: options.season,
+        throughWeek,
+        lookback: 4,
+      }),
+    ),
+    memoTtl(
+      `sleeper-proj:${options.season}:${currentWeek}`,
+      TOOL_INPUT_TTL_MS,
+      async () => {
+        const map = await fetchSleeperProjections({
+          season: options.season,
+          week: currentWeek,
+        });
+        // An empty feed is usually an upstream blip — don't pin it for 10 min.
+        if (map.emptyFeed) throw new Error("sleeper projections empty");
+        return map;
+      },
+    ).catch(
       (): SleeperProjectionMap => ({
         byEspnId: new Map(),
         byNameTeam: new Map(),

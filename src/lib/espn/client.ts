@@ -360,7 +360,7 @@ export async function fetchEspnLeague(
     syncWarnings.push(FREE_AGENT_REFRESH_WARNING);
   }
 
-  let league: LeagueData = {
+  const league: LeagueData = {
     leagueId: String(creds.leagueId),
     season: creds.season,
     name: String(settings.name ?? `League ${creds.leagueId}`),
@@ -375,12 +375,24 @@ export async function fetchEspnLeague(
     ...(syncWarnings.length > 0 ? { syncWarnings } : {}),
   };
 
+  return enrichLeagueWithScoreboard(league);
+}
+
+/**
+ * Stamp opponents from ESPN's public NFL scoreboard onto any LeagueData
+ * (ESPN or Sleeper): this week's home/away/BYE label, plus real opponents on
+ * completed-week scores (for defense comps). Never fabricates matchups.
+ */
+export async function enrichLeagueWithScoreboard(
+  input: LeagueData,
+): Promise<LeagueData> {
+  let league = input;
   // Bake opponent / venue from the public NFL scoreboard so My Team, Insights,
   // and player detail all see the same home/away (or BYE) label — not TBD.
   try {
     const board = (await fetchEspnScoreboard(
-      scoringPeriodId,
-      creds.season,
+      league.scoringPeriodId,
+      league.season,
     )) as { events?: ScoreboardEvent[] };
     league = enrichLeagueOpponents(league, parseEspnScoreboard(board));
   } catch (err) {

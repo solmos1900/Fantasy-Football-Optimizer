@@ -8,6 +8,7 @@ import {
   positionChipClassName,
 } from "@/components/position-chip";
 import { cn, pointsOrZero } from "@/lib/utils";
+import { leagueReportsOwnership } from "@/lib/league/team";
 
 const POSITIONS = ["ALL", "QB", "RB", "WR", "TE", "K", "D/ST"] as const;
 
@@ -131,7 +132,7 @@ export function PlayersDirectory({ league }: { league: LeagueData }) {
             <PlayerRow
               player={p}
               showSlotBadge={false}
-              showOwnership
+              showOwnership={leagueReportsOwnership(league)}
               preferProjected
               ownerLabel={ownership.get(p.espnId) ?? "FA"}
               rank={i + 1}

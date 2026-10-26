@@ -11,6 +11,7 @@ export default async function ConnectPage() {
 
   const connection = row
     ? {
+        platform: row.platform === "sleeper" ? ("sleeper" as const) : ("espn" as const),
         leagueId: row.leagueId,
         season: row.season,
         leagueName: row.leagueName,
@@ -25,7 +26,7 @@ export default async function ConnectPage() {
       <div>
         <h1 className="type-page text-emerald-950">Get your league</h1>
         <p className="type-body mt-2 max-w-2xl text-emerald-950/65">
-          Link your ESPN league once; it stays on this{" "}
+          Link your ESPN or Sleeper league once; it stays on this{" "}
           {isGuest ? "guest" : "signed-in"} account. Use{" "}
           <span className="font-semibold text-emerald-950">Sync</span> later to
           refresh. Guest and signed-in accounts do not share leagues.

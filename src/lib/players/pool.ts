@@ -44,6 +44,8 @@ import {
 } from "@/lib/sleeper/projections";
 import { loadSleeperRosterDirectory } from "@/lib/sleeper/players";
 import { loadOpenDataIssueSummary } from "@/lib/accuracy/data-issues";
+import type { ToolDisplayMeta } from "@/lib/insights/tool-display";
+import type { SerializedTeammateInjuryIndex } from "@/lib/insights/teammate-injury";
 import type {
   FantasyPlayer,
   InjuryStatus,
@@ -82,6 +84,13 @@ export type PlayerPoolBundle = {
   freshness: PlayerPoolFreshness;
   /** Minimal league-shaped context for tools that still take LeagueData. */
   contextLeague: LeagueData;
+  /**
+   * Trade Analyzer / Who to Start display inputs for exactly `players`,
+   * precomputed when the snapshot is rebuilt so requests do not refetch
+   * Sleeper projections / DVP / injuries. Absent on inline builds.
+   */
+  toolMeta?: ToolDisplayMeta;
+  teammateInjury?: SerializedTeammateInjuryIndex;
 };
 
 function minutesAgoLabel(iso: string | null): string | null {

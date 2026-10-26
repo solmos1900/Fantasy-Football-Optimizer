@@ -50,12 +50,15 @@ export default async function TradesPage({
       roster: [],
       isCurrentUser: true,
     };
+    // Precomputed with the pool snapshot; compute only for older snapshots.
     const [teammateInjury, toolMeta] = await Promise.all([
-      buildTradeTeammateInjuryIndex(pool.players, pool.freshness.season),
-      loadToolDisplayMeta({
-        season: pool.freshness.season,
-        players: pool.players,
-      }),
+      pool.teammateInjury ??
+        buildTradeTeammateInjuryIndex(pool.players, pool.freshness.season),
+      pool.toolMeta ??
+        loadToolDisplayMeta({
+          season: pool.freshness.season,
+          players: pool.players,
+        }),
     ]);
 
     return (

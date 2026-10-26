@@ -65,12 +65,15 @@ export async function loadChatDataContext(options: {
   const pool = await getNoLeaguePlayerPool();
   const playersByEspnId = new Map<number, FantasyPlayer>();
   for (const p of pool.players) playersByEspnId.set(p.espnId, p);
+  // Precomputed with the pool snapshot; compute only for older snapshots.
   const [meta, teammateInjury] = await Promise.all([
-    loadToolDisplayMeta({
-      season: pool.freshness.season,
-      players: pool.players,
-    }),
-    buildTradeTeammateInjuryIndex(pool.players, pool.freshness.season),
+    pool.toolMeta ??
+      loadToolDisplayMeta({
+        season: pool.freshness.season,
+        players: pool.players,
+      }),
+    pool.teammateInjury ??
+      buildTradeTeammateInjuryIndex(pool.players, pool.freshness.season),
   ]);
 
   return {

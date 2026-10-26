@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: "Gridiron IQ — Fantasy Football Optimizer",
   description:
-    "SSO login, ESPN league sync, live stats, and explainable start/sit insights.",
+    "SSO login, ESPN and Sleeper league sync, live stats, and explainable start/sit insights.",
   applicationName: "Gridiron IQ",
   appleWebApp: {
     capable: true,

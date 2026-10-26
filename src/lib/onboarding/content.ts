@@ -1,35 +1,33 @@
 /**
- * How-to-connect onboarding copy. Only ESPN connect exists in the product
- * today, so only ESPN gets real steps; other hosts get one honest line.
+ * How-to-connect onboarding copy. ESPN and Sleeper connect exist in the
+ * product; other hosts get one honest "coming soon" line.
  */
 
-export type ConnectGuideStep = {
-  id: string;
-  title: string;
+export type ConnectGuideOption = {
+  id: "sleeper" | "espn";
+  label: string;
   body: string;
+  href: string;
 };
 
-/** The three things a user does on /connect — kept short for the modal. */
-export const ESPN_CONNECT_STEPS: ConnectGuideStep[] = [
+/** The two connect paths, easiest first, for the first-run modal. */
+export const CONNECT_GUIDE_OPTIONS: ConnectGuideOption[] = [
   {
-    id: "espn-league-id",
-    title: "Find your League ID",
-    body: "Open your league on fantasy.espn.com. It's the number after leagueId= in the address bar.",
+    id: "sleeper",
+    label: "Sleeper",
+    body: "Just your Sleeper username — we find your leagues and your team. About 30 seconds, works on your phone.",
+    href: "/connect#sleeper",
   },
   {
-    id: "espn-private",
-    title: "Private league? Add two cookies",
-    body: "Public leagues skip this. Private leagues also need two values from a computer browser — the Connect page shows exactly where to find them.",
-  },
-  {
-    id: "espn-save",
-    title: "Connect & save",
-    body: "We load your rosters and stats. Tap Sync league any time to refresh.",
+    id: "espn",
+    label: "ESPN",
+    body: "Your League ID from the league's web address. Private leagues also need two cookies from a computer browser — we show you where.",
+    href: "/connect#espn",
   },
 ];
 
 export const COMING_SOON_PLATFORMS_NOTE =
-  "Sleeper and Yahoo: Coming soon. ESPN is the only league you can connect today.";
+  "Yahoo: Coming soon. ESPN and Sleeper leagues work today.";
 
 /** Connect-form field labels the cookie help refers to. */
 export const ESPN_COOKIE_FIELD_LABELS = [

@@ -39,7 +39,7 @@ export function LeagueLocked({ title, message, className }: Props) {
           href="/connect#espn"
           className={buttonVariants({ variant: "secondary" })}
         >
-          Connect ESPN league
+          Connect a league
         </PendingLink>
       </div>
       <ConnectGuide open={guideOpen} onDismiss={() => setGuideOpen(false)} />

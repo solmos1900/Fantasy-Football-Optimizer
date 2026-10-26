@@ -27,8 +27,9 @@ export default function PrivacyPage() {
           get a temporary account with no email.
         </li>
         <li>
-          <strong>Connected leagues:</strong> your ESPN league ID, season, team,
-          and a saved copy of the league data ESPN returns (rosters, team and
+          <strong>Connected leagues:</strong> your ESPN or Sleeper league ID
+          (and Sleeper user ID), season, team,
+          and a saved copy of the league data ESPN or Sleeper returns (rosters, team and
           manager names, scores, matchups). For private leagues we store the
           ESPN <code>SWID</code> and <code>espn_s2</code> cookies you paste,
           encrypted at rest (AES-256-GCM), and use them only to read your league
@@ -66,10 +67,20 @@ export default function PrivacyPage() {
           ESPN: receives your league ID and, for private leagues, your ESPN
           cookies when we sync your league.
         </li>
+        <li>
+          Sleeper: receives your Sleeper username and league ID when you
+          connect or sync a Sleeper league (no password or cookies).
+        </li>
+        <li>
+          DynastyProcess (public player-ID file on GitHub): downloaded to match
+          Sleeper players to our stats. No data about you is sent.
+        </li>
       </ul>
       <p>
         Public NFL data comes from ESPN, Sleeper, and nflverse (CC BY 4.0). We
-        send them no personal data apart from the ESPN league request above.
+        send them no personal data apart from the league requests above (your
+        Sleeper username and league ID go to Sleeper when you connect a
+        Sleeper league).
       </p>
 
       <h2>How long we keep it</h2>

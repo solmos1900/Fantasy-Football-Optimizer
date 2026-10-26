@@ -552,15 +552,18 @@ export function teammateInjuryChipDelta(
   return index.chipDeltaByEspnId.get(espnId) ?? 0;
 }
 
-/** Serialize for client components. */
-export function serializeTeammateInjuryIndex(
-  index: TeammateInjuryIndex,
-): {
+/** JSON-safe teammate-injury index (client props, pool snapshot). */
+export type SerializedTeammateInjuryIndex = {
   updatedAt: string;
   statsThroughWeek: number;
   byEspnId: Record<string, TeammateInjuryImpact[]>;
   chipDeltaByEspnId: Record<string, number>;
-} {
+};
+
+/** Serialize for client components. */
+export function serializeTeammateInjuryIndex(
+  index: TeammateInjuryIndex,
+): SerializedTeammateInjuryIndex {
   const byEspnId: Record<string, TeammateInjuryImpact[]> = {};
   for (const [k, v] of index.byEspnId) byEspnId[String(k)] = v;
   const chipDeltaByEspnId: Record<string, number> = {};

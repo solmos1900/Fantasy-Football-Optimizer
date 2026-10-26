@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { nflAbbrevVariants, normalizeNflAbbrev } from "@/lib/espn/pro-teams";
 import {
   mentionSearchAnchor,
   rankMentionHits,
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
       where: {
         OR: [
           { name: { contains: anchor, mode: "insensitive" } },
-          { nflTeam: { equals: anchor.toUpperCase(), mode: "insensitive" } },
+          { nflTeam: { in: nflAbbrevVariants(anchor) } },
         ],
       },
       select: {
@@ -80,7 +81,7 @@ export async function GET(req: Request) {
       espnId: h.espnId,
       name: h.name,
       position: h.position,
-      nflTeam: h.nflTeam,
+      nflTeam: normalizeNflAbbrev(h.nflTeam),
       label: h.label,
     })),
   });

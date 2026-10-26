@@ -81,9 +81,14 @@ model EmailVerificationChallenge {
 model LeagueConnection {
   id            String      @id @default(cuid())
   userId        String
+  /// Fantasy host: espn | sleeper
+  platform      String      @default("espn")
   leagueId      String
   season        Int
+  /// ESPN team id, or Sleeper roster_id
   teamId        Int?
+  /// Sleeper user_id of this app user (picks their roster on sync)
+  sleeperUserId String?
   leagueName    String?
   isDemo        Boolean     @default(false)
   espnSwid      String?

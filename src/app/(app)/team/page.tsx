@@ -17,7 +17,7 @@ export default async function TeamPage() {
     return (
       <EmptyLeagueConnect
         title="My Team"
-        message="Connect an ESPN league to unlock your roster, starters, and bench."
+        message="Connect your ESPN or Sleeper league to unlock your roster, starters, and bench."
       />
     );
   }
