@@ -7,7 +7,6 @@ import { buildRosterInsightsSignals } from "@/lib/insights/roster-signals";
 import {
   enrichPlayersWithSnapshots,
   loadTrendMap,
-  refreshProjectionTrends,
 } from "@/lib/insights/trends";
 
 export default async function InsightsPage() {
@@ -20,7 +19,7 @@ export default async function InsightsPage() {
     return (
       <EmptyLeagueConnect
         title="Insights"
-        message="Connect an ESPN league to unlock roster signals — weekly points, usage, matchup chips, and waiver watch. Trade Analyzer / Who to Start work without a league."
+        message="Connect your ESPN or Sleeper league to unlock roster signals — weekly points, usage, matchup chips, and waiver watch. Trade Analyzer / Who to Start work without a league."
       />
     );
   }
@@ -30,12 +29,8 @@ export default async function InsightsPage() {
     return <SelectTeamPrompt title="Pick your team for Insights" />;
   }
 
-  try {
-    await refreshProjectionTrends(rawLeague);
-  } catch {
-    // best-effort — Insights still renders from live roster + nflverse
-  }
-
+  // Trends are persisted when the league is connected or synced (the only
+  // times the league data changes). Re-writing them here cost ~12s per view.
   let trendMap = await loadTrendMap(rawLeague);
   if (trendMap.size === 0) {
     const { computeTrendsFromLeague } = await import("@/lib/insights/trends");
