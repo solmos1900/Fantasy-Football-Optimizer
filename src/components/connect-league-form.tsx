@@ -6,6 +6,7 @@ import { SyncButton } from "@/components/sync-button";
 import { Button } from "@/components/ui/button";
 import { scrollToTopNow } from "@/components/scroll-to-top";
 import { defaultEspnSeasonClient } from "@/lib/season";
+import { ESPN_COOKIE_HELP } from "@/lib/onboarding/content";
 
 export type ConnectedLeagueSummary = {
   leagueId: string;
@@ -196,6 +197,31 @@ export function ConnectLeagueForm({ connection, isGuest }: Props) {
             </span>
           </label>
         </div>
+
+        <details className="group rounded-xl border border-emerald-950/12 px-3 py-2 text-sm">
+          <summary className="cursor-pointer font-medium text-emerald-950/80 marker:text-orange-700">
+            Private league? How to find SWID and espn_s2
+          </summary>
+          <div className="mt-2 space-y-3 pb-1 text-emerald-950/65">
+            <p>
+              Public leagues can leave both fields blank. For a private league,
+              copy two cookies from a computer browser where you&apos;re signed
+              in to ESPN. Treat them like passwords.
+            </p>
+            {ESPN_COOKIE_HELP.map((guide) => (
+              <div key={guide.browser}>
+                <p className="font-semibold text-emerald-950/80">
+                  {guide.browser}
+                </p>
+                <ol className="ml-5 mt-1 list-decimal space-y-1">
+                  {guide.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </details>
 
         <label className="block text-sm">
           <span className="mb-1.5 block font-medium text-emerald-950">

@@ -382,6 +382,8 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
             <PendingLink
               href="/connect#espn"
               className="font-semibold text-orange-700 hover:text-orange-800"
+              contentClassName="relative gap-0"
+              pendingHintClassName="absolute -right-2 top-1/2 -translate-y-1/2"
             >
               Connect a league to unlock
             </PendingLink>{" "}

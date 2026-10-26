@@ -24,6 +24,8 @@ export function PlayerPicker({
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [hits, setHits] = useState<MentionHit[]>([]);
+  // Query the current `hits` belong to — lets us say "no match" honestly.
+  const [hitsFor, setHitsFor] = useState("");
 
   useEffect(() => {
     if (!open || q.trim().length < 1) return;
@@ -38,6 +40,7 @@ export function PlayerPicker({
         const data = (await res.json()) as { players: MentionHit[] };
         const taken = new Set(players.map((p) => p.espnId));
         setHits((data.players ?? []).filter((h) => !taken.has(h.espnId)));
+        setHitsFor(q);
       } catch {
         /* ignore */
       }
@@ -49,6 +52,8 @@ export function PlayerPicker({
   }, [q, open, players]);
 
   const visibleHits = open && q.trim().length >= 1 ? hits : [];
+  const noMatch =
+    open && q.trim().length >= 2 && hitsFor === q && hits.length === 0;
 
   function add(hit: MentionHit) {
     if (players.length >= max) return;
@@ -115,6 +120,10 @@ export function PlayerPicker({
                 </li>
               ))}
             </ul>
+          ) : noMatch ? (
+            <p className="absolute left-0 right-0 z-20 mt-1 rounded-lg border border-emerald-950/15 bg-[var(--surface)] px-3 py-2 text-xs text-emerald-950/55 shadow-lg">
+              No players match “{q.trim()}”. Try a last name.
+            </p>
           ) : null}
         </div>
       ) : null}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
+  mentionSearchAnchor,
   rankMentionHits,
   type MentionPlayer,
 } from "@/lib/chat/mention-search";
@@ -36,14 +37,18 @@ export async function GET(req: Request) {
   const { q, limit } = parsed.data;
   const trimmed = q.trim();
 
-  // Prefetch a bounded candidate set — DB filter when query has 2+ chars.
+  // Prefetch a bounded candidate set, then rank with normalised matching.
+  // The DB filter uses the query's longest word only, so "aj brown",
+  // "brown aj" and "ja'marr" still reach "A.J. Brown" / "Ja'Marr Chase"
+  // (a whole-string `contains` missed punctuation and word order).
   let rows: MentionPlayer[];
-  if (trimmed.length >= 2) {
+  const anchor = mentionSearchAnchor(trimmed);
+  if (anchor) {
     rows = await prisma.player.findMany({
       where: {
         OR: [
-          { name: { contains: trimmed, mode: "insensitive" } },
-          { nflTeam: { equals: trimmed.toUpperCase(), mode: "insensitive" } },
+          { name: { contains: anchor, mode: "insensitive" } },
+          { nflTeam: { equals: anchor.toUpperCase(), mode: "insensitive" } },
         ],
       },
       select: {
@@ -52,7 +57,7 @@ export async function GET(req: Request) {
         position: true,
         nflTeam: true,
       },
-      take: 40,
+      take: 200,
       orderBy: { name: "asc" },
     });
   } else {

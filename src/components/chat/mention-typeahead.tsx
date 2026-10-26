@@ -22,6 +22,9 @@ export function MentionTypeahead({
 }: Props) {
   const listId = useId();
   const [hits, setHits] = useState<MentionHit[]>([]);
+  // Query the current `hits` were fetched for; older results are never shown
+  // (a quick pick could otherwise grab a player from the previous search).
+  const [hitsFor, setHitsFor] = useState<string | null>(null);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -41,6 +44,7 @@ export function MentionTypeahead({
         if (!res.ok) return;
         const data = (await res.json()) as { players: MentionHit[] };
         setHits(data.players ?? []);
+        setHitsFor(query);
         setActive(0);
       } catch {
         /* aborted or network */
@@ -54,32 +58,45 @@ export function MentionTypeahead({
     };
   }, [query, open]);
 
-  const visibleHits = useMemo(() => (open ? hits : []), [open, hits]);
+  const fresh = hitsFor === query;
+  const visibleHits = useMemo(
+    () => (open && fresh ? hits : []),
+    [open, fresh, hits],
+  );
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      // Keys handled here must not also reach the composer (Enter would
+      // pick a player *and* send the message).
+      const consume = () => {
         e.preventDefault();
+        e.stopPropagation();
+      };
+      if (e.key === "Escape") {
+        consume();
         onClose();
         return;
       }
-      if (!hits.length) return;
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setActive((i) => (i + 1) % hits.length);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setActive((i) => (i - 1 + hits.length) % hits.length);
-      } else if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        const hit = hits[active];
+      if (e.key === "Enter" || e.key === "Tab") {
+        // While results are loading, Enter does nothing rather than sending.
+        consume();
+        const hit = visibleHits[active];
         if (hit) onSelect(hit);
+        return;
+      }
+      if (!visibleHits.length) return;
+      if (e.key === "ArrowDown") {
+        consume();
+        setActive((i) => (i + 1) % visibleHits.length);
+      } else if (e.key === "ArrowUp") {
+        consume();
+        setActive((i) => (i - 1 + visibleHits.length) % visibleHits.length);
       }
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [open, hits, active, onSelect, onClose]);
+  }, [open, visibleHits, active, onSelect, onClose]);
 
   if (!open) return null;
 
@@ -93,10 +110,10 @@ export function MentionTypeahead({
         className,
       )}
     >
-      {loading && !visibleHits.length ? (
+      {(loading || !fresh) && !visibleHits.length ? (
         <p className="px-3 py-2 text-xs text-emerald-950/50">Searching…</p>
       ) : null}
-      {!loading && !visibleHits.length ? (
+      {!loading && fresh && !visibleHits.length ? (
         <p className="px-3 py-2 text-xs text-emerald-950/50">
           No players match “{query || "…"}”
         </p>

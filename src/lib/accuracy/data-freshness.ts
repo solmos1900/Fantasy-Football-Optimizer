@@ -74,11 +74,14 @@ export async function buildDataFreshnessReport(options?: {
     latestCompletedWeekEspn = null;
   }
 
-  const weekToAssess =
-    dbWeek.latestWeek ??
-    (latestCompletedWeekEspn != null && latestCompletedWeekEspn > 0
-      ? latestCompletedWeekEspn
-      : null);
+  // Grade the latest *completed* week. The newest week in the DB can be one
+  // still being played (e.g. Thursday's game ingested on Sunday) and would
+  // always look incomplete — a false `ok: false`. Fall back to the DB week
+  // only when the scoreboard is unavailable.
+  const weekToAssess = freshnessWeekToAssess(
+    dbWeek.latestWeek,
+    latestCompletedWeekEspn,
+  );
 
   let weekComplete: boolean | null = null;
   let missingTeams: string[] | null = null;
@@ -140,4 +143,15 @@ export async function buildDataFreshnessReport(options?: {
         }
       : null,
   };
+}
+
+/** Week the freshness report grades: latest completed, else latest in DB. */
+export function freshnessWeekToAssess(
+  latestWeekInDb: number | null,
+  latestCompletedWeekEspn: number | null,
+): number | null {
+  if (latestCompletedWeekEspn != null && latestCompletedWeekEspn > 0) {
+    return latestCompletedWeekEspn;
+  }
+  return latestWeekInDb;
 }

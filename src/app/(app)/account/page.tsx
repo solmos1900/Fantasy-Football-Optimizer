@@ -1,8 +1,8 @@
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getUserLeagueConnection } from "@/lib/league/service";
 import { DeleteAccountPanel } from "@/components/delete-account-panel";
-import { PendingLink } from "@/components/pending-link";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -52,13 +52,9 @@ export default async function AccountPage() {
       <DeleteAccountPanel isGuest={isGuest} />
 
       <p className="type-caption text-emerald-950/55">
-        <PendingLink href="/terms" className="underline underline-offset-2">
-          Terms of Service
-        </PendingLink>
+        <Link href="/terms" className="underline underline-offset-2">Terms of Service</Link>
         {" · "}
-        <PendingLink href="/privacy" className="underline underline-offset-2">
-          Privacy Policy
-        </PendingLink>
+        <Link href="/privacy" className="underline underline-offset-2">Privacy Policy</Link>
       </p>
     </div>
   );

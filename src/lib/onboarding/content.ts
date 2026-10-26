@@ -1,98 +1,71 @@
 /**
- * How-to-connect onboarding — only platforms that exist in the product today
- * get real steps. Others are honest "Coming soon" slots (no fake steps).
+ * How-to-connect onboarding copy. Only ESPN connect exists in the product
+ * today, so only ESPN gets real steps; other hosts get one honest line.
  */
 
-export type OnboardingPlatformId = "espn" | "sleeper" | "other";
-
-export type OnboardingStep = {
+export type ConnectGuideStep = {
   id: string;
   title: string;
   body: string;
-  /** Exact in-app field labels when the step maps to the Connect form. */
-  fieldLabels?: string[];
 };
 
-export type OnboardingPlatform = {
-  id: OnboardingPlatformId;
-  label: string;
-  /** False when connect is not implemented in code yet. */
-  available: boolean;
-  summary: string;
-  /** Public path or override via NEXT_PUBLIC_ONBOARDING_*_VIDEO_URL. */
-  defaultVideoPath: string;
-  videoEnvKey: string;
-  steps: OnboardingStep[];
-  comingSoonNote?: string;
-};
-
-/** Default asset paths — drop recordings here (see PR shot list). */
-export const ONBOARDING_VIDEO_PATHS = {
-  espn: "/onboarding/espn-safari.mp4",
-  sleeper: "/onboarding/sleeper-safari.mp4",
-  other: "/onboarding/other-safari.mp4",
-} as const;
-
-export const ONBOARDING_PLATFORMS: OnboardingPlatform[] = [
+/** The three things a user does on /connect — kept short for the modal. */
+export const ESPN_CONNECT_STEPS: ConnectGuideStep[] = [
   {
-    id: "espn",
-    label: "ESPN",
-    available: true,
-    summary:
-      "Connect a public or private ESPN fantasy league. Private leagues need two cookies copied from Safari on a computer.",
-    defaultVideoPath: ONBOARDING_VIDEO_PATHS.espn,
-    videoEnvKey: "NEXT_PUBLIC_ONBOARDING_ESPN_VIDEO_URL",
+    id: "espn-league-id",
+    title: "Find your League ID",
+    body: "Open your league on fantasy.espn.com. It's the number after leagueId= in the address bar.",
+  },
+  {
+    id: "espn-private",
+    title: "Private league? Add two cookies",
+    body: "Public leagues skip this. Private leagues also need two values from a computer browser — the Connect page shows exactly where to find them.",
+  },
+  {
+    id: "espn-save",
+    title: "Connect & save",
+    body: "We load your rosters and stats. Tap Sync league any time to refresh.",
+  },
+];
+
+export const COMING_SOON_PLATFORMS_NOTE =
+  "Sleeper and Yahoo: Coming soon. ESPN is the only league you can connect today.";
+
+/** Connect-form field labels the cookie help refers to. */
+export const ESPN_COOKIE_FIELD_LABELS = [
+  "SWID (private)",
+  "espn_s2 (private)",
+] as const;
+
+/**
+ * Detailed "where do I find SWID / espn_s2" steps, shown on /connect next to
+ * those fields (not in the first-run modal).
+ */
+export const ESPN_COOKIE_HELP: { browser: string; steps: string[] }[] = [
+  {
+    browser: "Chrome or Edge (computer)",
     steps: [
-      {
-        id: "espn-open",
-        title: "Open Connect ESPN league",
-        body: "After you sign in or continue as a guest, open Connect (or Home → Connect ESPN league) to link your fantasy league.",
-      },
-      {
-        id: "espn-league-id",
-        title: "Enter League ID",
-        body: "Type your ESPN League ID. You can find it in the ESPN fantasy URL for your league (the long number).",
-        fieldLabels: ["League ID"],
-      },
-      {
-        id: "espn-season-team",
-        title: "Season and your team",
-        body: "Set Season to the current fantasy year. Your team ID is optional — add it if you know which ESPN team number is yours.",
-        fieldLabels: ["Season", "Your team ID"],
-      },
-      {
-        id: "espn-cookies",
-        title: "Private leagues: SWID and espn_s2",
-        body: "Public leagues can skip this. For a private league, on a computer open Safari → go to fantasy.espn.com while signed in → Developer menu or Web Inspector → Storage → Cookies → https://fantasy.espn.com. Copy SWID (includes the braces) and espn_s2 (keep the URL encoding). Paste them into the matching fields. Treat them like passwords.",
-        fieldLabels: ["SWID (private)", "espn_s2 (private)"],
-      },
-      {
-        id: "espn-save",
-        title: "Connect & save",
-        body: "Tap Connect & save. Gridiron IQ stores the link on this account (cookies encrypted at rest) and loads your rosters and latest finished-week stats. Use Sync league anytime to refresh without retyping the League ID.",
-      },
+      "Sign in at fantasy.espn.com and open your league.",
+      "Open developer tools: Ctrl+Shift+I (Windows) or Cmd+Option+I (Mac).",
+      "Go to Application → Storage → Cookies → https://fantasy.espn.com.",
+      "Copy the SWID value (including the { } braces) and the espn_s2 value exactly as shown.",
     ],
   },
   {
-    id: "sleeper",
-    label: "Sleeper",
-    available: false,
-    summary: "Sleeper league connect is not in the app yet.",
-    defaultVideoPath: ONBOARDING_VIDEO_PATHS.sleeper,
-    videoEnvKey: "NEXT_PUBLIC_ONBOARDING_SLEEPER_VIDEO_URL",
-    steps: [],
-    comingSoonNote:
-      "Coming soon — there is no Sleeper connect flow in Gridiron IQ today. When it ships, this guide will walk through the real steps.",
-  },
-  {
-    id: "other",
-    label: "Other",
-    available: false,
-    summary: "Other fantasy hosts are not connected yet.",
-    defaultVideoPath: ONBOARDING_VIDEO_PATHS.other,
-    videoEnvKey: "NEXT_PUBLIC_ONBOARDING_OTHER_VIDEO_URL",
-    steps: [],
-    comingSoonNote:
-      "Coming soon — Yahoo and other hosts are not available to connect in the app yet. ESPN is the only live connect path today.",
+    browser: "Safari (Mac)",
+    steps: [
+      "Turn on the developer menu: Safari → Settings → Advanced → Show features for web developers.",
+      "Sign in at fantasy.espn.com and open your league.",
+      "Develop → Show Web Inspector → Storage → Cookies → fantasy.espn.com.",
+      "Copy SWID (including the braces) and espn_s2 (keep its URL encoding).",
+    ],
   },
 ];
+
+/**
+ * Optional walkthrough recording. Only shown when this env var is set, so
+ * the modal never probes for (and 404s on) a file that does not exist.
+ */
+export function espnWalkthroughVideoUrl(): string | null {
+  return process.env.NEXT_PUBLIC_ONBOARDING_ESPN_VIDEO_URL?.trim() || null;
+}
