@@ -17,6 +17,8 @@ import {
   rankMentionHits,
   type MentionPlayer,
 } from "../src/lib/chat/mention-search";
+import { formatPlayerLabel } from "../src/lib/insights/player-label";
+import { nflAbbrevVariants } from "../src/lib/espn/pro-teams";
 
 const pool: MentionPlayer[] = [
   { espnId: 1, name: "Puka Nacua", position: "WR", nflTeam: "LAR" },
@@ -122,5 +124,12 @@ assert.equal(
 );
 // Runaway text after a stray @ stops searching.
 assert.equal(extractMentionQuery(`@${"x".repeat(60)}`, 61), null);
+
+// One team spelling everywhere: nflverse "LA" / "WAS" render as ESPN's.
+assert.equal(formatPlayerLabel("Puka Nacua", "LA"), "Puka Nacua (LAR)");
+assert.equal(formatPlayerLabel("Terry McLaurin", "was"), "Terry McLaurin (WSH)");
+assert.equal(formatPlayerLabel("Free Agent", "FA"), "Free Agent");
+assert.deepEqual(nflAbbrevVariants("lar").sort(), ["LA", "LAR", "STL"]);
+assert.ok(matchesMentionQuery({ ...pool[0]!, nflTeam: "LA" }, "nacua lar"));
 
 console.log("verify-chat-mention-search: ok");

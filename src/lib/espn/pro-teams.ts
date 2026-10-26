@@ -64,6 +64,19 @@ export function normalizeNflAbbrev(abbrev: string | null | undefined): string | 
   return ABBREV_ALIASES[upper] ?? upper;
 }
 
+/**
+ * Every spelling that normalizes to the same club, canonical first — for
+ * matching rows stored by different sources (nflverse "LA" vs ESPN "LAR").
+ */
+export function nflAbbrevVariants(abbrev: string | null | undefined): string[] {
+  const canonical = normalizeNflAbbrev(abbrev);
+  if (!canonical) return [];
+  const aliases = Object.entries(ABBREV_ALIASES)
+    .filter(([, target]) => target === canonical)
+    .map(([alias]) => alias);
+  return [canonical, ...aliases];
+}
+
 /** Full club names for plain-English notices. */
 const NFL_TEAM_FULL_NAME: Readonly<Record<string, string>> = {
   ARI: "Arizona Cardinals",
