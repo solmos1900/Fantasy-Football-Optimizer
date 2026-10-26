@@ -128,6 +128,7 @@ async function main() {
   const wrong = await verifyEmailCode({
     email: victimEmail,
     code: started.devCode === "000000" ? "111111" : "000000",
+    password: attackerPassword,
   });
   assert.equal(wrong.ok, false);
   if (!wrong.ok) assert.equal(wrong.status, 401);
@@ -141,6 +142,7 @@ async function main() {
   const expired = await verifyEmailCode({
     email: victimEmail,
     code: started.devCode,
+    password: attackerPassword,
   });
   assert.equal(expired.ok, false);
   if (!expired.ok) assert.equal(expired.status, 410);
@@ -171,6 +173,7 @@ async function main() {
   const verified = await verifyEmailCode({
     email: victimEmail,
     code: goodCode,
+    password: attackerPassword,
   });
   assert.equal(verified.ok, true);
   const user = await prisma.user.findUnique({ where: { email: victimEmail } });
@@ -187,8 +190,51 @@ async function main() {
   );
 
   // Replayed / missing challenge fails
-  const replay = await verifyEmailCode({ email: victimEmail, code: goodCode });
+  const replay = await verifyEmailCode({
+    email: victimEmail,
+    code: goodCode,
+    password: attackerPassword,
+  });
   assert.equal(replay.ok, false);
+
+  // ── #152: a later register can't swap a pending signup's password ──────
+  await cleanup();
+  const victimPassword = "victim-pass-12345";
+  const victimStart = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: victimPassword,
+  });
+  assert.equal(victimStart.ok, true);
+  if (!victimStart.ok || !victimStart.devCode) throw new Error("unreachable");
+  // Attacker re-registers after the resend cooldown with a different password.
+  await prisma.emailVerificationChallenge.update({
+    where: { email: victimEmail },
+    data: { lastSentAt: new Date(0) },
+  });
+  const hijack = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: attackerPassword,
+  });
+  assert.equal(hijack.ok, false);
+  if (!hijack.ok) assert.equal(hijack.status, 409);
+  // A code alone is not enough: the verifier must know the signup password.
+  const wrongPw = await verifyEmailCode({
+    email: victimEmail,
+    code: victimStart.devCode,
+    password: attackerPassword,
+  });
+  assert.equal(wrongPw.ok, false);
+  assert.equal(await prisma.user.findUnique({ where: { email: victimEmail } }), null);
+  const rightPw = await verifyEmailCode({
+    email: victimEmail,
+    code: victimStart.devCode,
+    password: victimPassword,
+  });
+  assert.equal(rightPw.ok, true);
+  const victimUser = await prisma.user.findUnique({ where: { email: victimEmail } });
+  const { verifyPassword } = await import("../src/lib/password");
+  assert.equal(await verifyPassword(victimPassword, victimUser!.passwordHash!), true);
+  assert.equal(await verifyPassword(attackerPassword, victimUser!.passwordHash!), false);
 
   // ── Legacy unverified blocker is cleared for OAuth ─────────────────────
   await cleanup();

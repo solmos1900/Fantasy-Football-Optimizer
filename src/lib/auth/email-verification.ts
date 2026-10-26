@@ -1,6 +1,11 @@
 import { createHash, randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
-import { hashPassword, isValidEmail, isValidPassword } from "@/lib/password";
+import {
+  hashPassword,
+  isValidEmail,
+  isValidPassword,
+  verifyPassword,
+} from "@/lib/password";
 import { sendVerificationCodeEmail } from "@/lib/email/send";
 
 /** 6-digit numeric codes — short enough to type, long enough with attempt limits. */
@@ -136,6 +141,21 @@ export async function startEmailVerificationChallenge(input: {
       error: "Please wait a minute before requesting another code.",
       status: 429,
     };
+  }
+
+  // A pending signup is bound to the password it was started with. Only the
+  // same signup (same password) may refresh it; anyone else must wait for it
+  // to expire, so a later register call can't swap in a different password.
+  if (prior && prior.expiresAt.getTime() > Date.now()) {
+    const samePassword = await verifyPassword(password, prior.passwordHash);
+    if (!samePassword) {
+      return {
+        ok: false,
+        error:
+          "A verification is already pending for that email. Enter the code we sent, or try again in 15 minutes.",
+        status: 409,
+      };
+    }
   }
 
   const passwordHash = await hashPassword(password);
@@ -277,6 +297,8 @@ export async function resendEmailVerification(input: {
 export async function verifyEmailCode(input: {
   email: string;
   code: string;
+  /** The password chosen at signup — proves the verifier is the one who registered. */
+  password: string;
 }): Promise<ChallengeVerifyResult> {
   const email = input.email.trim().toLowerCase();
   const code = input.code.trim();
@@ -316,12 +338,19 @@ export async function verifyEmailCode(input: {
     };
   }
 
-  if (!codesMatch(code, challenge.codeHash)) {
+  const codeOk = codesMatch(code, challenge.codeHash);
+  const passwordOk =
+    codeOk && (await verifyPassword(input.password, challenge.passwordHash));
+  if (!codeOk || !passwordOk) {
     await prisma.emailVerificationChallenge.update({
       where: { email },
       data: { attemptCount: { increment: 1 } },
     });
-    return { ok: false, error: "Incorrect code. Try again.", status: 401 };
+    return {
+      ok: false,
+      error: "Incorrect code or password. Try again.",
+      status: 401,
+    };
   }
 
   const existing = await prisma.user.findUnique({

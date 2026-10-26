@@ -6,6 +6,7 @@ import { verifyEmailCode } from "@/lib/auth/email-verification";
 const VerifySchema = z.object({
   email: z.string().trim().email().max(160),
   code: z.string().trim().min(4).max(12),
+  password: z.string().min(8).max(128),
 });
 
 export async function POST(request: Request) {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   const parsed = VerifySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Enter your email and the 6-digit verification code." },
+      { error: "Enter your email, password and the 6-digit verification code." },
       { status: 400 },
     );
   }
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     const result = await verifyEmailCode({
       email: parsed.data.email,
       code: parsed.data.code,
+      password: parsed.data.password,
     });
 
     if (!result.ok) {
