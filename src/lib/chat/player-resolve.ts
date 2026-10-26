@@ -4,6 +4,7 @@
 
 import { getNoLeaguePlayerPool } from "@/lib/players/pool-snapshot";
 import { getLeagueDataForUser } from "@/lib/league/service";
+import { leagueScoring } from "@/lib/league/scoring";
 import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
 import type { FantasyPlayer, LeagueData, PlayerTrendView } from "@/lib/types";
@@ -47,7 +48,11 @@ export async function loadChatDataContext(options: {
 
     const players = [...poolById.values()];
     const [meta, teammateInjury] = await Promise.all([
-      loadToolDisplayMeta({ season: league.season, players }),
+      loadToolDisplayMeta({
+        season: league.season,
+        players,
+        scoring: leagueScoring(league),
+      }),
       buildTradeTeammateInjuryIndex(players, league.season),
     ]);
 

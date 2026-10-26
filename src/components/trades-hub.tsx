@@ -9,6 +9,7 @@ import { PoolFreshnessBanner } from "@/components/pool-freshness-banner";
 import type { PlayerPoolFreshness } from "@/lib/players/pool";
 import type { serializeTeammateInjuryIndex } from "@/lib/insights/teammate-injury";
 import type { ToolDisplayMeta } from "@/lib/insights/tool-display";
+import { leagueScoring } from "@/lib/league/scoring";
 
 export type TradesTool = "analyzer" | "who-to-start";
 
@@ -129,6 +130,7 @@ export function TradesHub({
           forceFreeMode={noLeague}
           teammateInjury={teammateInjury}
           toolMeta={toolMeta}
+          scoring={leagueScoring(league)}
         />
       ) : (
         <WhoToStart

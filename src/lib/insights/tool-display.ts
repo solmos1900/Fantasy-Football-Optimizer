@@ -17,6 +17,11 @@ import {
 } from "@/lib/sleeper/projections";
 import { fetchNflWeekSnapshot } from "@/lib/players/week";
 import { memoTtl } from "@/lib/cache/memo";
+import {
+  DEFAULT_SCORING,
+  FORMAT_LABEL,
+  type LeagueScoring,
+} from "@/lib/league/scoring";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
 import type {
@@ -34,8 +39,13 @@ export type ToolDisplayMeta = {
   weekAxis: number[];
   /** "DEF|POS" → DvpChip (JSON-safe). */
   dvpByKey: Record<string, DvpChip>;
-  /** espnId string → Sleeper full-PPR proj (null omitted). */
+  /** espnId string → Sleeper proj in the league's scoring (null omitted). */
   sleeperByEspnId: Record<string, number>;
+  /**
+   * Scoring the projections / verdict copy use, e.g. "Half PPR". Absent on
+   * snapshots stored before scoring support → Full PPR.
+   */
+  scoringLabel?: string;
   sleeperEmpty: boolean;
   maxPts: number;
 };
@@ -248,7 +258,10 @@ const TOOL_INPUT_TTL_MS = 10 * 60 * 1000;
 export async function loadToolDisplayMeta(options: {
   season: number;
   players: FantasyPlayer[];
+  /** League scoring; default Full PPR, 1QB (the NFL-pool board). */
+  scoring?: LeagueScoring;
 }): Promise<ToolDisplayMeta> {
+  const scoring = options.scoring ?? DEFAULT_SCORING;
   const weekSnap = await fetchNflWeekSnapshot(options.season).catch(() => null);
   const currentWeek =
     weekSnap?.currentWeek ??
@@ -274,12 +287,13 @@ export async function loadToolDisplayMeta(options: {
       }),
     ),
     memoTtl(
-      `sleeper-proj:${options.season}:${currentWeek}`,
+      `sleeper-proj:${options.season}:${currentWeek}:${scoring.format}`,
       TOOL_INPUT_TTL_MS,
       async () => {
         const map = await fetchSleeperProjections({
           season: options.season,
           week: currentWeek,
+          format: scoring.format,
         });
         // An empty feed is usually an upstream blip — don't pin it for 10 min.
         if (map.emptyFeed) throw new Error("sleeper projections empty");
@@ -319,6 +333,7 @@ export async function loadToolDisplayMeta(options: {
     weekAxis: Array.from({ length: currentWeek }, (_, i) => i + 1),
     dvpByKey: dvpMapToRecord(dvpMap),
     sleeperByEspnId,
+    scoringLabel: FORMAT_LABEL[scoring.format],
     sleeperEmpty: sleeper.emptyFeed,
     maxPts: Math.round(maxPts * 10) / 10,
   };

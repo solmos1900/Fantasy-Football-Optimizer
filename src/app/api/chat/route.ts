@@ -28,6 +28,7 @@ import { sanitizeChatHistory } from "@/lib/chat/history";
 import { recordChatUsage } from "@/lib/chat/usage";
 import { clientIpFromHeaders, chatRequestSchema } from "@/lib/chat/request";
 import { buildChatSystemPrompt } from "@/lib/chat/system-prompt";
+import { leagueScoring, scoringBoardLabel } from "@/lib/league/scoring";
 import { buildChatTools } from "@/lib/chat/tools";
 import {
   appendMessages,
@@ -176,6 +177,9 @@ export async function POST(req: Request) {
 
   const system = buildChatSystemPrompt({
     hasConnectedLeague: ctx.hasConnectedLeague,
+    scoringBoard: ctx.hasConnectedLeague
+      ? scoringBoardLabel(leagueScoring(ctx.league))
+      : undefined,
     freshnessLabel,
     freshnessWarning: ctx.freshness.warning,
   });

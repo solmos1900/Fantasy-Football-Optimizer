@@ -17,6 +17,7 @@
 
 import { defaultEspnSeason } from "@/lib/season";
 import { secureFetch } from "@/lib/http/secure-fetch";
+import type { ScoringFormat } from "@/lib/league/scoring";
 
 export type SleeperProjectionMap = {
   /** espnId → full-PPR projection for the requested week */
@@ -168,6 +169,21 @@ export function ptsPprFromRow(row: SleeperProjRow | null | undefined): number | 
   );
 }
 
+/**
+ * Projection for a league's reception scoring. Full PPR keeps the #87 reader
+ * above; half PPR / standard read exactly their own Sleeper stats field —
+ * there is never a fallback from one format to another.
+ */
+export function ptsForFormatFromRow(
+  row: SleeperProjRow | null | undefined,
+  format: ScoringFormat,
+): number | null {
+  if (format === "ppr") return ptsPprFromRow(row);
+  if (!row || typeof row !== "object") return null;
+  const field = format === "half_ppr" ? "pts_half_ppr" : "pts_std";
+  return normalizePtsPpr(row.stats?.[field]);
+}
+
 function emptyMap(
   season: number,
   week: number,
@@ -191,7 +207,10 @@ function emptyMap(
 export async function fetchSleeperProjections(options?: {
   season?: number;
   week?: number;
+  /** League reception scoring; default Full PPR (the no-league board). */
+  format?: ScoringFormat;
 }): Promise<SleeperProjectionMap> {
+  const format = options?.format ?? "ppr";
   const season = options?.season ?? defaultEspnSeason();
   const week = options?.week ?? 1;
   const fetchedAt = new Date().toISOString();
@@ -235,7 +254,7 @@ export async function fetchSleeperProjections(options?: {
 
     let nonempty = 0;
     for (const row of rows) {
-      const pts = ptsPprFromRow(row);
+      const pts = ptsForFormatFromRow(row, format);
       if (pts == null) continue;
       const sid = String(row.player_id ?? row.player?.player_id ?? "");
       if (!sid) continue;

@@ -1,10 +1,16 @@
 /**
- * Shared 1QB full-PPR trade chip math and roster-need helpers.
+ * Shared trade chip math and roster-need helpers.
  * Used by Insights auto-suggestions and the interactive Trade Analyzer.
  *
  * Trade value = season fantasy points per game from played weeks (not this
- * week's projection). Bye / missing projection never zeroes a player out.
- * Scarcity: TE/RB1 > WR1 > QB (1QB ×0.45), optional Neon trend nudges.
+ * week's projection), in whatever scoring those weeks were scored in (league
+ * scoring when connected, nflverse full PPR for the NFL pool). Bye / missing
+ * projection never zeroes a player out.
+ *
+ * Scarcity: TE/RB1 > WR1 > QB. In 1QB leagues QBs are discounted (×0.45) and
+ * a naked QB-for-skill 1:1 is a hard reject; in superflex leagues QBs are
+ * full-value assets (×1.0), two QB starters are needed, and that rule is off.
+ * Every `scoring` parameter is optional and defaults to Full PPR, 1QB.
  */
 
 import type {
@@ -19,6 +25,11 @@ import {
 } from "@/lib/insights/trend-labels";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { pointsOrZero } from "@/lib/utils";
+import {
+  DEFAULT_SCORING,
+  scoringBoardLabel,
+  type LeagueScoring,
+} from "@/lib/league/scoring";
 
 export const SKILL_POSITIONS: PlayerPosition[] = ["RB", "WR", "TE"];
 /** @deprecated Prefer SKILL_POSITIONS — kept as alias for call-site clarity. */
@@ -30,6 +41,20 @@ export const STARTER_NEED: Partial<Record<PlayerPosition, number>> = {
   WR: 2,
   TE: 1,
 };
+
+/** Starters a team needs at `pos` (superflex leagues start two QBs). */
+export function starterNeed(
+  pos: PlayerPosition,
+  scoring: LeagueScoring = DEFAULT_SCORING,
+): number {
+  if (pos === "QB" && scoring.superflex) return 2;
+  return STARTER_NEED[pos] ?? 1;
+}
+
+/** QB chip multiplier: discounted in 1QB, full value in superflex. */
+export function qbChipMultiplier(scoring: LeagueScoring = DEFAULT_SCORING): number {
+  return scoring.superflex ? 1 : 0.45;
+}
 
 export type TradeTier = "elite" | "high" | "mid" | "low" | "streamer";
 
@@ -144,6 +169,8 @@ export type ChipValueOptions = {
    * Transparent: Δ = allocatedShare × SHARE_TO_POINTS (see teammate-injury.ts).
    */
   teammateInjuryDelta?: number;
+  /** League scoring (superflex changes QB value). Default Full PPR, 1QB. */
+  scoring?: LeagueScoring;
 };
 
 function isTrendLookup(v: unknown): v is TrendLookup {
@@ -171,7 +198,7 @@ export function chipValue(
   if (opts.teammateInjuryDelta) blended += opts.teammateInjuryDelta;
   if (["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus)) blended *= 0.15;
 
-  if (p.position === "QB") return blended * 0.45;
+  if (p.position === "QB") return blended * qbChipMultiplier(opts.scoring);
   if (p.position === "TE") {
     const elite = basis >= 12 || tierOf(p) === "elite";
     return blended * (elite ? 1.2 : 1.05);
@@ -237,6 +264,7 @@ export function sideValue(
   players: FantasyPlayer[],
   trends?: TrendLookup,
   teammateDeltaByEspnId?: Map<number, number>,
+  scoring?: LeagueScoring,
 ): number {
   return players.reduce((a, p) => {
     const delta = teammateDeltaByEspnId?.get(p.espnId) ?? 0;
@@ -245,6 +273,7 @@ export function sideValue(
       chipValue(p, {
         trends,
         teammateInjuryDelta: delta,
+        scoring,
       })
     );
   }, 0);
@@ -268,8 +297,9 @@ export function trendBlurb(
 export function needsPosition(
   team: FantasyTeam,
   pos: PlayerPosition,
+  scoring?: LeagueScoring,
 ): boolean {
-  const need = STARTER_NEED[pos] ?? 1;
+  const need = starterNeed(pos, scoring);
   const sorted = playersAtPosition(team, pos);
   if (sorted.length < need) return true;
   const floor = pos === "QB" ? 14 : pos === "TE" ? 7 : 9;
@@ -277,8 +307,12 @@ export function needsPosition(
   return !nth || pointsOrZero(nth.projectedPoints) < floor;
 }
 
-export function hasSurplus(team: FantasyTeam, pos: PlayerPosition): boolean {
-  const need = STARTER_NEED[pos] ?? 1;
+export function hasSurplus(
+  team: FantasyTeam,
+  pos: PlayerPosition,
+  scoring?: LeagueScoring,
+): boolean {
+  const need = starterNeed(pos, scoring);
   const sorted = playersAtPosition(team, pos);
   if (sorted.length <= need) return false;
   const extra = sorted[need];
@@ -290,8 +324,9 @@ export function hasSurplus(team: FantasyTeam, pos: PlayerPosition): boolean {
 export function surplusAt(
   team: FantasyTeam,
   pos: PlayerPosition,
+  scoring?: LeagueScoring,
 ): FantasyPlayer[] {
-  const need = STARTER_NEED[pos] ?? 1;
+  const need = starterNeed(pos, scoring);
   return playersAtPosition(team, pos).slice(need);
 }
 
@@ -299,11 +334,13 @@ export function isSkillPosition(pos: PlayerPosition): boolean {
   return SKILL_POSITIONS.includes(pos);
 }
 
-/** Hard reject: naked QB-for-skill 1:1. */
+/** Hard reject (1QB only): naked QB-for-skill 1:1. Normal in superflex. */
 export function isForbiddenOneForOne(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
+  scoring?: LeagueScoring,
 ): boolean {
+  if (scoring?.superflex) return false;
   if (give.length !== 1 || receive.length !== 1) return false;
   return (give[0].position === "QB") !== (receive[0].position === "QB");
 }
@@ -340,9 +377,10 @@ export function isOutrageousValue(
   receive: FantasyPlayer[],
   trends?: TrendLookup,
   teammateDeltaByEspnId?: Map<number, number>,
+  scoring?: LeagueScoring,
 ): boolean {
-  const gv = sideValue(give, trends, teammateDeltaByEspnId);
-  const rv = sideValue(receive, trends, teammateDeltaByEspnId);
+  const gv = sideValue(give, trends, teammateDeltaByEspnId, scoring);
+  const rv = sideValue(receive, trends, teammateDeltaByEspnId, scoring);
   return isOutrageousFromSideValues(give, receive, gv, rv);
 }
 
@@ -352,10 +390,11 @@ export function fairnessScore(
   receive: FantasyPlayer[],
   trends?: TrendLookup,
   teammateDeltaByEspnId?: Map<number, number>,
+  scoring?: LeagueScoring,
 ): number {
   return fairnessFromSideValues(
-    sideValue(give, trends, teammateDeltaByEspnId),
-    sideValue(receive, trends, teammateDeltaByEspnId),
+    sideValue(give, trends, teammateDeltaByEspnId, scoring),
+    sideValue(receive, trends, teammateDeltaByEspnId, scoring),
   );
 }
 
@@ -390,16 +429,20 @@ export function needFitScore(
   them: FantasyTeam,
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
+  scoring?: LeagueScoring,
 ): number {
   let score = 0;
   for (const p of receive) {
-    if (needsPosition(you, p.position)) score += 1.2;
+    if (needsPosition(you, p.position, scoring)) score += 1.2;
     else if (isSkillPosition(p.position)) score += 0.25;
   }
   for (const p of give) {
-    if (needsPosition(them, p.position)) score += 1.2;
+    if (needsPosition(them, p.position, scoring)) score += 1.2;
     else if (isSkillPosition(p.position)) score += 0.25;
-    if (needsPosition(you, p.position) && !hasSurplus(you, p.position)) {
+    if (
+      needsPosition(you, p.position, scoring) &&
+      !hasSurplus(you, p.position, scoring)
+    ) {
       score -= 1.5;
     }
   }
@@ -428,6 +471,7 @@ export function acceptanceReason(
   trends?: TrendLookup,
   teammateDeltaByEspnId?: Map<number, number>,
   sideValues?: { give: number; receive: number },
+  scoring: LeagueScoring = DEFAULT_SCORING,
 ): string {
   const parts: string[] = [];
 
@@ -446,6 +490,10 @@ export function acceptanceReason(
     parts.push(
       `Skill-for-skill (no naked QB) matching surplus on one side to need on the other.`,
     );
+  } else if (scoring.superflex) {
+    parts.push(
+      `QB-for-skill value trade — normal in superflex, where QBs are premium assets.`,
+    );
   } else {
     parts.push(
       `QB only appears as a package sweetener beside skill value — never 1:1 for a WR/RB/TE.`,
@@ -453,15 +501,19 @@ export function acceptanceReason(
   }
 
   const gv =
-    sideValues?.give ?? sideValue(give, trends, teammateDeltaByEspnId);
+    sideValues?.give ??
+    sideValue(give, trends, teammateDeltaByEspnId, scoring);
   const rv =
-    sideValues?.receive ?? sideValue(receive, trends, teammateDeltaByEspnId);
+    sideValues?.receive ??
+    sideValue(receive, trends, teammateDeltaByEspnId, scoring);
   parts.push(
-    `Chip values close on a full-PPR 1QB scale with QBs discounted (${gv.toFixed(1)} vs ${rv.toFixed(1)}).`,
+    scoring.superflex
+      ? `Chip values close on a ${scoringBoardLabel(scoring)} scale with QBs at full value (${gv.toFixed(1)} vs ${rv.toFixed(1)}).`
+      : `Chip values close on a ${scoringBoardLabel(scoring)} scale with QBs discounted (${gv.toFixed(1)} vs ${rv.toFixed(1)}).`,
   );
 
-  const theirNeed = give.filter((p) => needsPosition(them, p.position));
-  const yourNeed = receive.filter((p) => needsPosition(you, p.position));
+  const theirNeed = give.filter((p) => needsPosition(them, p.position, scoring));
+  const yourNeed = receive.filter((p) => needsPosition(you, p.position, scoring));
   if (theirNeed.length) {
     parts.push(
       `${them.name} has a ${[...new Set(theirNeed.map((p) => p.position))].join("/")} hole this fills.`,
@@ -495,10 +547,11 @@ export function hardRejectReasons(
   trends?: TrendLookup,
   teammateDeltaByEspnId?: Map<number, number>,
   sideValues?: { give: number; receive: number },
+  scoring?: LeagueScoring,
 ): string[] {
   const reasons: string[] = [];
 
-  if (isForbiddenOneForOne(give, receive)) {
+  if (isForbiddenOneForOne(give, receive, scoring)) {
     const qbSide = give[0].position === "QB" ? give[0] : receive[0];
     const skillSide = give[0].position === "QB" ? receive[0] : give[0];
     reasons.push(
@@ -507,9 +560,11 @@ export function hardRejectReasons(
   }
 
   const gv =
-    sideValues?.give ?? sideValue(give, trends, teammateDeltaByEspnId);
+    sideValues?.give ??
+    sideValue(give, trends, teammateDeltaByEspnId, scoring);
   const rv =
-    sideValues?.receive ?? sideValue(receive, trends, teammateDeltaByEspnId);
+    sideValues?.receive ??
+    sideValue(receive, trends, teammateDeltaByEspnId, scoring);
 
   if (isOutrageousFromSideValues(give, receive, gv, rv)) {
     const ratio = sideValueRatio(gv, rv);

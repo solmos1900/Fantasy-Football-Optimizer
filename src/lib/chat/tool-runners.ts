@@ -167,8 +167,13 @@ export function runTradeCompare(options: {
   trends?: Record<string, PlayerTrendView>;
   meta?: ToolDisplayMeta | null;
   freshness: PlayerPoolFreshness;
+  /** Connected league: league players carry league-scored weeks. */
+  leagueScoringLabel?: string | null;
 }): TradeToolResult | TradeToolError {
   const { sideA, sideB, meta, freshness } = options;
+  const valueBasis = options.leagueScoringLabel
+    ? `${options.leagueScoringLabel} league scoring for players in your league; nflverse full PPR for others`
+    : "nflverse full PPR";
   if (!sideA.length || !sideB.length) {
     return { ok: false, kind: "trade", message: "Add at least one player on each side." };
   }
@@ -198,7 +203,7 @@ export function runTradeCompare(options: {
     };
   }
   const facts = [
-    `Trade value = season points per game (nflverse full PPR). Left ${giveValue.toFixed(1)} = ${cardsA.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
+    `Trade value = season points per game (${valueBasis}). Left ${giveValue.toFixed(1)} = ${cardsA.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
     `Right ${receiveValue.toFixed(1)} = ${cardsB.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
     `% gap uses the lower side as the base: |Left − Right| / min(Left, Right) = ${(benefit.pctGap * 100).toFixed(1)}%.`,
   ];

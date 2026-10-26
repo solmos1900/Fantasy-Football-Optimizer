@@ -173,9 +173,13 @@ export interface LeagueData {
   platform?: "espn" | "sleeper";
   /**
    * League scoring in plain words, e.g. "Half PPR · Superflex". Absent =
-   * unknown (ESPN payloads), where tools fall back to their Full PPR label.
+   * unknown (payloads saved before scoring support): tools assume Full PPR.
    */
   scoringLabel?: string;
+  /** Reception scoring; absent = unknown → Full PPR. See lib/league/scoring. */
+  scoringFormat?: "ppr" | "half_ppr" | "std";
+  /** League can start a second QB (superflex / OP slot). */
+  superflex?: boolean;
 }
 
 export type InsightType =

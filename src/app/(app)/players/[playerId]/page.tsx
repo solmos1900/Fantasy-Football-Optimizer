@@ -17,6 +17,7 @@ import {
 } from "@/lib/espn/news";
 import { EmptyLeagueConnect } from "@/components/empty-league-connect";
 import { PlayerDetailSheet } from "@/components/player-detail-sheet";
+import { leagueScoring } from "@/lib/league/scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export default async function PlayerDetailPage({
       insight={insight}
       trend={playerTrend}
       news={news}
-      scoringLabel="PPR"
+      scoringLabel={leagueScoring(league).label}
     />
   );
 }

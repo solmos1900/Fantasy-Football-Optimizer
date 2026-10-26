@@ -19,6 +19,7 @@ import {
   type TradeAnalysis,
 } from "@/lib/insights/trade-analyzer";
 import { chipValue, chipValueOrNull } from "@/lib/insights/trade-value";
+import { DEFAULT_SCORING, type LeagueScoring } from "@/lib/league/scoring";
 import {
   hydrateTeammateInjuryIndex,
   type serializeTeammateInjuryIndex,
@@ -175,6 +176,7 @@ function PlayerSearchPicker({
   trends,
   inputLabel,
   toolMeta,
+  scoring,
 }: {
   pool: FantasyPlayer[];
   selectedIds: Set<string>;
@@ -185,6 +187,7 @@ function PlayerSearchPicker({
   trends?: Map<number, PlayerTrendView>;
   inputLabel: string;
   toolMeta?: ToolDisplayMeta | null;
+  scoring?: LeagueScoring;
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -368,7 +371,7 @@ function PlayerSearchPicker({
                           if (!hasTradeValueInputs(player, toolMeta)) {
                             return "—";
                           }
-                          const chip = chipValueOrNull(player, trends);
+                          const chip = chipValueOrNull(player, { trends, scoring });
                           return chip == null ? "—" : chip.toFixed(1);
                         })()}
                       </div>
@@ -699,6 +702,7 @@ export function TradeAnalyzer({
   forceFreeMode = false,
   teammateInjury: teammateInjuryProp,
   toolMeta,
+  scoring = DEFAULT_SCORING,
 }: {
   you: FantasyTeam;
   partners: FantasyTeam[];
@@ -713,6 +717,8 @@ export function TradeAnalyzer({
   forceFreeMode?: boolean;
   teammateInjury?: ReturnType<typeof serializeTeammateInjuryIndex>;
   toolMeta?: ToolDisplayMeta | null;
+  /** League scoring (superflex changes QB value). Default Full PPR, 1QB. */
+  scoring?: LeagueScoring;
 }) {
   const trends = useMemo(() => toTrendMap(trendsProp), [trendsProp]);
   const teammateInjury = useMemo(
@@ -789,10 +795,10 @@ export function TradeAnalyzer({
 
   const analysis = useMemo(() => {
     if (mode === "free") {
-      return comparePlayerPackages(give, receive, trends, teammateInjury);
+      return comparePlayerPackages(give, receive, trends, teammateInjury, scoring);
     }
     if (!partner) return null;
-    return analyzeTrade(you, partner, give, receive, trends, teammateInjury);
+    return analyzeTrade(you, partner, give, receive, trends, teammateInjury, scoring);
   }, [mode, you, partner, give, receive, trends, teammateInjury]);
 
   const canReachTheirs = give.length > 0;
@@ -1035,7 +1041,7 @@ export function TradeAnalyzer({
                     player={p}
                     selected={giveIds.has(p.id)}
                     onToggle={() => toggleGive(p.id)}
-                    chip={chipValueOrNull(p, trends)}
+                    chip={chipValueOrNull(p, { trends, scoring })}
                     toolMeta={toolMeta}
                   />
                 ))}
@@ -1051,6 +1057,7 @@ export function TradeAnalyzer({
                   trends={trends}
                   inputLabel="Search Left"
                   toolMeta={toolMeta}
+                  scoring={scoring}
                 />
               </div>
             )}
@@ -1132,7 +1139,7 @@ export function TradeAnalyzer({
                     player={p}
                     selected={receiveIds.has(p.id)}
                     onToggle={() => toggleReceive(p.id)}
-                    chip={chipValueOrNull(p, trends)}
+                    chip={chipValueOrNull(p, { trends, scoring })}
                     toolMeta={toolMeta}
                   />
                 ))}
@@ -1148,6 +1155,7 @@ export function TradeAnalyzer({
                   trends={trends}
                   inputLabel="Search Right"
                   toolMeta={toolMeta}
+                  scoring={scoring}
                 />
               </div>
             )}

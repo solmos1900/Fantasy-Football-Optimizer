@@ -335,7 +335,7 @@ export function PlayerDetailSheet({
   insight,
   trend,
   news,
-  scoringLabel = "Half-PPR",
+  scoringLabel = "Full PPR",
 }: {
   player: FantasyPlayer;
   league: LeagueData;

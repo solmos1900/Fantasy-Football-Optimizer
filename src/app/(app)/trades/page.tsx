@@ -9,6 +9,7 @@ import { getNoLeaguePlayerPool } from "@/lib/players/pool-snapshot";
 import { buildTradeTeammateInjuryIndex } from "@/lib/insights/build-trade-injury-index";
 import { loadToolDisplayMeta } from "@/lib/insights/tool-display";
 import { TradesHub } from "@/components/trades-hub";
+import { leagueScoring } from "@/lib/league/scoring";
 import { SelectTeamPrompt } from "@/components/select-team-prompt";
 import type { FantasyPlayer, FantasyTeam, PlayerTrendView } from "@/lib/types";
 
@@ -115,9 +116,11 @@ export default async function TradesPage({
   }
 
   const poolPlayers = [...poolById.values()];
+  // Projections and copy follow the league's own scoring (PPR / half / std).
+  const scoring = leagueScoring(league);
   const [teammateInjury, toolMeta] = await Promise.all([
     buildTradeTeammateInjuryIndex(poolPlayers, league.season),
-    loadToolDisplayMeta({ season: league.season, players: poolPlayers }),
+    loadToolDisplayMeta({ season: league.season, players: poolPlayers, scoring }),
   ]);
 
   // League-mode freshness from tool meta week snapshot + league sync.
@@ -131,7 +134,7 @@ export default async function TradesPage({
     warning: toolMeta.sleeperEmpty
       ? "Weekly projections unavailable — showing — where missing."
       : null,
-    scoringLabel: "Full PPR",
+    scoringLabel: scoring.label,
   };
 
   return (
