@@ -10,6 +10,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { forgetVerifiedUser } from "@/lib/auth/user-exists";
 import { tokenBucketKey, userBucketKey } from "@/lib/chat/rate-limit";
 
 export const ACCOUNT_DELETE_CONFIRMATION = "DELETE";
@@ -49,5 +50,6 @@ export async function deleteUserAccount(userId: string): Promise<boolean> {
       : []),
     prisma.user.delete({ where: { id: user.id } }),
   ]);
+  forgetVerifiedUser(user.id);
   return true;
 }
