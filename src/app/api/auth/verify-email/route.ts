@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { enforceRateLimit } from "@/lib/http/api-guard";
+import { enforceRateLimit, tooManyRequests } from "@/lib/http/api-guard";
+import { hashedKeyPart, rateLimit } from "@/lib/http/rate-limit";
 import { verifyEmailCode } from "@/lib/auth/email-verification";
 
 const VerifySchema = z.object({
@@ -31,6 +32,15 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // Per-email limit on top of the per-IP one, so guesses spread across many
+  // IPs still can't hammer a single pending signup.
+  const emailLimit = await rateLimit({
+    key: `verify-email:email:${hashedKeyPart(parsed.data.email.toLowerCase())}`,
+    limit: 20,
+    windowMs: 10 * 60_000,
+  });
+  if (!emailLimit.ok) return tooManyRequests(emailLimit);
 
   try {
     const result = await verifyEmailCode({

@@ -22,6 +22,7 @@ import {
   codesMatch,
   generateVerificationCode,
   hashVerificationCode,
+  shouldExposeDevCode,
   startEmailVerificationChallenge,
   verifyEmailCode,
 } from "../src/lib/auth/email-verification";
@@ -268,6 +269,106 @@ async function main() {
 
   // Attempt limit constant is enforced in source
   assert.ok(VERIFICATION_MAX_ATTEMPTS >= 3);
+
+  // ── #158: parallel guesses can't beat the attempt limit ────────────────
+  await cleanup();
+  const racePw = "race-pass-12345";
+  const raceStart = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: racePw,
+  });
+  assert.equal(raceStart.ok, true);
+  if (!raceStart.ok || !raceStart.devCode) throw new Error("unreachable");
+  const wrongCode = raceStart.devCode === "000000" ? "111111" : "000000";
+  const guesses = await Promise.all(
+    Array.from({ length: 40 }, () =>
+      verifyEmailCode({ email: victimEmail, code: wrongCode, password: racePw }),
+    ),
+  );
+  const evaluated = guesses.filter((r) => !r.ok && r.status === 401).length;
+  assert.ok(
+    evaluated <= VERIFICATION_MAX_ATTEMPTS,
+    `only ${VERIFICATION_MAX_ATTEMPTS} guesses may be evaluated, got ${evaluated}`,
+  );
+  // Locked: even the correct code is now refused.
+  const locked = await verifyEmailCode({
+    email: victimEmail,
+    code: raceStart.devCode,
+    password: racePw,
+  });
+  assert.equal(locked.ok, false);
+  if (!locked.ok) assert.equal(locked.status, 429);
+
+  // ── #158: a correct code can only be redeemed once, even in parallel ───
+  await cleanup();
+  const onceStart = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: racePw,
+  });
+  if (!onceStart.ok || !onceStart.devCode) throw new Error("unreachable");
+  const redeems = await Promise.all(
+    Array.from({ length: 5 }, () =>
+      verifyEmailCode({
+        email: victimEmail,
+        code: onceStart.devCode!,
+        password: racePw,
+      }),
+    ),
+  );
+  assert.equal(redeems.filter((r) => r.ok).length, 1);
+
+  // ── #153: dev codes are never exposed in deployed environments ─────────
+  const envKeys = ["NODE_ENV", "VERCEL_ENV", "AUTH_EMAIL_DEV_EXPOSE_CODE"] as const;
+  const envBackup = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+  const env = process.env as Record<string, string | undefined>;
+  try {
+    env.AUTH_EMAIL_DEV_EXPOSE_CODE = "true";
+    env.NODE_ENV = "development";
+    delete env.VERCEL_ENV;
+    assert.equal(shouldExposeDevCode("resend"), true);
+    env.NODE_ENV = "production";
+    assert.equal(shouldExposeDevCode("console"), false);
+    assert.equal(shouldExposeDevCode("resend"), false);
+    env.NODE_ENV = "development";
+    env.VERCEL_ENV = "production";
+    assert.equal(shouldExposeDevCode("resend"), false);
+    env.VERCEL_ENV = "preview";
+    assert.equal(shouldExposeDevCode("console"), false);
+  } finally {
+    for (const k of envKeys) {
+      if (envBackup[k] === undefined) delete env[k];
+      else env[k] = envBackup[k];
+    }
+  }
+
+  // ── #159: expired signup challenges are purged by cleanup ──────────────
+  const cleanupSrc = fs.readFileSync(
+    path.join(process.cwd(), "src/lib/cleanup/ephemeral.ts"),
+    "utf8",
+  );
+  assert.match(cleanupSrc, /emailVerificationChallenge\.deleteMany/);
+  await cleanup();
+  await prisma.emailVerificationChallenge.create({
+    data: {
+      email: victimEmail,
+      name: "Abandoned",
+      passwordHash: await hashPassword(racePw),
+      codeHash: hashVerificationCode("123456"),
+      expiresAt: new Date(Date.now() - 60_000),
+      attemptCount: 0,
+      lastSentAt: new Date(Date.now() - 120_000),
+    },
+  });
+  const { runEphemeralCleanup } = await import("../src/lib/cleanup/ephemeral");
+  const purge = await runEphemeralCleanup();
+  assert.ok(purge.emailChallengesDeleted >= 1);
+  assert.equal(
+    await prisma.emailVerificationChallenge.findUnique({
+      where: { email: victimEmail },
+    }),
+    null,
+  );
+  await cleanup();
 
   // ── Email env + fail-closed delivery ───────────────────────────────────
   const sendSrc = fs.readFileSync(
