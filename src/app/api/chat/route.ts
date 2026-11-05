@@ -159,8 +159,17 @@ export async function POST(req: Request) {
   let activeConversationId = conversationId ?? null;
   if (!isGuest) {
     if (!activeConversationId) {
-      const created = await createConversation(session.user.id);
-      activeConversationId = created.id;
+      try {
+        const created = await createConversation(session.user.id);
+        activeConversationId = created.id;
+      } catch (error) {
+        // Most likely the user row is gone (account deleted elsewhere).
+        console.error("[chat] createConversation failed", error);
+        return jsonError(401, {
+          error: "unauthorized",
+          notice: "Your session has expired. Please sign in again.",
+        });
+      }
     }
   }
 
