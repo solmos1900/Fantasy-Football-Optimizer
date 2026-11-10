@@ -46,6 +46,7 @@ import {
   tradeIneligibleReason,
 } from "@/lib/insights/trade-eligibility";
 import { useIsClient } from "@/lib/use-client-state";
+import { trackClientEvent } from "@/lib/analytics/client";
 
 type TradeStep = "yours" | "theirs" | "results";
 type TradeMode = "team" | "free";
@@ -799,7 +800,23 @@ export function TradeAnalyzer({
     }
     if (!partner) return null;
     return analyzeTrade(you, partner, give, receive, trends, teammateInjury, scoring);
-  }, [mode, you, partner, give, receive, trends, teammateInjury]);
+  }, [mode, you, partner, give, receive, trends, teammateInjury, scoring]);
+
+  // Feature usage: one event per distinct graded trade the user looks at.
+  const gradedKey =
+    step === "results" && analysis
+      ? `${mode}|${give.map((p) => p.espnId).join(",")}|${receive.map((p) => p.espnId).join(",")}`
+      : null;
+  useEffect(() => {
+    if (!gradedKey || !analysis) return;
+    trackClientEvent("trade_analyzed", {
+      mode,
+      verdict: analysis.verdict,
+      players: give.length + receive.length,
+    });
+    // Fire per graded trade only; analysis/give/receive are captured by the key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gradedKey]);
 
   const canReachTheirs = give.length > 0;
   const canReachResults = give.length > 0 && receive.length > 0 && !!analysis;

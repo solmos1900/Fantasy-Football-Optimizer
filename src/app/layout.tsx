@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Alfa_Slab_One, Plus_Jakarta_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { AttributionCapture } from "@/components/attribution-capture";
 import "./globals.css";
 
 const display = Alfa_Slab_One({
@@ -98,6 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="flex min-h-dvh flex-col text-emerald-950">
         <Providers>{children}</Providers>
+        <AttributionCapture />
       </body>
     </html>
   );

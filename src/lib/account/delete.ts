@@ -4,8 +4,9 @@
  * Deleting the User cascades Account, Session, LeagueConnection (incl.
  * encrypted ESPN cookies + cached league snapshot) and ChatConversation /
  * ChatMessage. Rows keyed by user id without a foreign key are handled here:
- * chat counters are deleted, ChatUsage is kept for cost accounting but
- * detached from the user. League-scoped stat rows left without a connection
+ * chat counters are deleted, ChatUsage and AnalyticsEvent rows are kept for
+ * cost / funnel totals but detached from the user, and ActiveDay rows (the
+ * per-user activity log behind WAU) are deleted. League-scoped stat rows left without a connection
  * are removed by the daily cleanup cron (orphan sweep).
  */
 
@@ -35,6 +36,11 @@ export async function deleteUserAccount(userId: string): Promise<boolean> {
       where: { userId: user.id },
       data: { userId: null, conversationId: null },
     }),
+    prisma.analyticsEvent.updateMany({
+      where: { userId: user.id },
+      data: { userId: null },
+    }),
+    prisma.activeDay.deleteMany({ where: { userId: user.id } }),
     prisma.chatRateLimit.deleteMany({
       where: { bucketKey: { in: [userBucket, tokenBucketKey(userBucket)] } },
     }),

@@ -1,8 +1,15 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { AppNav } from "@/components/app-nav";
 import { ConnectGuideHost } from "@/components/onboarding/connect-guide-host";
 import { getUserLeagueConnection } from "@/lib/league/service";
+import {
+  ATTRIBUTION_COOKIE,
+  normalizeAttributionSource,
+  recordActiveDay,
+} from "@/lib/analytics/events";
 
 export default async function AppLayout({
   children,
@@ -11,6 +18,17 @@ export default async function AppLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  // Daily-active marker for WAU (one row per user per UTC day), written after
+  // the response. Request data must be read before after() in a layout.
+  const activeUserId = session.user.id;
+  if (activeUserId) {
+    const isGuest = Boolean(session.user.isGuest);
+    const source = normalizeAttributionSource(
+      (await cookies()).get(ATTRIBUTION_COOKIE)?.value,
+    );
+    after(() => recordActiveDay({ userId: activeUserId, isGuest, source }));
+  }
 
   const connection = session.user.id
     ? await getUserLeagueConnection(session.user.id)

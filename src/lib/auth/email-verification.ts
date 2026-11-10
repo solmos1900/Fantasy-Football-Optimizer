@@ -26,7 +26,8 @@ export type ChallengeStartResult =
     };
 
 export type ChallengeVerifyResult =
-  | { ok: true; userId: string }
+  /** `created`: a brand-new User row (vs. activating an existing one). */
+  | { ok: true; userId: string; created: boolean }
   | { ok: false; error: string; status: number };
 
 function codePepper(): string {
@@ -351,6 +352,8 @@ export async function verifyEmailCode(input: {
 
   let userId: string;
 
+  let createdNew = false;
+
   if (existing?.isGuest) {
     const updated = await prisma.user.update({
       where: { id: existing.id },
@@ -384,11 +387,12 @@ export async function verifyEmailCode(input: {
       },
     });
     userId = created.id;
+    createdNew = true;
   }
 
   await prisma.emailVerificationChallenge.deleteMany({ where: { email } });
 
-  return { ok: true, userId };
+  return { ok: true, userId, created: createdNew };
 }
 
 /**

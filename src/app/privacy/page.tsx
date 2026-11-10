@@ -38,8 +38,17 @@ export default function PrivacyPage() {
         <li>
           <strong>AI chat:</strong> for signed-in users we store your chat
           threads so you can reopen them. Guest chats stay in your browser. For
-          every chat turn we record how many AI tokens were used, for cost
-          control.
+          every chat turn we record how many AI tokens and tool calls were
+          used and what the turn cost, for cost control.
+        </li>
+        <li>
+          <strong>Product analytics (first-party only):</strong> which days you
+          used the app, and a few feature events such as connecting a league,
+          grading a trade, or comparing two players (with the verdict, never
+          your chat text). If you arrive from a link with a{" "}
+          <code>utm_source</code> or <code>ref</code> tag, we keep that tag in a
+          first-party cookie (<code>giq_src</code>, 90 days) so we know which
+          channel brought you. We use no third-party trackers or ad pixels.
         </li>
         <li>
           <strong>Security and abuse prevention:</strong> we count requests per
@@ -94,8 +103,9 @@ export default function PrivacyPage() {
         </li>
         <li>
           Account, league, and chat data are kept until you delete your account.
-          Token-usage records are kept for cost accounting but are detached from
-          you when you delete your account.
+          Token-usage records and feature events are kept for cost and usage
+          totals but are detached from you when you delete your account; your
+          activity-day log is deleted.
         </li>
       </ul>
 

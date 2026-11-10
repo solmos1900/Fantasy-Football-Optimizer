@@ -647,10 +647,45 @@ model ChatUsage {
   outputTokens   Int      @default(0)
   totalTokens    Int      @default(0)
   steps          Int      @default(0)
+  /// Tool calls made during the turn (all steps).
+  toolCalls      Int      @default(0)
+  /// USD cost from gateway per-token pricing × recorded tokens; null = unknown.
+  costUsd        Float?
   createdAt      DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+/// First-party product analytics events (no third-party tracker).
+/// Names are an allowlist in src/lib/analytics/events.ts.
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  /// Null once the user deletes their account (rows are detached, not kept per person).
+  userId    String?
+  isGuest   Boolean  @default(false)
+  name      String
+  props     Json?
+  /// First-touch acquisition source (utm_source / ref), e.g. "reddit".
+  source    String?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+/// One row per user per UTC day they used the app — drives DAU / WAU.
+model ActiveDay {
+  userId    String
+  /// UTC calendar day YYYY-MM-DD
+  day       String
+  isGuest   Boolean  @default(false)
+  source    String?
+  createdAt DateTime @default(now())
+
+  @@id([userId, day])
+  @@index([day])
 }
 
 /// Assembled no-league player pool, served to every page/chat request.

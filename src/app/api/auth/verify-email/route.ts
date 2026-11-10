@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { enforceRateLimit } from "@/lib/http/api-guard";
 import { verifyEmailCode } from "@/lib/auth/email-verification";
+import {
+  attributionFromCookieHeader,
+  trackEvent,
+} from "@/lib/analytics/events";
 
 const VerifySchema = z.object({
   email: z.string().trim().email().max(160),
@@ -39,6 +43,15 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    if (result.created) {
+      await trackEvent({
+        name: "account_created",
+        userId: result.userId,
+        props: { method: "email" },
+        source: attributionFromCookieHeader(request.headers.get("cookie")),
+      });
     }
 
     return NextResponse.json({ ok: true });

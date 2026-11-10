@@ -32,6 +32,7 @@ import {
   preferredProjOrNull,
   projectionCaption,
 } from "@/lib/insights/tool-display";
+import { trackClientEvent } from "@/lib/analytics/client";
 
 export type TrendsProp =
   | Map<number, PlayerTrendView>
@@ -434,6 +435,19 @@ export function WhoToStart({
       teammateInjury,
     });
   }, [league, playerA, playerB, trendsProp, toolMeta, teammateInjury]);
+
+  // Feature usage: one event per distinct pair compared.
+  const comparedKey =
+    comparison?.ok && playerA && playerB ? `${playerA.espnId}|${playerB.espnId}` : null;
+  useEffect(() => {
+    if (!comparedKey || !comparison?.ok) return;
+    trackClientEvent("who_to_start_compared", {
+      verdict: comparison.verdict,
+      position: playerA?.position ?? null,
+    });
+    // Fire per compared pair only; comparison/playerA are captured by the key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comparedKey]);
 
   function selectA(player: FantasyPlayer) {
     if (playerB && playerB.position !== player.position) {
