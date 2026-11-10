@@ -71,6 +71,8 @@ async function runOne(c: EvalCase, rep: number): Promise<Run> {
     messages: turn.messages,
     tools: turn.tools,
     ...CHAT_GENERATION_SETTINGS,
+    // Rate limits are retried per question in runWithRateLimitWait.
+    maxRetries: 0,
   });
   const latencyMs = Date.now() - started;
 
@@ -121,6 +123,24 @@ async function runOne(c: EvalCase, rep: number): Promise<Run> {
   };
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Gateway rate limits (e.g. the free tier's 5 requests/min) are waited out,
+ * not scored: retry the whole question after the window resets.
+ */
+async function runWithRateLimitWait(c: EvalCase, rep: number): Promise<Run> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await runOne(c, rep);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt >= 20 || !/rate limit/i.test(msg)) throw err;
+      await sleep(62_000);
+    }
+  }
+}
+
 function pct(n: number, d: number): string {
   return d === 0 ? "—" : `${((100 * n) / d).toFixed(1)}%`;
 }
@@ -153,7 +173,7 @@ async function main() {
     while (next < jobs.length) {
       const { c, rep } = jobs[next++]!;
       try {
-        const run = await runOne(c, rep);
+        const run = await runWithRateLimitWait(c, rep);
         runs.push(run);
         appendFileSync(transcripts, `${JSON.stringify(run)}\n`);
         const mark = run.tool.pass ? "✓" : "✗";
