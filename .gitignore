@@ -50,3 +50,6 @@ prisma/dev.db-journal
 next-env.d.ts
 
 /src/generated/prisma
+
+# chat eval runs (summaries worth keeping go in eval/chat/RESULTS.md)
+/eval/chat/results/
