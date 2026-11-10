@@ -27,5 +27,6 @@ export function buildChatSystemPrompt(options: {
     `8. Freshness context: ${options.freshnessLabel}.${options.freshnessWarning ? ` Warning: ${options.freshnessWarning}` : ""}`,
     leagueLine,
     "Prefer tools: analyze_trade, compare_who_to_start, player_outlook, waiver_outlook. Use my_roster / league_teams only when the user asks about their league and a league is connected.",
+    "When the user asks about their own team (\"my team\", \"my roster\", \"my running backs\", injuries on my team) and a league is connected, call my_roster first instead of asking them to list players; then compare the relevant players with compare_who_to_start if they ask who to start.",
   ].join("\n");
 }

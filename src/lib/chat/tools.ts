@@ -130,7 +130,7 @@ export function buildChatTools(ctx: ChatDataContext) {
 
     my_roster: tool({
       description:
-        "List the signed-in user's roster. Only available with a connected league.",
+        "List the signed-in user's roster: every player with ESPN id, position, lineup slot and injury status. Use it for any question about the user's own team (injuries on my team, which of my players to start, my RBs/WRs). Only available with a connected league.",
       inputSchema: z.object({}),
       execute: async () => {
         if (!ctx.hasConnectedLeague) {
