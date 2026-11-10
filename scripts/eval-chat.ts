@@ -5,6 +5,9 @@
  * numbers. Costs real model tokens.
  *
  *   AI_GATEWAY_API_KEY=… npm run eval:chat -- [--reps 3] [--concurrency 4] [--only trade-]
+ *     [--model anthropic/claude-haiku-5.5]   (default: production CHAT_MODEL_ID)
+ *
+ * --model swaps only the model id; prompt, tools and settings stay production.
  *
  * Writes eval/chat/results/<timestamp>/{transcripts.jsonl,errors.jsonl,summary.json,summary.md}.
  * Infra failures (network, gateway 5xx) go to errors.jsonl and are excluded
@@ -35,6 +38,7 @@ function arg(name: string): string | undefined {
 const REPS = Math.max(1, Number(arg("reps") ?? 1));
 const CONCURRENCY = Math.max(1, Number(arg("concurrency") ?? 4));
 const ONLY = arg("only");
+const MODEL = arg("model") ?? CHAT_MODEL_ID;
 
 type Run = {
   caseId: string;
@@ -62,7 +66,7 @@ async function runOne(c: EvalCase, rep: number): Promise<Run> {
   const turn = await prepareChatTurn({ ctx, messages });
   const started = Date.now();
   const res = await generateText({
-    model: turn.model,
+    model: MODEL,
     system: turn.system,
     messages: turn.messages,
     tools: turn.tools,
@@ -96,7 +100,7 @@ async function runOne(c: EvalCase, rep: number): Promise<Run> {
       outputTokens: usage.outputTokens ?? undefined,
       cachedInputTokens: usage.cachedInputTokens ?? undefined,
     },
-    await getModelPricing(turn.model),
+    await getModelPricing(MODEL),
   );
   return {
     caseId: c.id,
@@ -136,12 +140,12 @@ async function main() {
   const jobs = cases.flatMap((c) => Array.from({ length: REPS }, (_, rep) => ({ c, rep })));
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const outDir = path.join("eval", "chat", "results", stamp);
+  const outDir = path.join("eval", "chat", "results", `${stamp}_${MODEL.replace(/[^a-z0-9.-]+/gi, "-")}`);
   mkdirSync(outDir, { recursive: true });
   const transcripts = path.join(outDir, "transcripts.jsonl");
   const errorsFile = path.join(outDir, "errors.jsonl");
 
-  console.log(`chat eval: ${cases.length} cases × ${REPS} reps, model ${CHAT_MODEL_ID}, concurrency ${CONCURRENCY}`);
+  console.log(`chat eval: ${cases.length} cases × ${REPS} reps, model ${MODEL}, concurrency ${CONCURRENCY}`);
   const runs: Run[] = [];
   const errors: { caseId: string; rep: number; error: string }[] = [];
   let next = 0;
@@ -197,7 +201,8 @@ async function main() {
 
   const summary = {
     generatedAt: new Date().toISOString(),
-    requestedModel: CHAT_MODEL_ID,
+    requestedModel: MODEL,
+    productionModel: MODEL === CHAT_MODEL_ID,
     servedModels: served,
     cases: cases.length,
     reps: REPS,
@@ -235,7 +240,7 @@ async function main() {
   const md = [
     `# Chat eval — ${summary.generatedAt.slice(0, 10)}`,
     "",
-    `Model requested \`${CHAT_MODEL_ID}\`, served: ${served.map((s) => `\`${s}\``).join(", ")}. ${cases.length} questions × ${REPS} reps = ${graded} graded runs (${errors.length} infra errors excluded).`,
+    `Model requested \`${MODEL}\`${MODEL === CHAT_MODEL_ID ? " (production)" : ""}, served: ${served.map((s) => `\`${s}\``).join(", ")}. ${cases.length} questions × ${REPS} reps = ${graded} graded runs (${errors.length} infra errors excluded).`,
     "",
     "| Metric | Value |",
     "| --- | --- |",
