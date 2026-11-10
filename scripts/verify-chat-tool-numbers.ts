@@ -110,12 +110,20 @@ const d = player({
   const sumB = chat.sideB.reduce((s, c) => s + (c.tradeValue ?? 0), 0);
   assert.ok(Math.abs(sumA - chat.giveValue) < 1e-9);
   assert.ok(Math.abs(sumB - chat.receiveValue) < 1e-9);
-  const benefit = whoBenefitsCopy(recv - give, "free", give, recv);
+  const benefit = whoBenefitsCopy(recv - give, "free", give, recv, {
+    a: ["Puka Nacua (LAR)", "Garrett Wilson (NYJ)"],
+    b: ["DK Metcalf (PIT)", "Chris Olave (NO)"],
+  });
   assert.equal(chat.headline, benefit.headline);
   assert.equal(chat.differenceLabel, benefit.differenceLabel);
   assert.equal(chat.winner, benefit.winner);
   assert.equal(chat.pctGap, benefit.pctGap);
   assert.match(chat.pctGapBasisLabel, /lower side/i);
+  // Chat names sides by players, never Left/Right.
+  assert.doesNotMatch(chat.headline, /\b(Left|Right)\b/);
+  assert.match(chat.headline, /Puka Nacua \(LAR\) \+ Garrett Wilson \(NYJ\) are worth/);
+  assert.match(chat.headline, /whoever gives up Puka Nacua \(LAR\) \+ Garrett Wilson \(NYJ\) shouldn't accept/);
+  for (const f of chat.facts) assert.doesNotMatch(f, /\b(Left|Right)\b/);
 }
 
 // ── Live W7 shape: Puka 23 + Kyren 19.8 = 42.8 vs Chase 16 + Brown 13 = 29 ──

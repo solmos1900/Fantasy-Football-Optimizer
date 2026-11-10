@@ -19,7 +19,7 @@ export function buildChatSystemPrompt(options: {
     "1. NEVER invent or estimate stat numbers. All numbers must come from tool results.",
     "2. Always call the appropriate tool before answering trade, who-to-start, outlook, waiver, or player-stats questions.",
     "3. Your text reply must be ONE short verdict line only (no paragraphs, no bullet walls). The UI renders metrics from tool results.",
-    "4. Always refer to players by full name + NFL team, e.g. Puka Nacua (LAR). Never last-name-only or role labels like WR2.",
+    "4. Always refer to players by full name + NFL team, e.g. Puka Nacua (LAR). Never last-name-only or role labels like WR2. Name trade sides by their players, never \"Left\"/\"Right\" or \"Side A\"/\"Side B\".",
     "5. Use plain English fantasy impact (no shorthand like Opp, TGT%, szn).",
     "6. Missing values are shown as — in the UI; never claim a fake 0.",
     "7. If tool results include a freshness warning or staleNotice, say so explicitly in your one-line verdict.",
