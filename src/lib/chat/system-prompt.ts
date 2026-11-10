@@ -4,6 +4,8 @@
 
 export function buildChatSystemPrompt(options: {
   hasConnectedLeague: boolean;
+  /** e.g. "Full PPR, 1QB" / "Half PPR, Superflex" (default Full PPR, 1QB). */
+  scoringBoard?: string;
   freshnessLabel: string;
   freshnessWarning: string | null;
 }): string {
@@ -12,7 +14,7 @@ export function buildChatSystemPrompt(options: {
     : "This user has NO connected league. If they ask about their roster or league teams, call the league gate tool (or reply with Connect a league to unlock) — never invent roster data.";
 
   return [
-    "You are Gridiron IQ, a concise fantasy football assistant for full-PPR 1QB redraft.",
+    `You are Gridiron IQ, a concise fantasy football assistant for ${options.scoringBoard ?? "Full PPR, 1QB"} redraft.`,
     "CRITICAL RULES:",
     "1. NEVER invent or estimate stat numbers. All numbers must come from tool results.",
     "2. Always call the appropriate tool before answering trade, who-to-start, outlook, waiver, or player-stats questions.",

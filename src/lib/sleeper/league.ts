@@ -16,6 +16,11 @@ import { z } from "zod";
 import { memoTtl } from "@/lib/cache/memo";
 import { secureFetch } from "@/lib/http/secure-fetch";
 import { normalizeNflAbbrev } from "@/lib/espn/pro-teams";
+import {
+  formatFromReceptionPoints,
+  scoringLabel,
+  type ScoringFormat,
+} from "@/lib/league/scoring";
 import { enrichLeagueWithScoreboard } from "@/lib/espn/client";
 import {
   isSyntheticEspnId,
@@ -197,15 +202,12 @@ function loadSleeperDirectory(): Promise<Record<string, DirectoryPlayer>> {
 
 // ── Scoring ───────────────────────────────────────────────────────────────
 
-export type SleeperScoringFormat = "ppr" | "half_ppr" | "std";
+export type SleeperScoringFormat = ScoringFormat;
 
 export function scoringFormatFromSettings(
   scoring: Record<string, number | null> | null | undefined,
 ): SleeperScoringFormat {
-  const rec = Number(scoring?.rec ?? 0);
-  if (rec >= 0.75) return "ppr";
-  if (rec >= 0.25) return "half_ppr";
-  return "std";
+  return formatFromReceptionPoints(scoring?.rec);
 }
 
 /** Human label, e.g. "Half PPR · Superflex · TE premium". */
@@ -213,15 +215,11 @@ export function sleeperScoringLabel(
   scoring: Record<string, number | null> | null | undefined,
   rosterPositions: string[] | null | undefined,
 ): string {
-  const base = {
-    ppr: "Full PPR",
-    half_ppr: "Half PPR",
-    std: "Standard",
-  }[scoringFormatFromSettings(scoring)];
-  const parts = [base];
-  if ((rosterPositions ?? []).includes("SUPER_FLEX")) parts.push("Superflex");
-  if (Number(scoring?.bonus_rec_te ?? 0) > 0) parts.push("TE premium");
-  return parts.join(" · ");
+  return scoringLabel(
+    scoringFormatFromSettings(scoring),
+    (rosterPositions ?? []).includes("SUPER_FLEX"),
+    Number(scoring?.bonus_rec_te ?? 0) > 0 ? ["TE premium"] : [],
+  );
 }
 
 /** Read exactly one projection field for the league's format — no fallbacks. */
@@ -537,6 +535,8 @@ export async function fetchSleeperLeague(
     ...enriched,
     platform: "sleeper",
     scoringLabel: sleeperScoringLabel(league.scoring_settings, rosterPositions),
+    scoringFormat: format,
+    superflex: rosterPositions.includes("SUPER_FLEX"),
   };
 }
 

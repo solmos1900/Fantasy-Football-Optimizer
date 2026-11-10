@@ -14,6 +14,7 @@ import {
 } from "@/lib/chat/tool-runners";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { resolveUserTeam } from "@/lib/league/service";
+import { leagueScoring } from "@/lib/league/scoring";
 
 const espnIdList = z.array(z.number().int().positive()).min(1).max(8);
 
@@ -44,6 +45,9 @@ export function buildChatTools(ctx: ChatDataContext) {
           trends: ctx.trends,
           meta: ctx.meta,
           freshness: ctx.freshness,
+          leagueScoringLabel: ctx.hasConnectedLeague
+            ? leagueScoring(ctx.league).label
+            : null,
         });
       },
     }),

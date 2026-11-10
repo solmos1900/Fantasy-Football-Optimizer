@@ -284,6 +284,7 @@ function verdictFromProjEdge(
   projEdge: number,
   labelA: string,
   labelB: string,
+  scoringLabel: string,
 ): Pick<
   WhoToStartResult,
   "verdict" | "verdictLabel" | "headline" | "summary"
@@ -298,7 +299,7 @@ function verdictFromProjEdge(
       verdict: "toss_up",
       verdictLabel: "TOSS-UP",
       headline: `${labelA} vs ${labelB} is basically even`,
-      summary: `Projected gap is only ${abs.toFixed(1)} points this week (Sleeper / full PPR) — either start is defensible.`,
+      summary: `Projected gap is only ${abs.toFixed(1)} points this week (Sleeper / ${scoringLabel}) — either start is defensible.`,
     };
   }
 
@@ -307,7 +308,7 @@ function verdictFromProjEdge(
       verdict: aWins ? "lean_a" : "lean_b",
       verdictLabel: aWins ? "LEAN A" : "LEAN B",
       headline: `Lean ${winner} over ${loser}`,
-      summary: `${winner} projects ${abs.toFixed(1)} more points this week (Sleeper / full PPR). Form, injury, and matchup can still tip a close call.`,
+      summary: `${winner} projects ${abs.toFixed(1)} more points this week (Sleeper / ${scoringLabel}). Form, injury, and matchup can still tip a close call.`,
     };
   }
 
@@ -315,7 +316,7 @@ function verdictFromProjEdge(
     verdict: aWins ? "start_a" : "start_b",
     verdictLabel: aWins ? "START A" : "START B",
     headline: `Start ${winner} over ${loser}`,
-    summary: `${winner} is the clearer start — projects ${abs.toFixed(1)} more points this week (Sleeper / full PPR).`,
+    summary: `${winner} is the clearer start — projects ${abs.toFixed(1)} more points this week (Sleeper / ${scoringLabel}).`,
   };
 }
 
@@ -357,6 +358,8 @@ export function compareWhoToStart(
   const flexMode = options.flexMode ?? false;
   const labelA = formatPlayerLabel(playerA.name, playerA.nflTeam);
   const labelB = formatPlayerLabel(playerB.name, playerB.nflTeam);
+  // Projections in the tool meta follow the league's scoring (pool: Full PPR).
+  const scoringLabel = options.toolMeta?.scoringLabel ?? "Full PPR";
 
   if (playerA.id === playerB.id) {
     return {
@@ -442,13 +445,13 @@ export function compareWhoToStart(
           verdict: aWins ? "lean_a" : "lean_b",
           verdictLabel: aWins ? "LEAN A" : "LEAN B",
           headline: `Lean ${aWins ? labelA : labelB} over ${aWins ? labelB : labelA}`,
-          summary: `Projections are within ${absProj.toFixed(1)} points (Sleeper / full PPR). Recent form, injury, and matchup lean ${aWins ? labelA : labelB} — not a defense-sample points claim.`,
+          summary: `Projections are within ${absProj.toFixed(1)} points (Sleeper / ${scoringLabel}). Recent form, injury, and matchup lean ${aWins ? labelA : labelB} — not a defense-sample points claim.`,
         };
       }
     }
   }
 
-  const call = forced ?? verdictFromProjEdge(edge, labelA, labelB);
+  const call = forced ?? verdictFromProjEdge(edge, labelA, labelB, scoringLabel);
   const formDelta =
     sideA.recentAvg != null && sideB.recentAvg != null
       ? sideA.recentAvg - sideB.recentAvg

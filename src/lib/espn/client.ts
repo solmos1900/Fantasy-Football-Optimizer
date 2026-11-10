@@ -30,6 +30,7 @@ import {
 import { finiteEspnAppliedTotal } from "@/lib/espn/stats";
 import type { EspnPlayerStatBlock, EspnRawPlayer } from "@/lib/espn/types";
 import { defaultEspnSeason } from "@/lib/season";
+import { scoringFromEspnSettings } from "@/lib/league/scoring";
 import { secureFetch } from "@/lib/http/secure-fetch";
 import {
   ESPN_SCOREBOARD_TIMEOUT_MS,
@@ -317,7 +318,10 @@ export async function fetchEspnLeague(
   )) as Record<string, unknown>;
 
   const status = (raw.status as Record<string, number> | undefined) ?? {};
-  const settings = (raw.settings as { name?: string } | undefined) ?? {};
+  const settings =
+    (raw.settings as
+      | ({ name?: string } & Parameters<typeof scoringFromEspnSettings>[0])
+      | undefined) ?? {};
   const scoringPeriodId = Number(status.latestScoringPeriod ?? status.currentMatchupPeriod ?? 1);
   const teamsRaw = (raw.teams as Record<string, unknown>[]) ?? [];
   const schedule = (raw.schedule as Record<string, unknown>[]) ?? [];
@@ -372,6 +376,8 @@ export async function fetchEspnLeague(
     freeAgents,
     lastSyncedAt: new Date().toISOString(),
     userTeamId: creds.teamId,
+    platform: "espn",
+    ...(scoringFromEspnSettings(settings) ?? {}),
     ...(syncWarnings.length > 0 ? { syncWarnings } : {}),
   };
 

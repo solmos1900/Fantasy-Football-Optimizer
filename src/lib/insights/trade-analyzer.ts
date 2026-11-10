@@ -1,10 +1,16 @@
 /**
  * Interactive Trade Analyzer grading for arbitrary give/get packages.
- * Reuses shared 1QB full-PPR chip / need helpers — no fake win %.
+ * Reuses shared chip / need helpers (league scoring aware; NFL pool = Full
+ * PPR, 1QB) — no fake win %.
  */
 
 import type { FantasyPlayer, FantasyTeam } from "@/lib/types";
 import { pointsOrZero } from "@/lib/utils";
+import {
+  DEFAULT_SCORING,
+  scoringBoardLabel,
+  type LeagueScoring,
+} from "@/lib/league/scoring";
 import {
   type TrendLookup,
   acceptanceReason,
@@ -94,13 +100,14 @@ function buildForYou(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  scoring?: LeagueScoring,
 ): string[] {
   const lines = [
     `You send: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
     `You get: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj, ${tierOf(p)})`).join(" + ")}.`,
   ];
   for (const p of receive) {
-    if (needsPosition(you, p.position)) {
+    if (needsPosition(you, p.position, scoring)) {
       lines.push(
         `Fills your ${p.position} need (healthy depth was ${depthAtPosition(you, p.position)}).`,
       );
@@ -109,7 +116,7 @@ function buildForYou(
     if (tb) lines.push(`Trend: ${tb}`);
   }
   for (const p of give) {
-    if (needsPosition(you, p.position) && depthAtPosition(you, p.position) <= 2) {
+    if (needsPosition(you, p.position, scoring) && depthAtPosition(you, p.position) <= 2) {
       lines.push(
         `Caution: ${formatPlayerLabel(p.name, p.nflTeam)} leaves a thinner ${p.position} group after the deal.`,
       );
@@ -123,13 +130,14 @@ function buildForThem(
   give: FantasyPlayer[],
   receive: FantasyPlayer[],
   trends?: TrendLookup,
+  scoring?: LeagueScoring,
 ): string[] {
   const lines = [
     `They send: ${receive.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position})`).join(" + ")}.`,
     `They get: ${give.map((p) => `${formatPlayerLabel(p.name, p.nflTeam)} (${p.position}, ${pointsOrZero(p.projectedPoints).toFixed(1)} proj)`).join(" + ")}.`,
   ];
   for (const p of give) {
-    if (needsPosition(them, p.position)) {
+    if (needsPosition(them, p.position, scoring)) {
       lines.push(
         `${them.name} needs ${p.position} help (depth ${depthAtPosition(them, p.position)}).`,
       );
@@ -150,13 +158,14 @@ function theirAcceptanceLean(
   /** Injury/trend-adjusted chip totals — same basis as displayed give/receive. */
   giveValue: number,
   receiveValue: number,
+  scoring?: LeagueScoring,
 ): AcceptanceLean {
   if (hardRejected) return "none";
 
-  const fillsTheirNeed = give.some((p) => needsPosition(them, p.position));
+  const fillsTheirNeed = give.some((p) => needsPosition(them, p.position, scoring));
   const hurtsTheirStarter =
     receive.some(
-      (p) => needsPosition(them, p.position) && !needsPosition(you, p.position),
+      (p) => needsPosition(them, p.position, scoring) && !needsPosition(you, p.position, scoring),
     ) && !fillsTheirNeed;
   // They receive `give`; value must favor them on the same scale as the chips.
   const valueFavorThem = giveValue >= receiveValue * 0.95;
@@ -201,13 +210,14 @@ export function analyzeTrade(
   receive: FantasyPlayer[],
   trends?: TrendLookup,
   teammateInjury?: TeammateInjuryIndex | null,
+  scoring: LeagueScoring = DEFAULT_SCORING,
 ): TradeAnalysis | null {
   if (!give.length || !receive.length) return null;
 
   const deltaMap = teammateInjury?.chipDeltaByEspnId;
   // One valuation for chips, fairness, hard-reject, and acceptance lean.
-  const giveValue = sideValue(give, trends, deltaMap);
-  const receiveValue = sideValue(receive, trends, deltaMap);
+  const giveValue = sideValue(give, trends, deltaMap, scoring);
+  const receiveValue = sideValue(receive, trends, deltaMap, scoring);
   const sideValues = { give: giveValue, receive: receiveValue };
   // Never show a verdict when either side grades at ~0 chip value.
   if (!bothSidesHaveValue(giveValue, receiveValue)) return null;
@@ -218,10 +228,11 @@ export function analyzeTrade(
     trends,
     deltaMap,
     sideValues,
+    scoring,
   );
   const hardRejected = rejects.length > 0;
   const fair = fairnessFromSideValues(giveValue, receiveValue);
-  const fit = needFitScore(you, them, give, receive);
+  const fit = needFitScore(you, them, give, receive, scoring);
   const same = samePosBonus(give, receive);
   const trendBonus = trendFitBonus(give, receive, trends);
   const verdict = pickVerdict({
@@ -241,10 +252,11 @@ export function analyzeTrade(
     hardRejected,
     giveValue,
     receiveValue,
+    scoring,
   );
 
-  const forYou = buildForYou(you, give, receive, trends);
-  const forThem = buildForThem(them, give, receive, trends);
+  const forYou = buildForYou(you, give, receive, trends, scoring);
+  const forThem = buildForThem(them, give, receive, trends, scoring);
 
   let whyAcceptedOrNot: string;
   if (hardRejected) {
@@ -262,6 +274,7 @@ export function analyzeTrade(
       trends,
       deltaMap,
       sideValues,
+      scoring,
     );
   } else {
     const gaps: string[] = [];
@@ -301,19 +314,19 @@ export function analyzeTrade(
   ].filter((x) => x.impacts.length > 0);
 
   const facts = [
-    `Scoring assumed: full PPR, standard 1QB redraft (QB chips discounted; trade value = season points per game from played weeks).`,
+    `Scoring: ${scoringBoardLabel(scoring)} redraft (${scoring.superflex ? "QBs at full value" : "QB chips discounted"}; trade value = season points per game from played weeks).`,
     `Your side chips: ${giveValue.toFixed(1)} (${names(give)}).`,
     `Their side chips: ${receiveValue.toFixed(1)} (${names(receive)}).`,
     `Value gap (you): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
     ...give.map((p) => {
       const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
       const who = formatPlayerLabel(p.name, p.nflTeam);
-      return `${who}: ${pointsOrZero(p.projectedPoints).toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+      return `${who}: ${pointsOrZero(p.projectedPoints).toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d, scoring }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
     }),
     ...receive.map((p) => {
       const d = teammateInjuryChipDelta(teammateInjury, p.espnId);
       const who = formatPlayerLabel(p.name, p.nflTeam);
-      return `${who}: ${pointsOrZero(p.projectedPoints).toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
+      return `${who}: ${pointsOrZero(p.projectedPoints).toFixed(1)} proj · tier ${tierOf(p)} · chip ${chipValue(p, { trends, teammateInjuryDelta: d, scoring }).toFixed(1)}${d ? ` (teammate injury ${d >= 0 ? "+" : ""}${d.toFixed(1)})` : ""}.`;
     }),
     ...teammateImpacts.flatMap((row) =>
       row.impacts.map(
@@ -336,7 +349,9 @@ export function analyzeTrade(
     lean_accept: `Looks workable — a mild edge or roster need leans toward doing the deal.`,
     fair: `Balanced values with no clear smash; roster fit decides whether to pull the trigger.`,
     lean_reject: `Uneven or weak roster fit — proceed only if you have a specific playoff or schedule reason.`,
-    hard_reject: `This deal breaks common 1QB trade norms.`,
+    hard_reject: scoring.superflex
+      ? `This deal breaks common trade norms.`
+      : `This deal breaks common 1QB trade norms.`,
   };
 
   return {
@@ -368,6 +383,7 @@ export function comparePlayerPackages(
   sideB: FantasyPlayer[],
   trends?: TrendLookup,
   teammateInjury?: TeammateInjuryIndex | null,
+  scoring: LeagueScoring = DEFAULT_SCORING,
 ): TradeAnalysis | null {
   if (!sideA.length || !sideB.length) return null;
   if (
@@ -379,8 +395,8 @@ export function comparePlayerPackages(
 
   const deltaMap = teammateInjury?.chipDeltaByEspnId;
   // One valuation for chips, fairness, hard-reject, and acceptance lean.
-  const giveValue = sideValue(sideA, trends, deltaMap);
-  const receiveValue = sideValue(sideB, trends, deltaMap);
+  const giveValue = sideValue(sideA, trends, deltaMap, scoring);
+  const receiveValue = sideValue(sideB, trends, deltaMap, scoring);
   const sideValues = { give: giveValue, receive: receiveValue };
   if (!bothSidesHaveValue(giveValue, receiveValue)) return null;
   const valueGap = receiveValue - giveValue;
@@ -390,6 +406,7 @@ export function comparePlayerPackages(
     trends,
     deltaMap,
     sideValues,
+    scoring,
   );
   const hardRejected = rejects.length > 0;
   const fair = fairnessFromSideValues(giveValue, receiveValue);
@@ -420,7 +437,7 @@ export function comparePlayerPackages(
       ? `Side B is ahead by about ${valueGap.toFixed(1)} chip points — Side A would usually want something else back.`
       : valueGap <= -0.5
         ? `Side A is ahead by about ${Math.abs(valueGap).toFixed(1)} chip points — Side B would usually push back.`
-        : `Chip values are close on a full-PPR scale.`,
+        : `Chip values are close on a ${scoringBoardLabel(scoring)} scale.`,
   ];
   for (const p of [...sideA, ...sideB].slice(0, 4)) {
     const tb = trendBlurb(p, trends);
@@ -444,7 +461,7 @@ export function comparePlayerPackages(
   } else if (verdict === "accept" || verdict === "lean_accept" || verdict === "fair") {
     whyAcceptedOrNot =
       fair >= 0.45
-        ? `Chip values and deal shape look fair for both sides on a standard 1QB full-PPR board.`
+        ? `Chip values and deal shape look fair for both sides on a ${scoringBoardLabel(scoring)} board.`
         : `Close enough that a need-based manager could reasonably accept.`;
   } else {
     whyAcceptedOrNot =
@@ -471,7 +488,7 @@ export function comparePlayerPackages(
   ].filter((x) => x.impacts.length > 0);
 
   const facts = [
-    `Scoring assumed: full PPR, standard 1QB redraft.`,
+    `Scoring: ${scoringBoardLabel(scoring)} redraft.`,
     `Side A chips: ${giveValue.toFixed(1)} (${names(sideA)}).`,
     `Side B chips: ${receiveValue.toFixed(1)} (${names(sideB)}).`,
     `Value gap (Side B − Side A): ${valueGap >= 0 ? "+" : ""}${valueGap.toFixed(1)}.`,
@@ -496,7 +513,9 @@ export function comparePlayerPackages(
     lean_accept: `Slightly favors Side A or is close enough to shop.`,
     fair: `Balanced values — roster need decides who should take it.`,
     lean_reject: `Uneven for Side A — only take it if you have a specific need Side B fills.`,
-    hard_reject: `This deal breaks common 1QB trade norms.`,
+    hard_reject: scoring.superflex
+      ? `This deal breaks common trade norms.`
+      : `This deal breaks common 1QB trade norms.`,
   };
 
   return {
