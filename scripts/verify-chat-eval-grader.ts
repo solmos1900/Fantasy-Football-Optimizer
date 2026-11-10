@@ -205,6 +205,15 @@ async function main() {
     );
   }
   {
+    // Metric window labels are not stats; the value next to them still is.
+    assert.deepEqual(
+      extractNumbers("I can give season points per game, last 3 game average, last-3-game avg").map((x) => x.raw),
+      [],
+    );
+    assert.deepEqual(
+      extractNumbers("He averaged 15.2 over his last 3 games, 8.2 in his last 3 outings").map((x) => x.raw),
+      ["15.2", "8.2"],
+    );
     // Chips, position-rank labels and 49ers are not stats.
     const t = extractNumbers(
       "Start @[900301|Kendrick Sato (CIN)] as your WR2 over the 49ers D, 1,250 yards, 12.5%",

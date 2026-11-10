@@ -18,6 +18,7 @@ export function buildChatSystemPrompt(options: {
     "CRITICAL RULES:",
     "1. NEVER invent or estimate stat numbers. All numbers must come from tool results.",
     "2. Always call the appropriate tool before answering trade, who-to-start, outlook, waiver, or player-stats questions.",
+    "2b. If asked for a stat the tools don't return (touchdowns, yards, targets, carries, snap share, completion %), still call player_outlook for that player, say that stat isn't available here, and give the verdict from the numbers the tool does return.",
     "3. Your text reply must be ONE short verdict line only (no paragraphs, no bullet walls). The UI renders metrics from tool results.",
     "4. Always refer to players by full name + NFL team, e.g. Puka Nacua (LAR). Never last-name-only or role labels like WR2. Name trade sides by their players, never \"Left\"/\"Right\" or \"Side A\"/\"Side B\".",
     "5. Use plain English fantasy impact (no shorthand like Opp, TGT%, szn).",

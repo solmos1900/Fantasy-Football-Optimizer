@@ -91,6 +91,11 @@ export function gradeToolCalls(c: EvalCase, calls: ObservedCall[]): ToolGrade {
 const CHIP_RE = /@\[(\d+)\|([^\]]+)\]/g;
 /** Position-rank labels like WR2 / RB1 — not stats (style rule 4). */
 const POS_RANK_RE = /\b(?:QB|RB|WR|TE|K|FLEX|DST|D\/ST)\d+\b/gi;
+/**
+ * Window labels naming a metric, not stating a value: "last 3 game average",
+ * "last-3-game avg", "last 3 outings" (the tools' last-3 average).
+ */
+const WINDOW_LABEL_RE = /\blast[- ]\d+[- ](?:games?|outings?|weeks?|starts?)\b/gi;
 /** Team nickname that contains digits. */
 const NAMES_WITH_DIGITS_RE = /\b49ers\b/gi;
 const NUMBER_RE = /(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(\s?%)?/g;
@@ -106,6 +111,7 @@ export function extractNumbers(text: string): NumberToken[] {
   const cleaned = text
     .replace(CHIP_RE, " ")
     .replace(POS_RANK_RE, " ")
+    .replace(WINDOW_LABEL_RE, " ")
     .replace(NAMES_WITH_DIGITS_RE, " ");
   const out: NumberToken[] = [];
   for (const m of cleaned.matchAll(NUMBER_RE)) {
