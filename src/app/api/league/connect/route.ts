@@ -78,7 +78,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, league });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to connect league";
-    return NextResponse.json({ error: message }, { status: 400 });
+    // Never hand raw database (Prisma) error text to the browser.
+    const isDbError =
+      err instanceof Error && /^Prisma/.test(err.constructor?.name ?? err.name);
+    if (isDbError) console.error("[league/connect] database error", err);
+    const message =
+      err instanceof Error && !isDbError
+        ? err.message
+        : "Failed to connect league";
+    return NextResponse.json({ error: message }, { status: isDbError ? 500 : 400 });
   }
 }

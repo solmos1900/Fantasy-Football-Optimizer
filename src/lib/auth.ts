@@ -1,3 +1,4 @@
+import { userStillExists } from "@/lib/auth/user-exists";
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -212,7 +213,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: authSecret,
   trustHost: true,
   adapter: createSafePrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  // Shorter than the 30-day default so a stale login can't linger for long;
+  // the jwt callback also drops sessions whose user row no longer exists.
+  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   providers,
   pages: {
     signIn: "/login",
@@ -251,17 +254,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // onto an attacker's pre-registered row (legacy rows + race safety).
       await clearUnverifiedCredentialsBlocker(email);
 
-      // GitHub: require a verified email from the provider when present.
-      if (account.provider === "github" && profile) {
-        const gh = profile as { email?: string; email_verified?: boolean };
-        if (gh.email && gh.email_verified === false) {
-          return false;
-        }
+      // Google is linked onto existing accounts by email, so only accept an
+      // email Google says the person has verified.
+      if (account.provider === "google") {
+        const verified = (profile as { email_verified?: boolean } | undefined)
+          ?.email_verified;
+        if (verified !== true) return false;
       }
 
       return true;
     },
     async jwt({ token, user }) {
+      // Revoke sessions for accounts deleted from another device (or guests
+      // that were cleaned up). Returning null ends the session.
+      if (!user && token.sub) {
+        try {
+          const exists = await userStillExists(token.sub, async (id) => {
+            const row = await prisma.user.findUnique({
+              where: { id },
+              select: { id: true },
+            });
+            return row !== null;
+          });
+          if (!exists) return null;
+        } catch (error) {
+          // Database hiccup: keep the session rather than sign everyone out.
+          console.error("[auth] user existence check failed", error);
+        }
+      }
       if (user) {
         token.sub = user.id;
         token.isGuest = Boolean(
