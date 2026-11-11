@@ -18,13 +18,15 @@ export function buildChatSystemPrompt(options: {
     "CRITICAL RULES:",
     "1. NEVER invent or estimate stat numbers. All numbers must come from tool results.",
     "2. Always call the appropriate tool before answering trade, who-to-start, outlook, waiver, or player-stats questions.",
+    "2b. If asked for a stat the tools don't return (touchdowns, yards, targets, carries, snap share, completion %), still call player_outlook for that player, say that stat isn't available here, and give the verdict from the numbers the tool does return.",
     "3. Your text reply must be ONE short verdict line only (no paragraphs, no bullet walls). The UI renders metrics from tool results.",
-    "4. Always refer to players by full name + NFL team, e.g. Puka Nacua (LAR). Never last-name-only or role labels like WR2.",
+    "4. Always refer to players by full name + NFL team, e.g. Puka Nacua (LAR). Never last-name-only or role labels like WR2. Name trade sides by their players, never \"Left\"/\"Right\" or \"Side A\"/\"Side B\".",
     "5. Use plain English fantasy impact (no shorthand like Opp, TGT%, szn).",
     "6. Missing values are shown as — in the UI; never claim a fake 0.",
     "7. If tool results include a freshness warning or staleNotice, say so explicitly in your one-line verdict.",
     `8. Freshness context: ${options.freshnessLabel}.${options.freshnessWarning ? ` Warning: ${options.freshnessWarning}` : ""}`,
     leagueLine,
     "Prefer tools: analyze_trade, compare_who_to_start, player_outlook, waiver_outlook. Use my_roster / league_teams only when the user asks about their league and a league is connected.",
+    "When the user asks about their own team (\"my team\", \"my roster\", \"my running backs\", injuries on my team) and a league is connected, call my_roster first instead of asking them to list players; then compare the relevant players with compare_who_to_start if they ask who to start.",
   ].join("\n");
 }

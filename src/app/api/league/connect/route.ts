@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { connectEspnLeague, connectSleeperLeague } from "@/lib/league/service";
 import { defaultEspnSeason } from "@/lib/season";
 import { enforceRateLimit } from "@/lib/http/api-guard";
+import { trackEvent } from "@/lib/analytics/events";
 
 const ConnectBodySchema = z.object({
   mode: z.string().optional(),
@@ -65,6 +66,12 @@ export async function POST(request: Request) {
         leagueId,
         sleeperUsername: body.sleeperUsername,
       });
+      await trackEvent({
+        name: "league_connected",
+        userId: session.user.id,
+        isGuest: Boolean(session.user.isGuest),
+        props: { platform: "sleeper", scoring: league.scoringLabel ?? null },
+      });
       return NextResponse.json({ ok: true, league });
     }
 
@@ -74,6 +81,16 @@ export async function POST(request: Request) {
       teamId: body.teamId ? Number(body.teamId) : undefined,
       swid: body.swid ? String(body.swid) : undefined,
       espnS2: body.espnS2 ? String(body.espnS2) : undefined,
+    });
+    await trackEvent({
+      name: "league_connected",
+      userId: session.user.id,
+      isGuest: Boolean(session.user.isGuest),
+      props: {
+        platform: "espn",
+        private: Boolean(body.swid || body.espnS2),
+        scoring: league.scoringLabel ?? null,
+      },
     });
 
     return NextResponse.json({ ok: true, league });

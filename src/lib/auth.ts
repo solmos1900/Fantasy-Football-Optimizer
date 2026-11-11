@@ -16,6 +16,12 @@ import {
   requestIp,
 } from "@/lib/auth/auth-throttle";
 import { verifyBotCheck } from "@/lib/auth/bot-check";
+import {
+  ATTRIBUTION_COOKIE,
+  attributionFromCookieHeader,
+  normalizeAttributionSource,
+  trackEvent,
+} from "@/lib/analytics/events";
 
 /** Surfaced to the client as `result.code` from signIn(). */
 class RateLimitedSignin extends CredentialsSignin {
@@ -190,6 +196,12 @@ providers.push(
             image: null,
           },
         });
+        await trackEvent({
+          name: "guest_created",
+          userId: user.id,
+          isGuest: true,
+          source: attributionFromCookieHeader(request?.headers?.get("cookie")),
+        });
 
         return {
           id: user.id,
@@ -222,6 +234,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   events: {
+    // New Google / GitHub account (credentials + guest users are created in
+    // their own authorize paths and tracked there).
+    async createUser({ user }) {
+      if (!user.id) return;
+      let source: string | null = null;
+      try {
+        const { cookies } = await import("next/headers");
+        source = normalizeAttributionSource(
+          (await cookies()).get(ATTRIBUTION_COOKIE)?.value,
+        );
+      } catch {
+        // No request scope — record without a source.
+      }
+      await trackEvent({
+        name: "account_created",
+        userId: user.id,
+        props: { method: "oauth" },
+        source,
+      });
+    },
     // Backup for guest wipe when sign-out bypasses /api/guest/end-session
     // (e.g. Auth.js default signOut). JWT strategy → message.token.
     async signOut(message) {

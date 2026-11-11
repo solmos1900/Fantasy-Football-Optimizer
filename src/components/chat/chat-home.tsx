@@ -26,6 +26,7 @@ import {
   type ChatTemplatePayload,
 } from "@/lib/chat/templates";
 import { mentionChipsToDisplay } from "@/lib/chat/mention-search";
+import { trackClientEvent } from "@/lib/analytics/client";
 
 type Props = {
   isGuest: boolean;
@@ -301,6 +302,7 @@ export function ChatHome({ isGuest, hasLeague, userName }: Props) {
   }
 
   async function handleTemplateRun(payload: ChatTemplatePayload) {
+    trackClientEvent("chat_template_used", { template: payload.type });
     setNotice(null);
     clearError();
     await ensureConversation();

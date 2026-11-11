@@ -104,6 +104,12 @@ export function whoBenefitsCopy(
   mode: TradeBenefitsMode,
   giveValue?: number,
   receiveValue?: number,
+  /**
+   * Free mode only: name each side by its players instead of "Left" /
+   * "Right" (chat, where there are no columns). Each side is a list of
+   * player labels, e.g. ["Puka Nacua (LAR)"].
+   */
+  sidePlayers?: { a: string[]; b: string[] },
 ): TradeBenefitsCopy {
   const a = giveValue ?? 0;
   const b = receiveValue ?? a + valueGap;
@@ -162,6 +168,24 @@ export function whoBenefitsCopy(
       tier,
       tone: "caution",
       differenceLabel: `+${gapPts} for Them`,
+    };
+  }
+
+  if (sidePlayers && sidePlayers.a.length && sidePlayers.b.length) {
+    const win = winner === "a" ? sidePlayers.a : sidePlayers.b;
+    const lose = winner === "a" ? sidePlayers.b : sidePlayers.a;
+    const winName = win.join(" + ");
+    const loseName = lose.join(" + ");
+    const verb = win.length > 1 ? "are" : "is";
+    return {
+      headline: `${tierWord}: ${winName} ${verb} worth ${gapPts} more points of value than ${loseName} (${pctLabel}); whoever gives up ${winName} shouldn't accept.`,
+      detail: `+${gapPts} for ${winName}`,
+      winner,
+      absGap,
+      pctGap,
+      tier,
+      tone: "caution",
+      differenceLabel: `+${gapPts} for ${winName}`,
     };
   }
 

@@ -4,11 +4,13 @@
 
 import { prisma } from "@/lib/db";
 import { recordTokenSpend } from "@/lib/chat/rate-limit";
+import { costFromUsage, getModelPricing } from "@/lib/chat/pricing";
 
 export type ChatTurnUsage = {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
+  inputTokenDetails?: { cacheReadTokens?: number };
 };
 
 export function usageTotals(usage: ChatTurnUsage | undefined): {
@@ -33,9 +35,19 @@ export async function recordChatUsage(options: {
   bucketKey: string;
   model: string;
   steps: number;
+  /** Tool calls across all steps of the turn. */
+  toolCalls?: number;
   usage: ChatTurnUsage | undefined;
 }): Promise<void> {
   const totals = usageTotals(options.usage);
+  const costUsd = costFromUsage(
+    {
+      inputTokens: options.usage?.inputTokens,
+      outputTokens: options.usage?.outputTokens,
+      cachedInputTokens: options.usage?.inputTokenDetails?.cacheReadTokens,
+    },
+    await getModelPricing(options.model),
+  );
   await Promise.all([
     prisma.chatUsage.create({
       data: {
@@ -44,6 +56,8 @@ export async function recordChatUsage(options: {
         conversationId: options.conversationId,
         model: options.model,
         steps: options.steps,
+        toolCalls: options.toolCalls ?? 0,
+        costUsd,
         ...totals,
       },
     }),

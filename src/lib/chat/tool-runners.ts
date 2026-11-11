@@ -189,9 +189,15 @@ export function runTradeCompare(options: {
     };
   }
   const valueGap = receiveValue - giveValue;
-  const benefit = whoBenefitsCopy(valueGap, "free", giveValue, receiveValue);
   const cardsA = sideA.map((p) => buildPlayerMetricCard(p, meta));
   const cardsB = sideB.map((p) => buildPlayerMetricCard(p, meta));
+  // Chat has no Left/Right columns: name each side by its players.
+  const namesA = cardsA.map((c) => c.label);
+  const namesB = cardsB.map((c) => c.label);
+  const benefit = whoBenefitsCopy(valueGap, "free", giveValue, receiveValue, {
+    a: namesA,
+    b: namesB,
+  });
   const sumA = cardsA.reduce((s, c) => s + (c.tradeValue ?? 0), 0);
   const sumB = cardsB.reduce((s, c) => s + (c.tradeValue ?? 0), 0);
   // Guard: package totals must equal sum of per-card trade values.
@@ -203,9 +209,10 @@ export function runTradeCompare(options: {
     };
   }
   const facts = [
-    `Trade value = season points per game (${valueBasis}). Left ${giveValue.toFixed(1)} = ${cardsA.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
-    `Right ${receiveValue.toFixed(1)} = ${cardsB.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")}.`,
-    `% gap uses the lower side as the base: |Left − Right| / min(Left, Right) = ${(benefit.pctGap * 100).toFixed(1)}%.`,
+    `Trade value = season points per game (${valueBasis}).`,
+    `${namesA.join(" + ")}: ${giveValue.toFixed(1)}${cardsA.length > 1 ? ` (${cardsA.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")})` : ""}.`,
+    `${namesB.join(" + ")}: ${receiveValue.toFixed(1)}${cardsB.length > 1 ? ` (${cardsB.map((c) => `${c.label} ${dashTrade(c.tradeValue)}`).join(" + ")})` : ""}.`,
+    `% gap uses the lower side as the base: ${(benefit.pctGap * 100).toFixed(1)}%.`,
   ];
   return {
     ok: true,

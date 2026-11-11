@@ -22,7 +22,7 @@ export function buildChatTools(ctx: ChatDataContext) {
   return {
     analyze_trade: tool({
       description:
-        "Grade a fantasy trade between Left and Right using Gridiron IQ trade value (shared season points / trade logic). Pass ESPN player ids from @ mentions or templates.",
+        "Grade a fantasy trade between two sides of players using Gridiron IQ trade value (season points per game). Pass ESPN player ids from @ mentions or templates; put the players the user gives on one side and the players they get on the other.",
       inputSchema: z.object({
         leftEspnIds: espnIdList.describe("Left-side player ESPN ids"),
         rightEspnIds: espnIdList.describe("Right-side player ESPN ids"),
@@ -130,7 +130,7 @@ export function buildChatTools(ctx: ChatDataContext) {
 
     my_roster: tool({
       description:
-        "List the signed-in user's roster. Only available with a connected league.",
+        "List the signed-in user's roster: every player with ESPN id, position, lineup slot and injury status. Use it for any question about the user's own team (injuries on my team, which of my players to start, my RBs/WRs). Only available with a connected league.",
       inputSchema: z.object({}),
       execute: async () => {
         if (!ctx.hasConnectedLeague) {

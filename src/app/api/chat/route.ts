@@ -1,18 +1,16 @@
 import {
-  convertToModelMessages,
   createUIMessageStreamResponse,
-  isStepCount,
   streamText,
   toUIMessageStream,
   type UIMessage,
 } from "ai";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
+import { trackEvent } from "@/lib/analytics/events";
 import {
   CHAT_BUDGET_EXHAUSTED_NOTICE,
   CHAT_DISABLED_NOTICE,
   CHAT_GATEWAY_UNAVAILABLE_NOTICE,
-  CHAT_MAX_OUTPUT_TOKENS,
-  CHAT_MAX_TOOL_STEPS,
   CHAT_MODEL_ID,
   chatDisabled,
 } from "@/lib/chat/config";
@@ -27,21 +25,19 @@ import {
 import { sanitizeChatHistory } from "@/lib/chat/history";
 import { recordChatUsage } from "@/lib/chat/usage";
 import { clientIpFromHeaders, chatRequestSchema } from "@/lib/chat/request";
-import { buildChatSystemPrompt } from "@/lib/chat/system-prompt";
-import { leagueScoring, scoringBoardLabel } from "@/lib/league/scoring";
-import { buildChatTools } from "@/lib/chat/tools";
 import {
   appendMessages,
   createConversation,
 } from "@/lib/chat/persistence";
 import {
-  formatPoolFreshnessLabel,
-} from "@/lib/players/pool";
+  CHAT_GENERATION_SETTINGS,
+  lastUserText,
+  prepareChatTurn,
+} from "@/lib/chat/turn";
 import {
   chatTemplatePayloadSchema,
   templateUserText,
 } from "@/lib/chat/templates";
-import { parseMentionChips } from "@/lib/chat/mention-search";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -63,7 +59,19 @@ export async function POST(req: Request) {
     return jsonError(401, { error: "Unauthorized" });
   }
 
+  // Launch analytics: how often people hit a cap or the kill switch.
+  const blocked = (reason: string, isGuestUser: boolean) =>
+    after(() =>
+      trackEvent({
+        name: "chat_blocked",
+        userId: session.user.id,
+        isGuest: isGuestUser,
+        props: { reason },
+      }),
+    );
+
   if (chatDisabled()) {
+    blocked("disabled", Boolean(session.user.isGuest));
     return jsonError(503, { error: "chat_disabled", notice: CHAT_DISABLED_NOTICE });
   }
 
@@ -119,6 +127,7 @@ export async function POST(req: Request) {
     kind: isGuest ? "guest" : "user",
   });
   if (!budget.allowed) {
+    blocked(budget.scope === "global" ? "global_budget" : "user_budget", isGuest);
     return jsonError(429, {
       error: "budget_exhausted",
       notice: CHAT_BUDGET_EXHAUSTED_NOTICE,
@@ -134,6 +143,7 @@ export async function POST(req: Request) {
       kind: "guest-ip",
     });
     if (!ipRate.allowed) {
+      blocked("guest_ip_cap", isGuest);
       return jsonError(429, {
         error: "rate_limited",
         notice: ipRate.message,
@@ -148,6 +158,7 @@ export async function POST(req: Request) {
     kind: isGuest ? "guest" : "user",
   });
   if (!rate.allowed) {
+    blocked(isGuest ? "guest_cap" : "user_cap", isGuest);
     return jsonError(429, {
       error: "rate_limited",
       notice: rate.message,
@@ -175,39 +186,21 @@ export async function POST(req: Request) {
   }
 
   const ctx = await loadChatDataContext({ userId: session.user.id });
-  const tools = buildChatTools(ctx);
-  const freshnessLabel = formatPoolFreshnessLabel(ctx.freshness);
-
-  const lastUserText = extractLastUserText(workingMessages);
-  const mentionIds = [
-    ...parseMentionChips(lastUserText).map((m) => m.espnId),
-    ...(parsed.data.mentionEspnIds ?? []),
-  ];
-
-  const system = buildChatSystemPrompt({
-    hasConnectedLeague: ctx.hasConnectedLeague,
-    scoringBoard: ctx.hasConnectedLeague
-      ? scoringBoardLabel(leagueScoring(ctx.league))
-      : undefined,
-    freshnessLabel,
-    freshnessWarning: ctx.freshness.warning,
+  const turn = await prepareChatTurn({
+    ctx,
+    messages: workingMessages,
+    mentionEspnIds: parsed.data.mentionEspnIds,
   });
-
-  // Soft hint for the model with known mention ids
-  const mentionHint =
-    mentionIds.length > 0
-      ? `\nKnown player ESPN ids from the user message chips: ${[...new Set(mentionIds)].join(", ")}.`
-      : "";
+  const freshnessLabel = turn.freshnessLabel;
+  const userText = lastUserText(workingMessages);
 
   try {
     const result = streamText({
-      model: CHAT_MODEL_ID,
-      system: system + mentionHint,
-      messages: await convertToModelMessages(workingMessages),
-      tools,
-      stopWhen: isStepCount(CHAT_MAX_TOOL_STEPS),
-      maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
-      temperature: 0.2,
+      model: turn.model,
+      system: turn.system,
+      messages: turn.messages,
+      tools: turn.tools,
+      ...CHAT_GENERATION_SETTINGS,
       onEnd: async ({ totalUsage, steps }) => {
         try {
           await recordChatUsage({
@@ -217,6 +210,7 @@ export async function POST(req: Request) {
             bucketKey,
             model: CHAT_MODEL_ID,
             steps: steps.length,
+            toolCalls: steps.reduce((n, s) => n + s.toolCalls.length, 0),
             usage: totalUsage,
           });
         } catch (err) {
@@ -226,12 +220,12 @@ export async function POST(req: Request) {
     });
 
     // Persist user turn for signed-in users (assistant saved on finish best-effort)
-    if (!isGuest && activeConversationId && lastUserText) {
+    if (!isGuest && activeConversationId && userText) {
       void appendMessages({
         userId: session.user.id,
         conversationId: activeConversationId,
-        titleFromUserText: lastUserText,
-        messages: [{ role: "user", content: lastUserText }],
+        titleFromUserText: userText,
+        messages: [{ role: "user", content: userText }],
       }).catch(() => {});
     }
 
@@ -275,18 +269,4 @@ export async function POST(req: Request) {
       notice: CHAT_GATEWAY_UNAVAILABLE_NOTICE,
     });
   }
-}
-
-function extractLastUserText(messages: UIMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m?.role !== "user") continue;
-    const parts = m.parts ?? [];
-    const text = parts
-      .filter((p): p is { type: "text"; text: string } => p.type === "text")
-      .map((p) => p.text)
-      .join("\n");
-    if (text.trim()) return text.trim();
-  }
-  return "";
 }
