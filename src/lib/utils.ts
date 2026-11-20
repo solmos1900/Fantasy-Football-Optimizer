@@ -12,6 +12,21 @@ export function pointsOrZero(n: number | null | undefined): number {
   return typeof n === "number" && Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * A projection that is really there: finite number, else null.
+ * Advice (start/sit, drops, streaming, trade needs) must compare only real
+ * projections — "no projection yet" is not 0.0 points.
+ */
+export function knownProjection(n: number | null | undefined): number | null {
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+/** "12.3" for a real projection, "no projection yet" when it's missing. */
+export function formatProjection(n: number | null | undefined): string {
+  const v = knownProjection(n);
+  return v == null ? "no projection yet" : v.toFixed(1);
+}
+
 export function formatRecord(wins: number, losses: number, ties: number) {
   return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 }

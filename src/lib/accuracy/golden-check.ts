@@ -385,6 +385,8 @@ async function assertToolSurfaces(
     if (
       a.injuryStatus === "ACTIVE" &&
       b.injuryStatus === "ACTIVE" &&
+      result.sideA.projectedPoints != null &&
+      result.sideB.projectedPoints != null &&
       Math.abs(result.edge - projEdge) > 0.05 &&
       Math.abs(projEdge) >= 1.0
     ) {
