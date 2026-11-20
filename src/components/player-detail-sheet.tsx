@@ -16,6 +16,7 @@ import { inferPlayerRole } from "@/lib/insights/defense-matchups";
 import { PositionChip } from "@/components/position-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { leagueReportsOwnership } from "@/lib/league/team";
+import { isUnavailableStatus } from "@/lib/insights/availability";
 
 type Tab = "logs" | "insights";
 type YearTab = "current" | "prior" | "career";
@@ -356,11 +357,7 @@ export function PlayerDetailSheet({
   );
   const avg = seasonAvg(logRows.filter((r) => !r.upcoming || r.points != null));
   const health = healthLabel(player);
-  const out =
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "PUP" ||
-    player.injuryStatus === "SUSPENSION";
+  const out = isUnavailableStatus(player.injuryStatus);
 
   const yearLabel =
     year === "current"
