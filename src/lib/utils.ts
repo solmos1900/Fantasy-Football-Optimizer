@@ -22,6 +22,29 @@ export function formatStatusCode(status: string): string {
 }
 
 /**
+ * Statuses that mean a player cannot play this week. Single source of truth
+ * for every advice surface (Who to Start, player detail, trade value, trends,
+ * Insights engine, Start/Sit board) so screens never disagree (#155).
+ */
+export const UNAVAILABLE_INJURY_STATUSES = ["OUT", "IR", "PUP", "SUSPENSION"] as const;
+
+/** True when the status means the player cannot play (OUT / IR / PUP / SUSPENSION). */
+export function isUnavailableStatus(status: string | null | undefined): boolean {
+  if (!status) return false;
+  return (UNAVAILABLE_INJURY_STATUSES as readonly string[]).includes(
+    formatStatusCode(status),
+  );
+}
+
+/**
+ * Unavailable or DOUBTFUL: never a confident start. Doubtful players usually
+ * don't play, so advice treats them as non-starters (#143).
+ */
+export function isNonStarterStatus(status: string | null | undefined): boolean {
+  return isUnavailableStatus(status) || formatStatusCode(status ?? "") === "DOUBTFUL";
+}
+
+/**
  * Copula + injury for sentences like "Player ___."
  * IR → "is on the IR" (never "is IR" / "is ir").
  * Other statuses: "is OUT" (code) or "is out" (prose).

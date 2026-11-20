@@ -14,7 +14,7 @@ import {
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode, pointsOrZero } from "@/lib/utils";
+import { formatStatusCode, isUnavailableStatus, pointsOrZero } from "@/lib/utils";
 
 export type StartSitLean = "START" | "SIT" | "FLEX";
 
@@ -174,14 +174,19 @@ export function buildPlayerDetailInsight(
         )
       : null;
 
-  if (player.injuryStatus === "OUT" || player.injuryStatus === "IR") {
+  // OUT / IR / PUP / SUSPENSION all mean the player can't play (#155).
+  if (isUnavailableStatus(player.injuryStatus)) {
     const status = formatStatusCode(player.injuryStatus);
     return {
       lean: "SIT",
       headline:
         status === "IR"
           ? `Sit ${player.name} — on the IR`
-          : `Sit ${player.name} — listed ${status}`,
+          : status === "SUSPENSION"
+            ? `Sit ${player.name} — suspended`
+            : status === "PUP"
+              ? `Sit ${player.name} — on PUP`
+              : `Sit ${player.name} — listed ${status}`,
       reasons: [
         status === "IR"
           ? `Roster lists them on the IR. Gridiron IQ does not invent injury details.`

@@ -32,7 +32,7 @@ import type {
 } from "@/lib/types";
 import { humanTrendSentence, normalizeTrendLabel, trendLabelCopy } from "@/lib/insights/trend-labels";
 import { defenseAllowRowsFromLeague } from "@/lib/insights/defense-matchups";
-import { formatStatusCode, injuryStatusPhrase } from "@/lib/utils";
+import { formatStatusCode, injuryStatusPhrase, isNonStarterStatus } from "@/lib/utils";
 
 export type SnapshotSource = "espn" | "demo" | "heuristic";
 
@@ -247,7 +247,8 @@ export function deriveTrendFromWeeks(
   );
   const weeksSampled = withActual.length;
 
-  const injured = ["OUT", "IR", "DOUBTFUL"].includes(injuryStatus);
+  // OUT / IR / PUP / SUSPENSION / DOUBTFUL (#155).
+  const injured = isNonStarterStatus(injuryStatus);
 
   if (weeksSampled === 0 && !injured) {
     const evidence = `${playerName} does not have enough recent games yet — lean on this week's projection.`;

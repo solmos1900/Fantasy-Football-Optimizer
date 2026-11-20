@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
-import { cn, formatStatusCode, statusColor, pointsOrZero } from "@/lib/utils";
+import {
+  cn,
+  formatStatusCode,
+  isUnavailableStatus,
+  statusColor,
+  pointsOrZero,
+} from "@/lib/utils";
 import type {
   FantasyPlayer,
   FantasyTeam,
@@ -53,12 +59,7 @@ function lastName(name: string): string {
 }
 
 function isOut(player: FantasyPlayer): boolean {
-  return (
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "PUP" ||
-    player.injuryStatus === "SUSPENSION"
-  );
+  return isUnavailableStatus(player.injuryStatus);
 }
 
 function healthLabel(player: FantasyPlayer): string {

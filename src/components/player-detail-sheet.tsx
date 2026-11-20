@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { cn, formatStatusCode, statusColor, pointsOrZero } from "@/lib/utils";
+import {
+  cn,
+  formatStatusCode,
+  isUnavailableStatus,
+  statusColor,
+  pointsOrZero,
+} from "@/lib/utils";
 import type {
   FantasyPlayer,
   LeagueData,
@@ -356,11 +362,7 @@ export function PlayerDetailSheet({
   );
   const avg = seasonAvg(logRows.filter((r) => !r.upcoming || r.points != null));
   const health = healthLabel(player);
-  const out =
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "PUP" ||
-    player.injuryStatus === "SUSPENSION";
+  const out = isUnavailableStatus(player.injuryStatus);
 
   const yearLabel =
     year === "current"

@@ -18,7 +18,12 @@ import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
 import { resolveUserTeam } from "@/lib/league/team";
-import { formatStatusCode, pointsOrZero } from "@/lib/utils";
+import {
+  formatStatusCode,
+  isNonStarterStatus,
+  isUnavailableStatus,
+  pointsOrZero,
+} from "@/lib/utils";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -58,9 +63,7 @@ function avgProjected(
 function depthAt(team: FantasyTeam, pos: PlayerPosition): number {
   return team.roster.filter(
     (p) =>
-      p.position === pos &&
-      p.injuryStatus !== "OUT" &&
-      p.injuryStatus !== "IR",
+      p.position === pos && !isUnavailableStatus(p.injuryStatus),
   ).length;
 }
 
@@ -88,12 +91,8 @@ function buildStartSit(
   const matchupCtx = matchupContextFromLeague(league);
 
   for (const b of bench) {
-    if (
-      b.injuryStatus === "OUT" ||
-      b.injuryStatus === "IR" ||
-      b.injuryStatus === "PUP"
-    )
-      continue;
+    // Never suggest starting a bench player who can't play (#155).
+    if (isUnavailableStatus(b.injuryStatus)) continue;
 
     const comparable = starters.filter(
       (s) =>
@@ -185,13 +184,13 @@ function buildStartSit(
   }
 
   for (const s of starters) {
-    if (!["OUT", "DOUBTFUL", "IR"].includes(s.injuryStatus)) continue;
+    if (!isNonStarterStatus(s.injuryStatus)) continue;
     const replacement = bench
       .filter(
         (b) =>
           (b.position === s.position ||
             (s.slot === "FLEX" && ["RB", "WR", "TE"].includes(b.position))) &&
-          !["OUT", "IR"].includes(b.injuryStatus),
+          !isUnavailableStatus(b.injuryStatus),
       )
       .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints))[0];
 
@@ -242,7 +241,7 @@ function buildMatchupNotes(
 
   for (const s of startersOf(team)) {
     if (!SKILL_POSITIONS.includes(s.position)) continue;
-    if (["OUT", "DOUBTFUL", "IR"].includes(s.injuryStatus)) continue;
+    if (isNonStarterStatus(s.injuryStatus)) continue;
 
     const def = analyzeDefenseMatchup(s, pool, matchupCtx);
     if (!def || def.samples.length === 0 || !def.toughMatchup) continue;
