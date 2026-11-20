@@ -13,7 +13,12 @@ import {
 } from "@/lib/insights/defense-matchups";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode, injuryStatusPhrase, pointsOrZero } from "@/lib/utils";
+import {
+  formatStatusCode,
+  injuryStatusPhrase,
+  isUnavailableStatus,
+  pointsOrZero,
+} from "@/lib/utils";
 import {
   dvpMapFromRecord,
   preferredProj,
@@ -124,6 +129,7 @@ function injuryPenalty(status: FantasyPlayer["injuryStatus"]): number {
   switch (status) {
     case "OUT":
     case "IR":
+    case "PUP":
     case "SUSPENSION":
       return 100;
     case "DOUBTFUL":
@@ -225,11 +231,11 @@ function scoreSide(
 }
 
 function unavailable(player: FantasyPlayer): boolean {
-  return (
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "SUSPENSION"
-  );
+  return isUnavailableStatus(player.injuryStatus);
+}
+
+function doubtful(player: FantasyPlayer): boolean {
+  return formatStatusCode(player.injuryStatus) === "DOUBTFUL";
 }
 
 /** Name the higher side and the positive gap (never a bare negative). */
@@ -276,7 +282,9 @@ function unavailablePhrase(player: FantasyPlayer): string {
   const code = formatStatusCode(player.injuryStatus);
   if (code === "IR") return "on IR this week";
   if (code === "SUSPENSION") return "suspended this week";
+  if (code === "PUP") return "on PUP this week";
   if (code === "OUT") return "OUT this week";
+  if (code === "DOUBTFUL") return "DOUBTFUL and unlikely to play this week";
   return `${code} this week`;
 }
 
@@ -401,6 +409,10 @@ export function compareWhoToStart(
   const bBye = onBye(playerB);
   const aDown = aOut || aBye;
   const bDown = bOut || bBye;
+  // Doubtful players usually don't play: never START one over a healthy
+  // option, however big the projection gap (#143).
+  const aDoubtful = !aDown && doubtful(playerA);
+  const bDoubtful = !bDown && doubtful(playerB);
 
   // Displayed edge = projection gap only (matches the numbers on the card).
   let edge = pointsOrZero(sideA.projectedPoints) - pointsOrZero(sideB.projectedPoints);
@@ -434,6 +446,22 @@ export function compareWhoToStart(
       summary: `Both are ${unavailablePhrase(playerA)} / ${unavailablePhrase(playerB)}. Neither is a start until status clears.`,
     };
     edge = 0;
+  } else if (aDoubtful && !bDoubtful) {
+    edge = -(Math.abs(edge) + 3);
+    forced = {
+      verdict: "start_b",
+      verdictLabel: "START B",
+      headline: `Start ${labelB}: ${labelA} is ${unavailablePhrase(playerA)}.`,
+      summary: `${labelA} is listed DOUBTFUL and usually doesn't play. Start ${labelB} unless ${labelA} gets a late upgrade.`,
+    };
+  } else if (bDoubtful && !aDoubtful) {
+    edge = Math.abs(edge) + 3;
+    forced = {
+      verdict: "start_a",
+      verdictLabel: "START A",
+      headline: `Start ${labelA}: ${labelB} is ${unavailablePhrase(playerB)}.`,
+      summary: `${labelB} is listed DOUBTFUL and usually doesn't play. Start ${labelA} unless ${labelB} gets a late upgrade.`,
+    };
   } else {
     // Near-even projections: let form / DVP / composite ranking break ties into leans.
     const absProj = Math.abs(edge);

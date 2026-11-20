@@ -24,7 +24,7 @@ import {
   trendLabelCopy,
 } from "@/lib/insights/trend-labels";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
-import { pointsOrZero } from "@/lib/utils";
+import { isNonStarterStatus, pointsOrZero } from "@/lib/utils";
 import {
   DEFAULT_SCORING,
   scoringBoardLabel,
@@ -72,7 +72,7 @@ export const OUTRAGEOUS_VALUE_RATIO = 1.55;
 export type TrendLookup = Map<number, PlayerTrendView> | undefined;
 
 export function isHealthy(p: FantasyPlayer): boolean {
-  return !["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus);
+  return !isNonStarterStatus(p.injuryStatus);
 }
 
 export function byProjectedDesc(a: FantasyPlayer, b: FantasyPlayer): number {
@@ -196,7 +196,8 @@ export function chipValue(
   if (trend) blended += trend.restOfSeasonAdj;
   // Teammate injury volume nudge (rule-based; never an LLM grade)
   if (opts.teammateInjuryDelta) blended += opts.teammateInjuryDelta;
-  if (["OUT", "IR", "DOUBTFUL"].includes(p.injuryStatus)) blended *= 0.15;
+  // OUT / IR / PUP / SUSPENSION / DOUBTFUL: heavy discount (#155).
+  if (isNonStarterStatus(p.injuryStatus)) blended *= 0.15;
 
   if (p.position === "QB") return blended * qbChipMultiplier(opts.scoring);
   if (p.position === "TE") {
