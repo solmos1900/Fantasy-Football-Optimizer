@@ -28,6 +28,10 @@ import {
   type TeammateInjuryImpact,
   type TeammateInjuryIndex,
 } from "@/lib/insights/teammate-injury";
+import {
+  isDoubtfulStatus,
+  isUnavailableStatus,
+} from "@/lib/insights/availability";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 const FLEX_POOL: PlayerPosition[] = ["RB", "WR", "TE"];
@@ -121,18 +125,10 @@ function positionsComparable(
 }
 
 function injuryPenalty(status: FantasyPlayer["injuryStatus"]): number {
-  switch (status) {
-    case "OUT":
-    case "IR":
-    case "SUSPENSION":
-      return 100;
-    case "DOUBTFUL":
-      return 4;
-    case "QUESTIONABLE":
-      return 1.5;
-    default:
-      return 0;
-  }
+  if (isUnavailableStatus(status)) return 100;
+  if (isDoubtfulStatus(status)) return 4;
+  if (status === "QUESTIONABLE") return 1.5;
+  return 0;
 }
 
 function injuryNote(player: FantasyPlayer): string | null {
@@ -224,12 +220,14 @@ function scoreSide(
   };
 }
 
+/** OUT / IR / PUP / SUSPENSION — shared definition (see availability.ts). */
 function unavailable(player: FantasyPlayer): boolean {
-  return (
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "SUSPENSION"
-  );
+  return isUnavailableStatus(player.injuryStatus);
+}
+
+/** Listed DOUBTFUL: most likely won't play, so never the START over a healthy option. */
+function doubtful(player: FantasyPlayer): boolean {
+  return isDoubtfulStatus(player.injuryStatus);
 }
 
 /** Name the higher side and the positive gap (never a bare negative). */
@@ -276,6 +274,8 @@ function unavailablePhrase(player: FantasyPlayer): string {
   const code = formatStatusCode(player.injuryStatus);
   if (code === "IR") return "on IR this week";
   if (code === "SUSPENSION") return "suspended this week";
+  if (code === "PUP") return "on PUP this week";
+  if (code === "DOUBTFUL") return "doubtful this week";
   if (code === "OUT") return "OUT this week";
   return `${code} this week`;
 }
@@ -434,6 +434,25 @@ export function compareWhoToStart(
       summary: `Both are ${unavailablePhrase(playerA)} / ${unavailablePhrase(playerB)}. Neither is a start until status clears.`,
     };
     edge = 0;
+  } else if (doubtful(playerA) && !doubtful(playerB)) {
+    // A Doubtful player most likely won't play — the healthier option is the
+    // start no matter how big the projection gap is (matches player detail and
+    // the Insights engine, which both treat DOUBTFUL as a non-start).
+    edge = -(Math.abs(edge) + 3);
+    forced = {
+      verdict: "start_b",
+      verdictLabel: "START B",
+      headline: `Start ${labelB}: ${labelA} is ${unavailablePhrase(playerA)}.`,
+      summary: `${labelA} is listed DOUBTFUL and most likely won't play. Start ${labelB} this week unless ${labelA} gets a late upgrade.`,
+    };
+  } else if (doubtful(playerB) && !doubtful(playerA)) {
+    edge = Math.abs(edge) + 3;
+    forced = {
+      verdict: "start_a",
+      verdictLabel: "START A",
+      headline: `Start ${labelA}: ${labelB} is ${unavailablePhrase(playerB)}.`,
+      summary: `${labelB} is listed DOUBTFUL and most likely won't play. Start ${labelA} this week unless ${labelB} gets a late upgrade.`,
+    };
   } else {
     // Near-even projections: let form / DVP / composite ranking break ties into leans.
     const absProj = Math.abs(edge);

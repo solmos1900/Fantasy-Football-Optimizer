@@ -23,6 +23,7 @@ import { PositionChip } from "@/components/position-chip";
 import { Button } from "@/components/ui/button";
 import { sortByEspnRosterOrder } from "@/lib/roster-order";
 import { useIsClient } from "@/lib/use-client-state";
+import { isUnavailableStatus } from "@/lib/insights/availability";
 
 type SlotFilter = "QB" | "RB" | "WR" | "TE" | "FLEX" | "DEF";
 
@@ -53,12 +54,7 @@ function lastName(name: string): string {
 }
 
 function isOut(player: FantasyPlayer): boolean {
-  return (
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "PUP" ||
-    player.injuryStatus === "SUSPENSION"
-  );
+  return isUnavailableStatus(player.injuryStatus);
 }
 
 function healthLabel(player: FantasyPlayer): string {

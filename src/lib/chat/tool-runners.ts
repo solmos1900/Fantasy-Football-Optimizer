@@ -272,7 +272,11 @@ export function runWhoToStartCompare(options: {
   meta?: ToolDisplayMeta | null;
   freshness: PlayerPoolFreshness;
 }): WhoToStartToolResult | WhoToStartToolError {
-  const { league, players, trends, meta, freshness } = options;
+  const { league, trends, meta, freshness } = options;
+  // Same player twice would fail every head-to-head — compare each once.
+  const players = options.players.filter(
+    (p, i, all) => all.findIndex((q) => q.id === p.id) === i,
+  );
   if (players.length < 2) {
     return {
       ok: false,
@@ -280,31 +284,53 @@ export function runWhoToStartCompare(options: {
       message: "Pick at least two players to compare.",
     };
   }
-  // Pairwise: first vs best of the rest (same shared compareWhoToStart).
-  const [a, ...rest] = players;
-  let best = rest[0]!;
-  let bestResult = compareWhoToStart(league, a!, best, {
-    trends,
-    toolMeta: meta,
-    flexMode: true,
-  });
-  for (const candidate of rest.slice(1)) {
-    const vs = compareWhoToStart(league, a!, candidate, {
-      trends,
-      toolMeta: meta,
-      flexMode: true,
-    });
-    if (!vs.ok) continue;
-    if (!bestResult.ok) {
-      best = candidate;
-      bestResult = vs;
-      continue;
+  const opts = { trends, toolMeta: meta, flexMode: true } as const;
+
+  // Round-robin: every player meets every other player through the shared
+  // compareWhoToStart logic, so the best option can never be skipped (the old
+  // "first player vs the rest" pass kept the biggest gap against player 1 and
+  // could leave the top-projected player out entirely). Unavailable / Doubtful
+  // players lose their head-to-heads via the shared forced verdicts.
+  const standings = players.map((player) => ({ player, wins: 0, margin: 0 }));
+  for (let i = 0; i < standings.length; i++) {
+    for (let j = i + 1; j < standings.length; j++) {
+      const x = standings[i]!;
+      const y = standings[j]!;
+      const vs = compareWhoToStart(league, x.player, y.player, opts);
+      if (!vs.ok) {
+        return {
+          ok: false,
+          kind: "who-to-start",
+          message: vs.message,
+          code: vs.code,
+        };
+      }
+      if (vs.verdict === "start_a" || vs.verdict === "lean_a") x.wins += 1;
+      else if (vs.verdict === "start_b" || vs.verdict === "lean_b") y.wins += 1;
+      else {
+        x.wins += 0.5;
+        y.wins += 0.5;
+      }
+      x.margin += vs.edge;
+      y.margin -= vs.edge;
     }
-    // Prefer clearer start calls / larger |edge|
-    if (vs.ok && Math.abs(vs.edge) > Math.abs(bestResult.edge)) {
-      best = candidate;
-      bestResult = vs;
-    }
+  }
+  const ranked = standings
+    .map((s, index) => ({ ...s, index }))
+    .sort(
+      (p, q) => q.wins - p.wins || q.margin - p.margin || p.index - q.index,
+    );
+
+  let top = ranked[0]!.player;
+  let runnerUp = ranked[1]!.player;
+  let bestResult = compareWhoToStart(league, top, runnerUp, opts);
+  // Head-to-head between the top two decides the order (handles rare cycles).
+  if (
+    bestResult.ok &&
+    (bestResult.verdict === "start_b" || bestResult.verdict === "lean_b")
+  ) {
+    [top, runnerUp] = [runnerUp, top];
+    bestResult = compareWhoToStart(league, top, runnerUp, opts);
   }
 
   if (!bestResult.ok) {
@@ -316,7 +342,13 @@ export function runWhoToStartCompare(options: {
     };
   }
 
-  const ordered = [bestResult.playerA, bestResult.playerB, ...rest.filter((p) => p.espnId !== best.espnId && p.espnId !== a!.espnId)];
+  const ordered = [
+    top,
+    runnerUp,
+    ...ranked
+      .map((r) => r.player)
+      .filter((p) => p !== top && p !== runnerUp),
+  ];
   return {
     ok: true,
     kind: "who-to-start",
