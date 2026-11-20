@@ -17,6 +17,27 @@ export function formatRecord(wins: number, losses: number, ties: number) {
 }
 
 /** Always-uppercase roster/injury codes for badges and slot labels (e.g. IR, OUT). */
+/**
+ * Statuses that mean the player cannot play this week. One shared definition
+ * for every advice screen (Who to Start, player detail, trade value, trends,
+ * Insights) so they never disagree.
+ */
+export const UNAVAILABLE_STATUSES = ["OUT", "IR", "PUP", "SUSPENSION"] as const;
+
+export function isUnavailableStatus(status: string | null | undefined): boolean {
+  return (UNAVAILABLE_STATUSES as readonly string[]).includes(
+    String(status ?? "").toUpperCase(),
+  );
+}
+
+/** Unavailable, or DOUBTFUL (most likely won't play) — never a START. */
+export function isNonStartStatus(status: string | null | undefined): boolean {
+  return (
+    isUnavailableStatus(status) ||
+    String(status ?? "").toUpperCase() === "DOUBTFUL"
+  );
+}
+
 export function formatStatusCode(status: string): string {
   return status.trim().toUpperCase();
 }

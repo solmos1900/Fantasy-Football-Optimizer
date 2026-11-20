@@ -12,6 +12,7 @@ function InjuryBadge({ card }: { card: ChatPlayerMetricCard }) {
     card.injuryStatus === "OUT" ||
     card.injuryStatus === "IR" ||
     card.injuryStatus === "SUSPENSION" ||
+    card.injuryStatus === "PUP" ||
     card.injuryStatus === "DOUBTFUL";
   return (
     <span

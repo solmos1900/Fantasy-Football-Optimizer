@@ -13,7 +13,12 @@ import {
 } from "@/lib/insights/defense-matchups";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode, injuryStatusPhrase, pointsOrZero } from "@/lib/utils";
+import {
+  formatStatusCode,
+  injuryStatusPhrase,
+  isUnavailableStatus,
+  pointsOrZero,
+} from "@/lib/utils";
 import {
   dvpMapFromRecord,
   preferredProj,
@@ -124,6 +129,7 @@ function injuryPenalty(status: FantasyPlayer["injuryStatus"]): number {
   switch (status) {
     case "OUT":
     case "IR":
+    case "PUP":
     case "SUSPENSION":
       return 100;
     case "DOUBTFUL":
@@ -225,11 +231,11 @@ function scoreSide(
 }
 
 function unavailable(player: FantasyPlayer): boolean {
-  return (
-    player.injuryStatus === "OUT" ||
-    player.injuryStatus === "IR" ||
-    player.injuryStatus === "SUSPENSION"
-  );
+  return isUnavailableStatus(player.injuryStatus);
+}
+
+function doubtful(player: FantasyPlayer): boolean {
+  return player.injuryStatus === "DOUBTFUL";
 }
 
 /** Name the higher side and the positive gap (never a bare negative). */
@@ -277,6 +283,8 @@ function unavailablePhrase(player: FantasyPlayer): string {
   if (code === "IR") return "on IR this week";
   if (code === "SUSPENSION") return "suspended this week";
   if (code === "OUT") return "OUT this week";
+  if (code === "PUP") return "on PUP this week";
+  if (code === "DOUBTFUL") return "DOUBTFUL this week";
   return `${code} this week`;
 }
 
@@ -434,6 +442,19 @@ export function compareWhoToStart(
       summary: `Both are ${unavailablePhrase(playerA)} / ${unavailablePhrase(playerB)}. Neither is a start until status clears.`,
     };
     edge = 0;
+  } else if (doubtful(playerA) !== doubtful(playerB)) {
+    // DOUBTFUL most likely won't play: start the healthier side no matter the
+    // projection gap (same rule as Insights and player detail).
+    const aDoubt = doubtful(playerA);
+    const healthy = aDoubt ? labelB : labelA;
+    const doubt = aDoubt ? labelA : labelB;
+    edge = aDoubt ? -(Math.abs(edge) + 3) : Math.abs(edge) + 3;
+    forced = {
+      verdict: aDoubt ? "start_b" : "start_a",
+      verdictLabel: aDoubt ? "START B" : "START A",
+      headline: `Start ${healthy}: ${doubt} is DOUBTFUL this week.`,
+      summary: `${doubt} is listed DOUBTFUL and most likely won't play. Start ${healthy} unless ${doubt} gets a late upgrade.`,
+    };
   } else {
     // Near-even projections: let form / DVP / composite ranking break ties into leans.
     const absProj = Math.abs(edge);
@@ -551,6 +572,95 @@ export function compareWhoToStart(
     edge,
     dataThin,
   };
+}
+
+export interface WhoToStartRankEntry {
+  player: FantasyPlayer;
+  /** Same projection compareWhoToStart shows (Sleeper when available). */
+  projectedPoints: number;
+  /** Same composite start score compareWhoToStart uses for close calls. */
+  score: number;
+  /** OUT / IR / suspended or on bye — never ranked above an available player. */
+  unavailable: boolean;
+}
+
+export type WhoToStartRanking =
+  | { ok: true; ranked: WhoToStartRankEntry[] }
+  | WhoToStartError;
+
+/**
+ * Rank every candidate (2+ players) with the same signals compareWhoToStart
+ * uses: available players first (DOUBTFUL after healthy), then projection,
+ * then composite score.
+ * Callers compare ranked[0] vs ranked[1] for the verdict, so the best option
+ * is always in the head-to-head (a fixed "player A vs the rest" sweep can drop
+ * the top projection entirely).
+ */
+export function rankWhoToStart(
+  league: LeagueData,
+  players: FantasyPlayer[],
+  options: WhoToStartOptions = {},
+): WhoToStartRanking {
+  const flexMode = options.flexMode ?? false;
+  const seen = new Set<string>();
+  const unique = players.filter((p) => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+  if (unique.length < 2) {
+    return {
+      ok: false,
+      code: "same_player",
+      message: "Pick at least two different players to compare.",
+    };
+  }
+  const first = unique[0]!;
+  for (const other of unique.slice(1)) {
+    if (!positionsComparable(first.position, other.position, flexMode)) {
+      const labelA = formatPlayerLabel(first.name, first.nflTeam);
+      const labelB = formatPlayerLabel(other.name, other.nflTeam);
+      return {
+        ok: false,
+        code: "different_position",
+        message: flexMode
+          ? `FLEX compares RB / WR / TE only — ${labelA} is ${first.position} and ${labelB} is ${other.position}.`
+          : `Same position only — ${labelA} is ${first.position} and ${labelB} is ${other.position}.`,
+      };
+    }
+  }
+
+  const trendMap = toTrendMap(options.trends);
+  const entries = unique.map((player, index) => {
+    const side = scoreSide(
+      player,
+      league,
+      trendMap?.get(player.espnId) ?? null,
+      options.toolMeta,
+      options.teammateInjury,
+    );
+    return {
+      index,
+      entry: {
+        player,
+        projectedPoints: pointsOrZero(side.projectedPoints),
+        score: side.score,
+        unavailable: unavailable(player) || onBye(player),
+      } satisfies WhoToStartRankEntry,
+    };
+  });
+  // Healthy first, then DOUBTFUL, then unavailable / on bye.
+  const tier = (e: WhoToStartRankEntry) =>
+    e.unavailable ? 2 : doubtful(e.player) ? 1 : 0;
+  entries.sort((x, y) => {
+    if (tier(x.entry) !== tier(y.entry)) return tier(x.entry) - tier(y.entry);
+    if (y.entry.projectedPoints !== x.entry.projectedPoints) {
+      return y.entry.projectedPoints - x.entry.projectedPoints;
+    }
+    if (y.entry.score !== x.entry.score) return y.entry.score - x.entry.score;
+    return x.index - y.index;
+  });
+  return { ok: true, ranked: entries.map((e) => e.entry) };
 }
 
 function toTrendMap(

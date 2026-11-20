@@ -4,7 +4,7 @@
  */
 
 import { whoBenefitsCopy, bothSidesHaveValue } from "@/lib/insights/trade-benefits";
-import { compareWhoToStart } from "@/lib/insights/who-to-start";
+import { compareWhoToStart, rankWhoToStart } from "@/lib/insights/who-to-start";
 import {
   formImpactLine,
   preferredProjOrNull,
@@ -251,7 +251,7 @@ export type WhoToStartToolResult = {
   kind: "who-to-start";
   headline: string;
   verdictLabel: string;
-  /** Projection gap from shared WTS logic (A − B). */
+  /** Projection gap from shared WTS logic (A − B) for the top-two head-to-head. */
   edge: number;
   players: ChatPlayerMetricCard[];
   reasons: string[];
@@ -280,51 +280,69 @@ export function runWhoToStartCompare(options: {
       message: "Pick at least two players to compare.",
     };
   }
-  // Pairwise: first vs best of the rest (same shared compareWhoToStart).
-  const [a, ...rest] = players;
-  let best = rest[0]!;
-  let bestResult = compareWhoToStart(league, a!, best, {
-    trends,
-    toolMeta: meta,
-    flexMode: true,
-  });
-  for (const candidate of rest.slice(1)) {
-    const vs = compareWhoToStart(league, a!, candidate, {
-      trends,
-      toolMeta: meta,
-      flexMode: true,
-    });
-    if (!vs.ok) continue;
-    if (!bestResult.ok) {
-      best = candidate;
-      bestResult = vs;
-      continue;
-    }
-    // Prefer clearer start calls / larger |edge|
-    if (vs.ok && Math.abs(vs.edge) > Math.abs(bestResult.edge)) {
-      best = candidate;
-      bestResult = vs;
-    }
-  }
+  const wtsOptions = { trends, toolMeta: meta, flexMode: true };
 
-  if (!bestResult.ok) {
+  if (players.length === 2) {
+    // Two players: exactly the shared Who to Start call, in the order given.
+    const vs = compareWhoToStart(league, players[0]!, players[1]!, wtsOptions);
+    if (!vs.ok) {
+      return { ok: false, kind: "who-to-start", message: vs.message, code: vs.code };
+    }
     return {
-      ok: false,
+      ok: true,
       kind: "who-to-start",
-      message: bestResult.message,
-      code: bestResult.code,
+      headline: vs.headline,
+      verdictLabel: vs.verdictLabel,
+      edge: vs.edge,
+      players: [vs.playerA, vs.playerB].map((p) => buildPlayerMetricCard(p, meta)),
+      reasons: vs.reasons.slice(0, 4),
+      freshness: freshnessBlock(freshness),
     };
   }
 
-  const ordered = [bestResult.playerA, bestResult.playerB, ...rest.filter((p) => p.espnId !== best.espnId && p.espnId !== a!.espnId)];
+  // 3+ players: rank everyone with the shared Who to Start signals, then run
+  // the shared head-to-head on the top two so the best option is never skipped.
+  const ranking = rankWhoToStart(league, players, wtsOptions);
+  if (!ranking.ok) {
+    return {
+      ok: false,
+      kind: "who-to-start",
+      message: ranking.message,
+      code: ranking.code,
+    };
+  }
+  const ranked = ranking.ranked.map((r) => r.player);
+  if (ranked.length === 2) {
+    return runWhoToStartCompare({ ...options, players: ranked });
+  }
+  // Keep the caller's order inside the head-to-head (edge = A − B as listed).
+  const order = (p: FantasyPlayer) => players.findIndex((x) => x.id === p.id);
+  const [pairA, pairB] = [ranked[0]!, ranked[1]!].sort((x, y) => order(x) - order(y));
+  const vs = compareWhoToStart(league, pairA!, pairB!, wtsOptions);
+  if (!vs.ok) {
+    return { ok: false, kind: "who-to-start", message: vs.message, code: vs.code };
+  }
+
+  const rankingLine = `Ranked for this week: ${ranking.ranked
+    .map((r) => {
+      const label = formatPlayerLabel(r.player.name, r.player.nflTeam);
+      return r.unavailable
+        ? `${label} (unavailable)`
+        : `${label} ${r.projectedPoints.toFixed(1)}`;
+    })
+    .join(", ")}.`;
+  const [summary, ...restReasons] = vs.reasons;
+  const reasons = [summary ?? vs.headline, rankingLine, ...restReasons];
+
+  const ordered = [vs.playerA, vs.playerB, ...ranked.slice(2)];
   return {
     ok: true,
     kind: "who-to-start",
-    headline: bestResult.headline,
-    verdictLabel: bestResult.verdictLabel,
-    edge: bestResult.edge,
+    headline: vs.headline,
+    verdictLabel: vs.verdictLabel,
+    edge: vs.edge,
     players: ordered.map((p) => buildPlayerMetricCard(p, meta)),
-    reasons: bestResult.reasons.slice(0, 4),
+    reasons: reasons.slice(0, 5),
     freshness: freshnessBlock(freshness),
   };
 }

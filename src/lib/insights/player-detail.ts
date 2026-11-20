@@ -14,7 +14,7 @@ import {
   recentFormSummary,
 } from "@/lib/insights/defense-matchups";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode, pointsOrZero } from "@/lib/utils";
+import { formatStatusCode, isUnavailableStatus, pointsOrZero } from "@/lib/utils";
 
 export type StartSitLean = "START" | "SIT" | "FLEX";
 
@@ -174,7 +174,7 @@ export function buildPlayerDetailInsight(
         )
       : null;
 
-  if (player.injuryStatus === "OUT" || player.injuryStatus === "IR") {
+  if (isUnavailableStatus(player.injuryStatus)) {
     const status = formatStatusCode(player.injuryStatus);
     return {
       lean: "SIT",

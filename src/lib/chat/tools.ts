@@ -54,7 +54,7 @@ export function buildChatTools(ctx: ChatDataContext) {
 
     compare_who_to_start: tool({
       description:
-        "Who to Start comparison for 2+ players using shared Gridiron IQ logic (Sleeper projected points, recent form, injury, matchup).",
+        "Who to Start comparison for 2–6 players using shared Gridiron IQ logic (Sleeper projected points, recent form, injury, matchup). With 3+ players, all are ranked and the top two are compared head-to-head.",
       inputSchema: z.object({
         espnIds: z
           .array(z.number().int().positive())

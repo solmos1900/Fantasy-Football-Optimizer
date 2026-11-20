@@ -226,6 +226,65 @@ const d = player({
   assert.equal(chat.headline, shared.headline);
 }
 
+// ── Who to Start (3+ players): best option is never skipped (#154) ──
+{
+  const flat = [
+    { week: 1, points: 10 },
+    { week: 2, points: 10 },
+    { week: 3, points: 10 },
+    { week: 4, points: 10 },
+  ];
+  const mid = player({ espnId: 201, name: "Mid Guy", nflTeam: "DAL", projectedPoints: 15, recentWeeks: flat });
+  const top = player({ espnId: 202, name: "Top Guy", nflTeam: "PHI", projectedPoints: 20, recentWeeks: flat });
+  const low = player({ espnId: 203, name: "Low Guy", nflTeam: "NYG", projectedPoints: 5, recentWeeks: flat });
+  const league: LeagueData = {
+    leagueId: "chat-test-multi",
+    season: 2026,
+    name: "Test",
+    currentWeek: 5,
+    scoringPeriodId: 5,
+    isDemo: false,
+    teams: [],
+    matchups: [],
+    freeAgents: [mid, top, low],
+    lastSyncedAt: new Date().toISOString(),
+  };
+  // Issue repro: listed 15, 20, 5 — old code answered the 15-point player.
+  const chat = runWhoToStartCompare({ league, players: [mid, top, low], freshness });
+  assert.equal(chat.ok, true);
+  if (!chat.ok) throw new Error("wts multi failed");
+  assert.match(chat.headline, /^Start Top Guy \(PHI\) over Mid Guy \(DAL\)/);
+  // Head-to-head is the top two, in listed order (edge = A − B).
+  const shared = compareWhoToStart(league, mid, top, { flexMode: true });
+  if (!shared.ok) throw new Error("shared wts failed");
+  assert.equal(chat.edge, shared.edge);
+  assert.equal(chat.verdictLabel, shared.verdictLabel);
+  assert.deepEqual(
+    chat.players.map((p) => p.espnId),
+    [201, 202, 203],
+  );
+  assert.ok(chat.reasons.some((r) => r.startsWith("Ranked for this week: Top Guy (PHI) 20.0, Mid Guy (DAL) 15.0, Low Guy (NYG) 5.0")));
+
+  // Order must not matter for who gets recommended.
+  for (const order of [[top, mid, low], [low, mid, top], [low, top, mid]]) {
+    const r = runWhoToStartCompare({ league, players: order, freshness });
+    if (!r.ok) throw new Error("wts multi failed");
+    assert.match(r.headline, /^Start Top Guy \(PHI\) over Mid Guy \(DAL\)/);
+  }
+
+  // An unavailable top projection is ranked last; the best available starts.
+  const topOut = { ...top, injuryStatus: "OUT" as const };
+  const r = runWhoToStartCompare({ league, players: [low, topOut, mid], freshness });
+  if (!r.ok) throw new Error("wts multi failed");
+  assert.match(r.headline, /^Start Mid Guy \(DAL\) over Low Guy \(NYG\)/);
+  assert.equal(r.players[2]!.espnId, 202);
+
+  // Mixed positions outside FLEX are rejected instead of silently dropped.
+  const qb = player({ espnId: 204, name: "Some QB", nflTeam: "BUF", position: "QB", projectedPoints: 25 });
+  const mixed = runWhoToStartCompare({ league, players: [mid, top, qb], freshness });
+  assert.equal(mixed.ok, false);
+}
+
 // ── Metric cards: season PPG / last3 from same weeks (never fake 0) ──
 {
   const empty = player({
