@@ -15,7 +15,7 @@ export const CHAT_USER_DAILY_LIMIT = 80;
 export const CHAT_MAX_TOOL_STEPS = 6;
 
 export const CHAT_GATEWAY_UNAVAILABLE_NOTICE =
-  "AI chat is temporarily unavailable. Check AI_GATEWAY_API_KEY (or Vercel OIDC) and try again. Trade Analyzer and Who to Start still work under Trades.";
+  "AI chat is temporarily unavailable. Trade Analyzer and Who to Start still work under Trades.";
 
 /**
  * Guest questions per UTC day per client IP, across every guest session on
@@ -62,6 +62,29 @@ export function chatDisabled(): boolean {
   const raw = process.env.CHAT_DISABLED?.trim().toLowerCase();
   return raw === "1" || raw === "true";
 }
+
+/**
+ * Whether the server can reach the AI Gateway. On Vercel the OIDC token
+ * arrives per request in the x-vercel-oidc-token header (read by the AI SDK),
+ * not in process.env, so running on Vercel counts as configured.
+ */
+export function gatewayConfigured(env: Record<string, string | undefined> = process.env): boolean {
+  return Boolean(
+    env.AI_GATEWAY_API_KEY?.trim() ||
+      env.VERCEL_OIDC_TOKEN?.trim() ||
+      env.VERCEL === "1",
+  );
+}
+
+/** Chat is offered at all: not switched off and a gateway is reachable. */
+export function chatAvailable(env: Record<string, string | undefined> = process.env): boolean {
+  const raw = env.CHAT_DISABLED?.trim().toLowerCase();
+  return raw !== "1" && raw !== "true" && gatewayConfigured(env);
+}
+
+/** Gateway rate limit / free-tier cap hit mid-turn: temporary, not an outage. */
+export const CHAT_BUSY_NOTICE =
+  "Chat is busy right now. Try again in a minute — Trade Analyzer and Who to Start still work under Trades.";
 
 export const CHAT_BUDGET_EXHAUSTED_NOTICE =
   "AI chat has reached today's usage limit. Trade Analyzer and Who to Start still work under Trades — chat resets at midnight UTC.";

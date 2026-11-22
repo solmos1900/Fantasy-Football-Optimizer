@@ -13,7 +13,9 @@ import {
   CHAT_GATEWAY_UNAVAILABLE_NOTICE,
   CHAT_MODEL_ID,
   chatDisabled,
+  gatewayConfigured,
 } from "@/lib/chat/config";
+import { streamErrorText } from "@/lib/chat/stream-errors";
 import { loadChatDataContext } from "@/lib/chat/player-resolve";
 import {
   checkTokenBudget,
@@ -45,13 +47,6 @@ import {
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
-
-function gatewayConfigured(): boolean {
-  return Boolean(
-    process.env.AI_GATEWAY_API_KEY?.trim() ||
-      process.env.VERCEL_OIDC_TOKEN?.trim(),
-  );
-}
 
 function jsonError(status: number, body: Record<string, unknown>) {
   return Response.json(body, { status });
@@ -239,6 +234,10 @@ export async function POST(req: Request) {
 
     const stream = toUIMessageStream({
       stream: result.stream,
+      onError: (error) => {
+        console.error("[chat] stream failed", error);
+        return streamErrorText(error);
+      },
       onFinish: ({ messages: finalMessages }) => {
         if (isGuest || !activeConversationId) return;
         const assistant = [...finalMessages].reverse().find((m) => m.role === "assistant");
