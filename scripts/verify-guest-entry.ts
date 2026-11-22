@@ -96,7 +96,8 @@ const onboarding = fs.readFileSync(
   "utf8",
 );
 assert.match(onboarding, /SWID \(private\)/);
-assert.match(onboarding, /Coming soon/);
+// Unbuilt hosts are not advertised to users.
+assert.doesNotMatch(onboarding, /Coming soon|Yahoo/i);
 // Only ESPN gets steps; no placeholder video probe unless a URL is configured.
 assert.doesNotMatch(onboarding, /sleeper-safari\.mp4|other-safari\.mp4/);
 assert.doesNotMatch(onboarding, /Pick demo/);

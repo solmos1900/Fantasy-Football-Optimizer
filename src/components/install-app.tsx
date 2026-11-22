@@ -204,7 +204,11 @@ export function InstallAppExperience() {
     !bannerDismissed &&
     isIosDevice() &&
     !wasInstallDismissed() &&
-    !isMarketingInstallRoute(pathname);
+    !isMarketingInstallRoute(pathname) &&
+    // Chat home pins its composer to the bottom of the viewport; the fixed
+    // banner would cover the message box and Send. The header Install link
+    // stays available there.
+    pathname !== "/dashboard";
 
   useEffect(() => {
     setInstallBannerOffset(bannerVisible);

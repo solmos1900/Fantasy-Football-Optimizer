@@ -1,6 +1,6 @@
 /**
- * How-to-connect onboarding copy. ESPN and Sleeper connect exist in the
- * product; other hosts get one honest "coming soon" line.
+ * How-to-connect onboarding copy. Only hosts the product supports (ESPN,
+ * Sleeper) are named.
  */
 
 export type ConnectGuideOption = {
@@ -26,8 +26,8 @@ export const CONNECT_GUIDE_OPTIONS: ConnectGuideOption[] = [
   },
 ];
 
-export const COMING_SOON_PLATFORMS_NOTE =
-  "Yahoo: Coming soon. ESPN and Sleeper leagues work today.";
+export const NO_LEAGUE_NOTE =
+  "No league? Trade Analyzer, Who to Start and chat already work on every NFL player.";
 
 /** Connect-form field labels the cookie help refers to. */
 export const ESPN_COOKIE_FIELD_LABELS = [

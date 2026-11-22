@@ -93,14 +93,18 @@ export type PlayerPoolBundle = {
   teammateInjury?: SerializedTeammateInjuryIndex;
 };
 
-function minutesAgoLabel(iso: string | null): string | null {
+export function minutesAgoLabel(iso: string | null): string | null {
   if (!iso) return null;
   const ms = Date.now() - Date.parse(iso);
   if (!Number.isFinite(ms) || ms < 0) return null;
   const mins = Math.max(0, Math.round(ms / 60000));
   if (mins <= 0) return "just now";
   if (mins === 1) return "1 min ago";
-  return `${mins} min ago`;
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return hours === 1 ? "1 hr ago" : `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "1 day ago" : `${days} days ago`;
 }
 
 export function formatPoolFreshnessLabel(freshness: PlayerPoolFreshness): string {

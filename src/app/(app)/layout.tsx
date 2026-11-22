@@ -52,7 +52,7 @@ export default async function AppLayout({
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-[var(--app-bottom-nav-clearance)] sm:pt-6">
         {children}
       </div>
-      <ConnectGuideHost />
+      <ConnectGuideHost hasLeague={Boolean(connection)} />
     </div>
   );
 }
