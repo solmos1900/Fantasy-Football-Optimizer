@@ -24,7 +24,11 @@ import {
 } from "@/lib/chat/rate-limit";
 import { sanitizeChatHistory } from "@/lib/chat/history";
 import { recordChatUsage } from "@/lib/chat/usage";
-import { clientIpFromHeaders, chatRequestSchema } from "@/lib/chat/request";
+import {
+  clientIpFromHeaders,
+  chatRequestSchema,
+  GUEST_CONVERSATION_ID_RE,
+} from "@/lib/chat/request";
 import {
   appendMessages,
   createConversation,
@@ -170,6 +174,10 @@ export async function POST(req: Request) {
   // Ensure conversation for signed-in users
   let activeConversationId = conversationId ?? null;
   if (!isGuest) {
+    // A browser-local guest id is not a stored conversation: start a new one.
+    if (activeConversationId && GUEST_CONVERSATION_ID_RE.test(activeConversationId)) {
+      activeConversationId = null;
+    }
     if (!activeConversationId) {
       try {
         const created = await createConversation(session.user.id);

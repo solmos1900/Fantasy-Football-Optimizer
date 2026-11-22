@@ -30,6 +30,8 @@ export type ParsedScoreboard = {
   games: LiveGame[];
   /** Team abbrev → schedule entry for teams that appear in scoreboard events */
   byTeam: Map<string, NflScheduleEntry>;
+  /** Team abbrev → this week's game state (scheduled / in_progress / final). */
+  stateByTeam: Map<string, LiveGame["status"]>;
   eventCount: number;
 };
 
@@ -38,6 +40,7 @@ export function parseEspnScoreboard(raw: {
 }): ParsedScoreboard {
   const events = raw.events ?? [];
   const byTeam = new Map<string, NflScheduleEntry>();
+  const stateByTeam = new Map<string, LiveGame["status"]>();
 
   const games: LiveGame[] = events.slice(0, 16).map((event, idx) => {
     const comp = event.competitions?.[0];
@@ -65,6 +68,8 @@ export function parseEspnScoreboard(raw: {
     let status: LiveGame["status"] = "scheduled";
     if (state === "in") status = "in_progress";
     if (state === "post") status = "final";
+    if (homeAbbrev !== "HOME") stateByTeam.set(homeAbbrev, status);
+    if (awayAbbrev !== "AWAY") stateByTeam.set(awayAbbrev, status);
 
     return {
       id: String(event.id ?? idx),
@@ -79,7 +84,7 @@ export function parseEspnScoreboard(raw: {
     };
   });
 
-  return { games, byTeam, eventCount: events.length };
+  return { games, byTeam, stateByTeam, eventCount: events.length };
 }
 
 /**
@@ -138,7 +143,28 @@ function applyOpponent(
 }
 
 /**
- * Set `opponent` on every roster / free-agent player from the scoreboard week.
+ * This week's actual is unknown, not 0, until the player's game kicks off.
+ * Hosts (Sleeper especially) report 0 for every rostered player before
+ * kickoff and for bye weeks; that would read as "scored zero" (ACCURACY_RULES:
+ * never a fake 0). A real 0.0 in a started or finished game is kept.
+ */
+export function clearUnplayedActual(
+  player: FantasyPlayer,
+  schedule: Map<string, NflScheduleEntry>,
+  stateByTeam: Map<string, LiveGame["status"]>,
+): FantasyPlayer {
+  if (player.actualPoints !== 0) return player;
+  const team = normalizeNflAbbrev(player.nflTeam);
+  if (!team || team === "FA") return player;
+  const onBye = schedule.get(team)?.kind === "bye";
+  const notStarted = stateByTeam.get(team) === "scheduled";
+  if (!onBye && !notStarted) return player;
+  return { ...player, actualPoints: null };
+}
+
+/**
+ * Set `opponent` on every roster / free-agent player from the scoreboard week,
+ * and blank this week's 0 actual for players whose game hasn't kicked off.
  * Does not invent matchups — only uses scoreboard-derived home/away or BYE.
  */
 export function enrichLeagueOpponents(
@@ -160,9 +186,13 @@ export function enrichLeagueOpponents(
     ...league,
     teams: league.teams.map((team) => ({
       ...team,
-      roster: team.roster.map((p) => applyOpponent(p, schedule)),
+      roster: team.roster.map((p) =>
+        clearUnplayedActual(applyOpponent(p, schedule), schedule, parsed.stateByTeam),
+      ),
     })),
-    freeAgents: league.freeAgents.map((p) => applyOpponent(p, schedule)),
+    freeAgents: league.freeAgents.map((p) =>
+      clearUnplayedActual(applyOpponent(p, schedule), schedule, parsed.stateByTeam),
+    ),
   };
 }
 

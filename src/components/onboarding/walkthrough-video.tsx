@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Film } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  /** Absolute path or full URL. Empty / missing file → honest placeholder. */
+  /** Absolute path or full URL. Empty / missing file → renders nothing. */
   src: string | null | undefined;
   title?: string;
   className?: string;
@@ -13,7 +12,7 @@ type Props = {
 
 /**
  * Loads a walkthrough screen recording when the asset exists.
- * Never invents video content — shows a clean placeholder on miss/error.
+ * Never invents video content — renders nothing on miss/error.
  */
 export function WalkthroughVideo({
   src,
@@ -59,7 +58,7 @@ export function WalkthroughVideo({
           return;
         }
         const buf = await res.arrayBuffer();
-        // Zero-byte stubs must show the honest placeholder.
+        // Zero-byte stubs count as missing.
         report(buf.byteLength > 0 ? "ready" : "missing");
       })
       .catch(() => report("missing"))
@@ -74,26 +73,9 @@ export function WalkthroughVideo({
     };
   }, [url, isRemote]);
 
-  if (status === "missing" || !src?.trim()) {
-    return (
-      <div
-        className={cn(
-          "flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 bg-[#141414] px-4 text-center",
-          className,
-        )}
-        role="img"
-        aria-label="Walkthrough video coming soon"
-      >
-        <Film className="h-7 w-7 text-[#C026FF]/70" aria-hidden />
-        <p className="text-sm font-medium text-white/90">
-          Walkthrough video coming soon
-        </p>
-        <p className="max-w-xs text-xs leading-relaxed text-white/45">
-          A computer + Safari recording will play here once the file is added.
-        </p>
-      </div>
-    );
-  }
+  // No video (or it failed to load): show nothing rather than a
+  // "coming soon" box in front of users.
+  if (status === "missing" || !src?.trim()) return null;
 
   if (status === "loading") {
     return (

@@ -132,7 +132,7 @@
         "trade"
       ],
       "expected": {
-        "nflTeam": "IND",
+        "nflTeam": "KC",
         "opponent": null,
         "weeks": [
           {

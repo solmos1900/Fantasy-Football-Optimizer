@@ -12,6 +12,14 @@
     {
       "path": "/api/cron/nflverse-usage",
       "schedule": "0 14 * * 3"
+    },
+    {
+      "path": "/api/cron/league-sync",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/league-sync",
+      "schedule": "0 23 * * *"
     }
   ],
   "github": {

@@ -6,7 +6,7 @@ import { BrandMark } from "@/components/brand";
 import { WalkthroughVideo } from "@/components/onboarding/walkthrough-video";
 import { buttonVariants } from "@/components/ui/button";
 import {
-  COMING_SOON_PLATFORMS_NOTE,
+  NO_LEAGUE_NOTE,
   CONNECT_GUIDE_OPTIONS,
   espnWalkthroughVideoUrl,
 } from "@/lib/onboarding/content";
@@ -110,8 +110,7 @@ export function ConnectGuide({ open, onDismiss }: Props) {
           </ul>
 
           <p className="mt-4 text-xs leading-relaxed text-white/40">
-            {COMING_SOON_PLATFORMS_NOTE} No league? Trade Analyzer, Who to
-            Start and chat already work on every NFL player.
+            {NO_LEAGUE_NOTE}
           </p>
         </div>
 
