@@ -81,6 +81,7 @@ export function LoginActions({
         body: JSON.stringify({
           email: email.trim(),
           code: code.trim(),
+          password,
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -286,6 +287,18 @@ export function LoginActions({
 
         <form onSubmit={handleVerify} className="space-y-3">
           <label className="block text-sm">
+            <span className="mb-1.5 block text-emerald-950/60">Password</span>
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="field-input"
+            />
+          </label>
+          <label className="block text-sm">
             <span className="mb-1.5 block text-emerald-950/60">
               Verification code
             </span>
@@ -306,7 +319,7 @@ export function LoginActions({
             variant="secondary"
             size="lg"
             className="w-full"
-            disabled={pending || code.length !== 6}
+            disabled={pending || code.length !== 6 || password.length < 8}
             loading={pending}
           >
             {pending ? "Verifying…" : "Verify & sign in"}

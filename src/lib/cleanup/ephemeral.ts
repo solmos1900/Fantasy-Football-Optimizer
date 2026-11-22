@@ -14,6 +14,8 @@ export type CleanupResult = {
   guestsDeleted: number;
   sessionsDeleted: number;
   verificationTokensDeleted: number;
+  /** Expired email-signup challenges (email, name, password hash). */
+  emailChallengesDeleted: number;
   oversizedPayloadsCleared: number;
   orphanWeekStatsDeleted: number;
   orphanTrendsDeleted: number;
@@ -44,6 +46,7 @@ export async function deleteGuestUserById(userId: string): Promise<boolean> {
  * - Guest users older than TTL (and cascaded league caches / cookies)
  * - Expired Auth.js Session rows (DB adapter leftovers; JWT is primary)
  * - Expired VerificationToken rows
+ * - Expired EmailVerificationChallenge rows
  * - Oversized cachedPayload blobs (any user) — keeps the connection row
  *
  * Never deletes non-guest users or their ESPN league links.
@@ -69,6 +72,12 @@ export async function runEphemeralCleanup(options?: {
 
   const verificationTokensDeleted = await prisma.verificationToken.deleteMany({
     where: { expires: { lt: now } },
+  });
+
+  // Pending-signup rows hold an email, name and password hash; drop them once
+  // expired so abandoned signups don't keep personal data indefinitely.
+  const emailChallenges = await prisma.emailVerificationChallenge.deleteMany({
+    where: { expiresAt: { lt: now } },
   });
 
   // Postgres char_length — avoid loading full JSON blobs into the Node process.
@@ -138,6 +147,7 @@ export async function runEphemeralCleanup(options?: {
     guestsDeleted: guestDelete.count,
     sessionsDeleted: sessionsDeleted.count,
     verificationTokensDeleted: verificationTokensDeleted.count,
+    emailChallengesDeleted: emailChallenges.count,
     oversizedPayloadsCleared,
     orphanWeekStatsDeleted,
     orphanTrendsDeleted,

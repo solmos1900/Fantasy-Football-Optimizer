@@ -22,6 +22,7 @@ import {
   codesMatch,
   generateVerificationCode,
   hashVerificationCode,
+  shouldExposeDevCode,
   startEmailVerificationChallenge,
   verifyEmailCode,
 } from "../src/lib/auth/email-verification";
@@ -128,6 +129,7 @@ async function main() {
   const wrong = await verifyEmailCode({
     email: victimEmail,
     code: started.devCode === "000000" ? "111111" : "000000",
+    password: attackerPassword,
   });
   assert.equal(wrong.ok, false);
   if (!wrong.ok) assert.equal(wrong.status, 401);
@@ -141,6 +143,7 @@ async function main() {
   const expired = await verifyEmailCode({
     email: victimEmail,
     code: started.devCode,
+    password: attackerPassword,
   });
   assert.equal(expired.ok, false);
   if (!expired.ok) assert.equal(expired.status, 410);
@@ -171,6 +174,7 @@ async function main() {
   const verified = await verifyEmailCode({
     email: victimEmail,
     code: goodCode,
+    password: attackerPassword,
   });
   assert.equal(verified.ok, true);
   const user = await prisma.user.findUnique({ where: { email: victimEmail } });
@@ -187,8 +191,51 @@ async function main() {
   );
 
   // Replayed / missing challenge fails
-  const replay = await verifyEmailCode({ email: victimEmail, code: goodCode });
+  const replay = await verifyEmailCode({
+    email: victimEmail,
+    code: goodCode,
+    password: attackerPassword,
+  });
   assert.equal(replay.ok, false);
+
+  // ── #152: a later register can't swap a pending signup's password ──────
+  await cleanup();
+  const victimPassword = "victim-pass-12345";
+  const victimStart = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: victimPassword,
+  });
+  assert.equal(victimStart.ok, true);
+  if (!victimStart.ok || !victimStart.devCode) throw new Error("unreachable");
+  // Attacker re-registers after the resend cooldown with a different password.
+  await prisma.emailVerificationChallenge.update({
+    where: { email: victimEmail },
+    data: { lastSentAt: new Date(0) },
+  });
+  const hijack = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: attackerPassword,
+  });
+  assert.equal(hijack.ok, false);
+  if (!hijack.ok) assert.equal(hijack.status, 409);
+  // A code alone is not enough: the verifier must know the signup password.
+  const wrongPw = await verifyEmailCode({
+    email: victimEmail,
+    code: victimStart.devCode,
+    password: attackerPassword,
+  });
+  assert.equal(wrongPw.ok, false);
+  assert.equal(await prisma.user.findUnique({ where: { email: victimEmail } }), null);
+  const rightPw = await verifyEmailCode({
+    email: victimEmail,
+    code: victimStart.devCode,
+    password: victimPassword,
+  });
+  assert.equal(rightPw.ok, true);
+  const victimUser = await prisma.user.findUnique({ where: { email: victimEmail } });
+  const { verifyPassword } = await import("../src/lib/password");
+  assert.equal(await verifyPassword(victimPassword, victimUser!.passwordHash!), true);
+  assert.equal(await verifyPassword(attackerPassword, victimUser!.passwordHash!), false);
 
   // ── Legacy unverified blocker is cleared for OAuth ─────────────────────
   await cleanup();
@@ -222,6 +269,106 @@ async function main() {
 
   // Attempt limit constant is enforced in source
   assert.ok(VERIFICATION_MAX_ATTEMPTS >= 3);
+
+  // ── #158: parallel guesses can't beat the attempt limit ────────────────
+  await cleanup();
+  const racePw = "race-pass-12345";
+  const raceStart = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: racePw,
+  });
+  assert.equal(raceStart.ok, true);
+  if (!raceStart.ok || !raceStart.devCode) throw new Error("unreachable");
+  const wrongCode = raceStart.devCode === "000000" ? "111111" : "000000";
+  const guesses = await Promise.all(
+    Array.from({ length: 40 }, () =>
+      verifyEmailCode({ email: victimEmail, code: wrongCode, password: racePw }),
+    ),
+  );
+  const evaluated = guesses.filter((r) => !r.ok && r.status === 401).length;
+  assert.ok(
+    evaluated <= VERIFICATION_MAX_ATTEMPTS,
+    `only ${VERIFICATION_MAX_ATTEMPTS} guesses may be evaluated, got ${evaluated}`,
+  );
+  // Locked: even the correct code is now refused.
+  const locked = await verifyEmailCode({
+    email: victimEmail,
+    code: raceStart.devCode,
+    password: racePw,
+  });
+  assert.equal(locked.ok, false);
+  if (!locked.ok) assert.equal(locked.status, 429);
+
+  // ── #158: a correct code can only be redeemed once, even in parallel ───
+  await cleanup();
+  const onceStart = await startEmailVerificationChallenge({
+    email: victimEmail,
+    password: racePw,
+  });
+  if (!onceStart.ok || !onceStart.devCode) throw new Error("unreachable");
+  const redeems = await Promise.all(
+    Array.from({ length: 5 }, () =>
+      verifyEmailCode({
+        email: victimEmail,
+        code: onceStart.devCode!,
+        password: racePw,
+      }),
+    ),
+  );
+  assert.equal(redeems.filter((r) => r.ok).length, 1);
+
+  // ── #153: dev codes are never exposed in deployed environments ─────────
+  const envKeys = ["NODE_ENV", "VERCEL_ENV", "AUTH_EMAIL_DEV_EXPOSE_CODE"] as const;
+  const envBackup = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+  const env = process.env as Record<string, string | undefined>;
+  try {
+    env.AUTH_EMAIL_DEV_EXPOSE_CODE = "true";
+    env.NODE_ENV = "development";
+    delete env.VERCEL_ENV;
+    assert.equal(shouldExposeDevCode("resend"), true);
+    env.NODE_ENV = "production";
+    assert.equal(shouldExposeDevCode("console"), false);
+    assert.equal(shouldExposeDevCode("resend"), false);
+    env.NODE_ENV = "development";
+    env.VERCEL_ENV = "production";
+    assert.equal(shouldExposeDevCode("resend"), false);
+    env.VERCEL_ENV = "preview";
+    assert.equal(shouldExposeDevCode("console"), false);
+  } finally {
+    for (const k of envKeys) {
+      if (envBackup[k] === undefined) delete env[k];
+      else env[k] = envBackup[k];
+    }
+  }
+
+  // ── #159: expired signup challenges are purged by cleanup ──────────────
+  const cleanupSrc = fs.readFileSync(
+    path.join(process.cwd(), "src/lib/cleanup/ephemeral.ts"),
+    "utf8",
+  );
+  assert.match(cleanupSrc, /emailVerificationChallenge\.deleteMany/);
+  await cleanup();
+  await prisma.emailVerificationChallenge.create({
+    data: {
+      email: victimEmail,
+      name: "Abandoned",
+      passwordHash: await hashPassword(racePw),
+      codeHash: hashVerificationCode("123456"),
+      expiresAt: new Date(Date.now() - 60_000),
+      attemptCount: 0,
+      lastSentAt: new Date(Date.now() - 120_000),
+    },
+  });
+  const { runEphemeralCleanup } = await import("../src/lib/cleanup/ephemeral");
+  const purge = await runEphemeralCleanup();
+  assert.ok(purge.emailChallengesDeleted >= 1);
+  assert.equal(
+    await prisma.emailVerificationChallenge.findUnique({
+      where: { email: victimEmail },
+    }),
+    null,
+  );
+  await cleanup();
 
   // ── Email env + fail-closed delivery ───────────────────────────────────
   const sendSrc = fs.readFileSync(

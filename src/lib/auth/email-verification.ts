@@ -1,6 +1,11 @@
 import { createHash, randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
-import { hashPassword, isValidEmail, isValidPassword } from "@/lib/password";
+import {
+  hashPassword,
+  isValidEmail,
+  isValidPassword,
+  verifyPassword,
+} from "@/lib/password";
 import { sendVerificationCodeEmail } from "@/lib/email/send";
 
 /** 6-digit numeric codes — short enough to type, long enough with attempt limits. */
@@ -55,9 +60,18 @@ export function codesMatch(plain: string, codeHash: string): boolean {
   return diff === 0;
 }
 
-function shouldExposeDevCode(provider: "resend" | "console" | undefined): boolean {
-  if (process.env.AUTH_EMAIL_DEV_EXPOSE_CODE === "true") return true;
+/**
+ * Whether the plaintext code may be returned in an API response (dev only).
+ * Deployed environments (production build, or any Vercel production/preview
+ * deployment) never expose it, whatever AUTH_EMAIL_DEV_EXPOSE_CODE says.
+ */
+export function shouldExposeDevCode(
+  provider: "resend" | "console" | undefined,
+): boolean {
   if (process.env.NODE_ENV === "production") return false;
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv === "production" || vercelEnv === "preview") return false;
+  if (process.env.AUTH_EMAIL_DEV_EXPOSE_CODE === "true") return true;
   return provider === "console";
 }
 
@@ -137,6 +151,21 @@ export async function startEmailVerificationChallenge(input: {
       error: "Please wait a minute before requesting another code.",
       status: 429,
     };
+  }
+
+  // A pending signup is bound to the password it was started with. Only the
+  // same signup (same password) may refresh it; anyone else must wait for it
+  // to expire, so a later register call can't swap in a different password.
+  if (prior && prior.expiresAt.getTime() > Date.now()) {
+    const samePassword = await verifyPassword(password, prior.passwordHash);
+    if (!samePassword) {
+      return {
+        ok: false,
+        error:
+          "A verification is already pending for that email. Enter the code we sent, or try again in 15 minutes.",
+        status: 409,
+      };
+    }
   }
 
   const passwordHash = await hashPassword(password);
@@ -278,6 +307,8 @@ export async function resendEmailVerification(input: {
 export async function verifyEmailCode(input: {
   email: string;
   code: string;
+  /** The password chosen at signup — proves the verifier is the one who registered. */
+  password: string;
 }): Promise<ChallengeVerifyResult> {
   const email = input.email.trim().toLowerCase();
   const code = input.code.trim();
@@ -301,14 +332,6 @@ export async function verifyEmailCode(input: {
     };
   }
 
-  if (challenge.attemptCount >= VERIFICATION_MAX_ATTEMPTS) {
-    return {
-      ok: false,
-      error: "Too many attempts. Request a new code.",
-      status: 429,
-    };
-  }
-
   if (challenge.expiresAt.getTime() < Date.now()) {
     return {
       ok: false,
@@ -317,12 +340,48 @@ export async function verifyEmailCode(input: {
     };
   }
 
-  if (!codesMatch(code, challenge.codeHash)) {
-    await prisma.emailVerificationChallenge.update({
-      where: { email },
-      data: { attemptCount: { increment: 1 } },
-    });
-    return { ok: false, error: "Incorrect code. Try again.", status: 401 };
+  // Spend one attempt atomically BEFORE checking the code. The conditional
+  // updateMany only succeeds while attemptCount is still under the limit, so
+  // parallel guesses can't all pass a stale read: at most MAX_ATTEMPTS requests
+  // ever get to compare a code per challenge.
+  const claimed = await prisma.emailVerificationChallenge.updateMany({
+    where: {
+      email,
+      codeHash: challenge.codeHash,
+      attemptCount: { lt: VERIFICATION_MAX_ATTEMPTS },
+    },
+    data: { attemptCount: { increment: 1 } },
+  });
+  if (claimed.count !== 1) {
+    return {
+      ok: false,
+      error: "Too many attempts. Request a new code.",
+      status: 429,
+    };
+  }
+
+  const codeOk = codesMatch(code, challenge.codeHash);
+  const passwordOk =
+    codeOk && (await verifyPassword(input.password, challenge.passwordHash));
+  if (!codeOk || !passwordOk) {
+    return {
+      ok: false,
+      error: "Incorrect code or password. Try again.",
+      status: 401,
+    };
+  }
+
+  // Consume the challenge atomically so one correct code can only be redeemed
+  // by a single request.
+  const consumed = await prisma.emailVerificationChallenge.deleteMany({
+    where: { email, codeHash: challenge.codeHash },
+  });
+  if (consumed.count !== 1) {
+    return {
+      ok: false,
+      error: "That code is no longer valid. Request a new one.",
+      status: 409,
+    };
   }
 
   const existing = await prisma.user.findUnique({
