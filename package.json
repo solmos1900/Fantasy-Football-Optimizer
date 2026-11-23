@@ -23,6 +23,7 @@
     "verify:data-freshness-week": "tsx scripts/verify-data-freshness-week.ts",
     "verify:nflverse": "tsx scripts/verify-nflverse-usage.ts",
     "verify:insights": "tsx scripts/verify-insights-signals.ts",
+    "verify:missing-projection-advice": "tsx scripts/verify-missing-projection-advice.ts",
     "verify:teammate-injury": "tsx scripts/verify-teammate-injury.ts",
     "verify:next-version": "tsx scripts/verify-next-version.ts",
     "verify:auth-linking": "tsx scripts/verify-auth-linking.ts",

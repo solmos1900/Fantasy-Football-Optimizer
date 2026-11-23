@@ -13,10 +13,16 @@ import {
 } from "@/lib/insights/defense-matchups";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
-import { formatStatusCode, injuryStatusPhrase, pointsOrZero } from "@/lib/utils";
+import {
+  formatProjection,
+  formatStatusCode,
+  injuryStatusPhrase,
+  pointsOrZero,
+} from "@/lib/utils";
 import {
   dvpMapFromRecord,
   preferredProj,
+  preferredProjOrNull,
   type ToolDisplayMeta,
 } from "@/lib/insights/tool-display";
 import {
@@ -48,8 +54,11 @@ export interface WhoToStartSide {
   player: FantasyPlayer;
   /** Composite start score (internal ranking only — not shown as "edge"). */
   score: number;
-  /** Projection used for the call (Sleeper when available). */
-  projectedPoints: number;
+  /**
+   * Projection used for the call (Sleeper when available).
+   * Null when there is no projection yet — never a fake 0.0.
+   */
+  projectedPoints: number | null;
   recentAvg: number | null;
   venueLabel: string;
   injuryNote: string | null;
@@ -163,8 +172,12 @@ function scoreSide(
   const form = recentFormSummary(player);
   let dataThin = false;
 
-  const projectedPoints = preferredProj(player, toolMeta);
-  let score = projectedPoints;
+  // A bye week really scores 0; otherwise a missing projection stays null.
+  const projectedPoints = onBye(player)
+    ? (preferredProjOrNull(player, toolMeta) ?? 0)
+    : preferredProjOrNull(player, toolMeta);
+  // Ranking only; the verdict refuses to call a missing projection (see compareWhoToStart).
+  let score = preferredProj(player, toolMeta);
   if (recentAvg != null) score = score * 0.55 + recentAvg * 0.45;
   if (trend && trend.trendLabel !== "thin" && trend.trendLabel !== "Thin") {
     score += trend.restOfSeasonAdj * 0.5;
@@ -402,8 +415,15 @@ export function compareWhoToStart(
   const aDown = aOut || aBye;
   const bDown = bOut || bBye;
 
+  const projA = sideA.projectedPoints;
+  const projB = sideB.projectedPoints;
+  const missingLabels = [
+    ...(projA == null ? [labelA] : []),
+    ...(projB == null ? [labelB] : []),
+  ];
+
   // Displayed edge = projection gap only (matches the numbers on the card).
-  let edge = pointsOrZero(sideA.projectedPoints) - pointsOrZero(sideB.projectedPoints);
+  let edge = pointsOrZero(projA) - pointsOrZero(projB);
   let forced: ReturnType<typeof verdictFromProjEdge> | null = null;
 
   if (aDown && !bDown) {
@@ -434,6 +454,16 @@ export function compareWhoToStart(
       summary: `Both are ${unavailablePhrase(playerA)} / ${unavailablePhrase(playerB)}. Neither is a start until status clears.`,
     };
     edge = 0;
+  } else if (missingLabels.length > 0) {
+    // "No projection yet" is not 0.0 — don't call a start on a fake gap.
+    const who = missingLabels.join(" and ");
+    forced = {
+      verdict: "toss_up",
+      verdictLabel: "NO CALL",
+      headline: `No projection yet for ${who}`,
+      summary: `${who} ${missingLabels.length > 1 ? "have" : "has"} no projection this week (Sleeper / ${scoringLabel}), so there's no projected gap to call. Check back once projections post.`,
+    };
+    edge = 0;
   } else {
     // Near-even projections: let form / DVP / composite ranking break ties into leans.
     const absProj = Math.abs(edge);
@@ -458,13 +488,13 @@ export function compareWhoToStart(
       : null;
 
   // WHY gaps always from the leader's view — positive wording, no bare negatives.
-  const projLead = leaderGap(
-    labelA,
-    sideA.projectedPoints,
-    labelB,
-    sideB.projectedPoints,
-  );
-  const projReason = projLead
+  const projLead =
+    projA != null && projB != null
+      ? leaderGap(labelA, projA, labelB, projB)
+      : null;
+  const projReason = missingLabels.length > 0
+    ? `Projected this week: ${labelA} ${formatProjection(projA)} vs ${labelB} ${formatProjection(projB)}.`
+    : projLead
     ? `Projected this week: ${projLead.leader} ${projLead.leaderVal.toFixed(1)} vs ${projLead.trailer} ${projLead.trailerVal.toFixed(1)} (+${projLead.abs.toFixed(1)} for ${projLead.leader}).`
     : `Projected this week: ${labelA} ${pointsOrZero(sideA.projectedPoints).toFixed(1)} vs ${labelB} ${pointsOrZero(sideB.projectedPoints).toFixed(1)} (even).`;
 

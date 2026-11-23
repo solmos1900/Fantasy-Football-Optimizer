@@ -24,7 +24,7 @@ import {
   trendLabelCopy,
 } from "@/lib/insights/trend-labels";
 import { formatPlayerLabel } from "@/lib/insights/player-label";
-import { pointsOrZero } from "@/lib/utils";
+import { knownProjection, pointsOrZero } from "@/lib/utils";
 import {
   DEFAULT_SCORING,
   scoringBoardLabel,
@@ -304,7 +304,10 @@ export function needsPosition(
   if (sorted.length < need) return true;
   const floor = pos === "QB" ? 14 : pos === "TE" ? 7 : 9;
   const nth = sorted[need - 1];
-  return !nth || pointsOrZero(nth.projectedPoints) < floor;
+  if (!nth) return true;
+  // No projection yet is unknown, not a weak 0.0 starter — don't invent a need.
+  const nthProj = knownProjection(nth.projectedPoints);
+  return nthProj != null && nthProj < floor;
 }
 
 export function hasSurplus(

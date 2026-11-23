@@ -18,7 +18,7 @@ import { buildWaiverShark } from "@/lib/insights/waivers";
 import type { PlayerTrendView } from "@/lib/types";
 import { humanTrendSentence } from "@/lib/insights/trend-labels";
 import { resolveUserTeam } from "@/lib/league/team";
-import { formatStatusCode, pointsOrZero } from "@/lib/utils";
+import { formatStatusCode, knownProjection, pointsOrZero } from "@/lib/utils";
 
 const SKILL_POSITIONS: PlayerPosition[] = ["QB", "RB", "WR", "TE"];
 
@@ -26,6 +26,26 @@ function injuryCodeLabel(status: string): string {
   return formatStatusCode(status) === "IR"
     ? "on the IR"
     : formatStatusCode(status);
+}
+
+/** Missing projections ("no projection yet") are never treated as 0.0. */
+function hasProjection(p: FantasyPlayer): boolean {
+  return knownProjection(p.projectedPoints) != null;
+}
+
+/** Highest real projection first; players without one sort last. */
+function byKnownProjectionDesc(a: FantasyPlayer, b: FantasyPlayer): number {
+  const pa = knownProjection(a.projectedPoints);
+  const pb = knownProjection(b.projectedPoints);
+  if (pa == null && pb == null) return 0;
+  if (pa == null) return 1;
+  if (pb == null) return -1;
+  return pb - pa;
+}
+
+function projectedPhrase(p: FantasyPlayer): string {
+  const v = knownProjection(p.projectedPoints);
+  return v == null ? "no projection yet" : `${v.toFixed(1)} projected`;
 }
 
 function startersOf(team: FantasyTeam): FantasyPlayer[] {
@@ -47,7 +67,7 @@ function avgProjected(
   const values: number[] = [];
   for (const team of teams) {
     const best = startersOf(team)
-      .filter((p) => p.position === pos)
+      .filter((p) => p.position === pos && hasProjection(p))
       .map((p) => pointsOrZero(p.projectedPoints));
     if (best.length) values.push(best.reduce((a, b) => a + b, 0) / best.length);
   }
@@ -94,11 +114,14 @@ function buildStartSit(
       b.injuryStatus === "PUP"
     )
       continue;
+    // No projection yet → no start/sit call; a missing number is not 0.0.
+    if (!hasProjection(b)) continue;
 
     const comparable = starters.filter(
       (s) =>
-        s.position === b.position ||
-        (s.slot === "FLEX" && ["RB", "WR", "TE"].includes(b.position)),
+        hasProjection(s) &&
+        (s.position === b.position ||
+          (s.slot === "FLEX" && ["RB", "WR", "TE"].includes(b.position))),
     );
     const weakest = [...comparable].sort(
       (a, c) => pointsOrZero(a.projectedPoints) - pointsOrZero(c.projectedPoints),
@@ -193,7 +216,7 @@ function buildStartSit(
             (s.slot === "FLEX" && ["RB", "WR", "TE"].includes(b.position))) &&
           !["OUT", "IR"].includes(b.injuryStatus),
       )
-      .sort((a, b) => pointsOrZero(b.projectedPoints) - pointsOrZero(a.projectedPoints))[0];
+      .sort(byKnownProjectionDesc)[0];
 
     const reasoning = [
       replacement
@@ -201,7 +224,7 @@ function buildStartSit(
         : `Sit ${s.name} (${injuryCodeLabel(s.injuryStatus)}) — no healthy same-position bench option yet.`,
       `${s.name} is still listed in a starting slot (${formatStatusCode(s.slot ?? s.position)}) with injury status ${injuryCodeLabel(s.injuryStatus)}.`,
       replacement
-        ? `Best bench option: ${replacement.name} (${pointsOrZero(replacement.projectedPoints).toFixed(1)} projected, ${injuryCodeLabel(replacement.injuryStatus)}).`
+        ? `Best bench option: ${replacement.name} (${projectedPhrase(replacement)}, ${injuryCodeLabel(replacement.injuryStatus)}).`
         : `Check the waiver wire for a healthy ${s.position}.`,
     ];
     const form = recentFormSummary(replacement ?? s);
@@ -261,7 +284,9 @@ function buildMatchupNotes(
       summary: punch,
       reasoning: [
         punch,
-        `${s.name} is projected for ${pointsOrZero(s.projectedPoints).toFixed(1)} points this week vs ${def.opponent}.`,
+        hasProjection(s)
+          ? `${s.name} is projected for ${pointsOrZero(s.projectedPoints).toFixed(1)} points this week vs ${def.opponent}.`
+          : `${s.name} has no projection yet this week vs ${def.opponent}.`,
         def.summary,
         formAvg != null
           ? `${s.name} has been averaging about ${formAvg.toFixed(1)} points in recent games.`
@@ -284,7 +309,9 @@ function buildOther(
   const owned = new Set(rosterPool(league).map((p) => p.espnId));
 
   for (const pos of SKILL_POSITIONS) {
-    const myStarters = starters.filter((p) => p.position === pos);
+    const myStarters = starters.filter(
+      (p) => p.position === pos && hasProjection(p),
+    );
     if (!myStarters.length) continue;
     const myAvg =
       myStarters.reduce((a, p) => a + pointsOrZero(p.projectedPoints), 0) /
@@ -309,7 +336,9 @@ function buildOther(
     }
   }
 
+  // Drop/add advice compares projections, so both sides need a real one.
   const drops = bench
+    .filter(hasProjection)
     .filter(
       (p) =>
         p.percentOwned < 35 ||
@@ -321,6 +350,7 @@ function buildOther(
   // Best FAs first; each drop pairs with the best unused FA at the same position.
   const adds = league.freeAgents
     .filter((fa) => !owned.has(fa.espnId))
+    .filter(hasProjection)
     .filter(
       (fa) =>
         pointsOrZero(fa.projectedPoints) >= 8 || fa.percentOwned >= 30,
@@ -396,11 +426,12 @@ function buildOther(
 
   for (const pos of ["K", "D/ST"] as PlayerPosition[]) {
     const mine = starters.find((p) => p.position === pos);
-    if (!mine) continue;
+    if (!mine || !hasProjection(mine)) continue;
     const betterFa = league.freeAgents
       .filter(
         (fa) =>
           fa.position === pos &&
+          hasProjection(fa) &&
           pointsOrZero(fa.projectedPoints) >
             pointsOrZero(mine.projectedPoints) + 1.5,
       )
